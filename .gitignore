@@ -1,0 +1,15 @@
+# BMAD (local only) - Commented out for config repo tracking
+# .bmad-core/
+.bmad-*/
+_bmad*
+.agents
+.agent
+.claude
+.cursor
+.gemini
+.github
+pitcharena-ui
+screen
+assets
+*.md
+!README.md
