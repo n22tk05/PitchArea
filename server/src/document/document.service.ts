@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import 'multer';
 import {
   DocumentAnalysisResult,
   DocumentSection,
@@ -12,12 +13,30 @@ import { BlindSpotDetector } from '../adapters/blind-spot-detector';
 
 @Injectable()
 export class DocumentService {
+  /**
+   * Giải mã tên tệp tiếng Việt / UTF-8 bị Multer parse nhầm thành ISO-8859-1 (Latin1)
+   */
+  private decodeFilename(filename?: string): string {
+    if (!filename) return 'document.docx';
+    try {
+      const decoded = Buffer.from(filename, 'latin1').toString('utf8');
+      if (decoded.includes('\uFFFD')) {
+        return filename;
+      }
+      return decoded;
+    } catch {
+      return filename;
+    }
+  }
+
   async processDocx(file: Express.Multer.File): Promise<DocumentAnalysisResult> {
     if (!file) {
       throw new BadRequestException('Không tìm thấy tệp tải lên.');
     }
 
-    if (!file.originalname.toLowerCase().endsWith('.docx')) {
+    const safeFilename = this.decodeFilename(file.originalname);
+
+    if (!safeFilename.toLowerCase().endsWith('.docx')) {
       throw new BadRequestException('Chỉ chấp nhận tệp định dạng Word (.docx).');
     }
 
@@ -41,7 +60,7 @@ export class DocumentService {
 
       const result: DocumentAnalysisResult = {
         documentId: `doc-${Date.now()}`,
-        filename: file.originalname,
+        filename: safeFilename,
         fileSizeBytes: file.size,
         markdownContent: parsed.markdown,
         sections,

@@ -29,12 +29,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onStartClick }) => {
 
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center gap-2">
-          <a
-            href="#uploader"
+          <button
+            type="button"
+            onClick={onStartClick}
             className="px-3 py-1.5 font-mono text-xs font-bold bg-black text-white rounded uppercase tracking-wider hover:bg-neutral-800 arcade-shadow-sm transition-all duration-150"
           >
-            [ NẠP ĐỀ TÀI ]
-          </a>
+            [ VÀO ĐẤU TRƯỜNG ]
+          </button>
           <a
             href="#jury-council"
             className="px-3 py-1.5 font-mono text-xs text-neutral-600 hover:text-black font-bold uppercase transition-colors duration-150"

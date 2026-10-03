@@ -9,6 +9,7 @@ import {
   Get,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import 'multer';
 import { DocumentService } from './document.service';
 
 @Controller('api/documents')

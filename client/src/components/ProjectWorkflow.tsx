@@ -9,10 +9,12 @@ import { DocumentAnalysisResult } from '@pitcharena/shared';
 
 interface ProjectWorkflowProps {
   onAnalysisComplete?: (result: DocumentAnalysisResult) => void;
+  onStepClick?: (step: 1 | 2 | 3 | 4) => void;
 }
 
 export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
   onAnalysisComplete,
+  onStepClick,
 }) => {
   const [autoStep, setAutoStep] = useState<number>(1);
   const [hoveredStep, setHoveredStep] = useState<number | null>(null);
@@ -133,6 +135,7 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
               key={item.step}
               onMouseEnter={() => setHoveredStep(item.step)}
               onMouseLeave={() => setHoveredStep(null)}
+              onClick={() => onStepClick?.(item.step as 1 | 2 | 3 | 4)}
               className={`group relative cursor-pointer rounded-lg border-2 border-black p-4 flex flex-col justify-between gap-3 select-none overflow-hidden transition-all duration-300 ${
                 isCurrentActive
                   ? 'bg-white arcade-shadow -translate-y-1 translate-x-0.5 ring-2 ring-black scale-[1.01]'
