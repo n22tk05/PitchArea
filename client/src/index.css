@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    overscroll-behavior: none;
+  }
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Retro CRT Overlay */
+.crt-overlay {
+  background: linear-gradient(rgba(0, 0, 0, 0.015) 50%, rgba(0, 0, 0, 0.04) 50%),
+              linear-gradient(90deg, rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0.01));
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Mechanical Arcade Shadows */
+.arcade-shadow {
+  box-shadow: 4px 4px 0px 0px #0a0b0e;
+}
+
+.arcade-shadow-sm {
+  box-shadow: 2px 2px 0px 0px #0a0b0e;
+}
+
+.arcade-shadow-hover:hover {
+  box-shadow: 2px 2px 0px 0px #0a0b0e;
+  transform: translate(2px, 2px);
+}
+
+.arcade-shadow-hover:active {
+  box-shadow: 0px 0px 0px 0px #0a0b0e;
+  transform: translate(4px, 4px);
+}
+
+.pixel-grid-bg {
+  background-image: radial-gradient(#d1d5db 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+/* Autonomous Retro Pixel Engine Animations */
+@keyframes pixel-nudge {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+
+.animate-pixel-nudge {
+  animation: pixel-nudge 1.6s ease-in-out infinite;
+}
+
+/* Glitch Jitter & Scan Shift */
+@keyframes glitch-jitter {
+  0% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-1.5px, 1px);
+    text-shadow: -1.5px 0 #00ffff, 1.5px 0 #ff0055;
+  }
+  40% {
+    transform: translate(1.5px, -1px);
+    text-shadow: 1.5px 0 #ff0055, -1.5px 0 #00ffff;
+  }
+  60% {
+    transform: translate(-1px, 0.5px);
+    text-shadow: -1px 0 #00ffff;
+  }
+  80% {
+    transform: translate(1px, -0.5px);
+    text-shadow: 1px 0 #ff0055;
+  }
+  100% {
+    transform: translate(0, 0);
+    text-shadow: none;
+  }
+}
+
+.glitch-text {
+  animation: glitch-jitter 0.3s ease-in-out;
+}
+
+/* Periodic Brand Glitch Animation (Glitch kéo dài trọn vẹn 2 giây) */
+@keyframes periodic-glitch {
+  0%, 90%, 100% {
+    transform: translate(0, 0);
+    text-shadow: none;
+  }
+  93% {
+    transform: translate(2px, -1px);
+    text-shadow: 2.5px 0 #ff0055, -2px 0 #00ffff;
+  }
+  96% {
+    transform: translate(-1.5px, 0.5px);
+    text-shadow: -2px 0 #00ffff, 1.5px 0 #ff0055;
+  }
+  98% {
+    transform: translate(1px, -0.5px);
+    text-shadow: 1.5px 0 #ff0055;
+  }
+}
+
+.glitch-loop {
+  animation: periodic-glitch 4s ease-in-out infinite;
+}
+
+

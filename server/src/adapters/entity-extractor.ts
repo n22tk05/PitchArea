@@ -1,0 +1,155 @@
+import { generateObject } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { z } from 'zod';
+import {
+  BusinessSectionType,
+  DocumentSection,
+  EntityWhitelistItem,
+} from '@pitcharena/shared';
+
+// Zod Schema định nghĩa cấu trúc Entity cho Vercel AI SDK
+const ExtractedEntitySchema = z.object({
+  rawText: z
+    .string()
+    .describe('Đoạn văn bản gốc thể hiện số liệu, ví dụ: "15%", "$12", "2 tỷ VNĐ", "500 người dùng", "6 tháng"'),
+  category: z
+    .enum(['PERCENTAGE', 'CURRENCY', 'METRIC', 'DATE_TIMELINE', 'ENTITY_NAME'])
+    .describe('Phân loại thực thể'),
+  value: z.string().describe('Giá trị số liệu đã được chuẩn hóa'),
+  contextSentence: z
+    .string()
+    .describe('Câu văn cụ thể trong tài liệu chứa số liệu này để làm căn cứ đối soát'),
+  sectionType: z.enum([
+    'PROBLEM_MARKET',
+    'SOLUTION_PRODUCT',
+    'BUSINESS_MODEL_UNIT_ECONOMICS',
+    'COMPETITION_MOAT',
+    'SOCIAL_IMPACT_ROADMAP',
+  ]),
+});
+
+const ExtractionResponseSchema = z.object({
+  entities: z.array(ExtractedEntitySchema),
+});
+
+export class EntityExtractor {
+  /**
+   * Trích xuất toàn diện số liệu Whitelist bằng Vercel AI SDK + Google Gemini Flash
+   * Thay thế 100% các đoạn regex hardcode từ khóa, tự động hiểu ngữ nghĩa tiếng Việt.
+   */
+  public static async extract(
+    sections: DocumentSection[]
+  ): Promise<EntityWhitelistItem[]> {
+    const apiKey =
+      process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
+    // Chuẩn bị văn bản đầu vào gom theo 5 khối đề mục
+    const aggregatedContent = sections
+      .filter((s) => s.content && s.content.trim().length > 0)
+      .map(
+        (s) =>
+          `[KHỐI CHUYÊN MÔN: ${s.type} - TIÊU ĐỀ: ${s.title}]\n${s.content}`
+      )
+      .join('\n\n---\n\n');
+
+    if (!aggregatedContent || aggregatedContent.trim().length === 0) {
+      return [];
+    }
+
+    // NẾU CÓ GEMINI_API_KEY: Sử dụng Vercel AI SDK generateObject
+    if (apiKey) {
+      try {
+        const googleProvider = createGoogleGenerativeAI({
+          apiKey,
+        });
+
+        const { object } = await generateObject({
+          model: googleProvider('gemini-1.5-flash'),
+          schema: ExtractionResponseSchema,
+          system: `Bạn là Chuyên gia Thẩm định Số liệu Dự án Khởi nghiệp (Pitch Deck Auditor).
+Nhiệm vụ của bạn là bóc tách toàn bộ các số liệu, chỉ số tài chính, quy mô thị trường, chi phí, chỉ số kỹ thuật và mốc thời gian từ bài thuyết trình của sinh viên.
+Tuyệt đối không bỏ sót các số liệu quan trọng như CAC, LTV, MAU, doanh thu, vốn gọi, tỷ lệ chuyển đổi, độ trễ hệ thống, số lượng mẫu khảo sát...
+Chuẩn hóa và gán chính xác từng số liệu vào đúng khối đề tài chuyên môn tương ứng.`,
+          prompt: `Hãy phân tích toàn bộ văn bản sau đây và trích xuất danh sách thực thể số liệu (Whitelist Entities):\n\n${aggregatedContent}`,
+        });
+
+        let counter = 1;
+        return object.entities.map((item) => ({
+          id: `entity-${counter++}`,
+          rawText: item.rawText,
+          category: item.category as EntityWhitelistItem['category'],
+          value: item.value,
+          contextSentence: item.contextSentence,
+          sectionType: item.sectionType as BusinessSectionType,
+        }));
+      } catch (err) {
+        console.warn(
+          '[EntityExtractor] Lỗi khi gọi Vercel AI SDK, chuyển sang Fallback Tokenizer:',
+          err
+        );
+      }
+    }
+
+    // FALLBACK TỰ ĐỘNG (Khi chưa cấu hình API Key hoặc lỗi mạng):
+    // Sử dụng bộ Generic Number-Unit Tokenizer (không hardcode từ vựng)
+    return this.fallbackGenericExtract(sections);
+  }
+
+  /**
+   * Bộ trích xuất tổng quát dự phòng (Generic Number-Unit Tokenizer)
+   * Không hardcode từ vựng riêng lẻ, nhận diện mọi cụm [Số] + [Đơn vị/Từ ngữ theo sau]
+   */
+  private static fallbackGenericExtract(
+    sections: DocumentSection[]
+  ): EntityWhitelistItem[] {
+    const whitelist: EntityWhitelistItem[] = [];
+    let counter = 1;
+
+    // Pattern tổng quát: [$₫]? + [Số] + [% hoặc 1-2 từ ngữ theo sau]
+    const genericNumberRegex =
+      /(?:[$₫€¥£]\s*)?\b\d+(?:[.,]\d+)?\s*(?:%|[a-zA-ZÀ-ỹ]+(?:\s+[a-zA-ZÀ-ỹ]+)?)\b/gu;
+
+    for (const section of sections) {
+      if (!section.content) continue;
+
+      const sentences = section.content
+        .split(/(?<=[.?!;])\s+|\n+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 5);
+
+      for (const sentence of sentences) {
+        const matches = sentence.match(genericNumberRegex);
+        if (matches) {
+          for (const match of matches) {
+            let category: EntityWhitelistItem['category'] = 'METRIC';
+            if (match.includes('%')) {
+              category = 'PERCENTAGE';
+            } else if (/(đ|vnd|vnđ|\$|usd|tỷ|triệu)/i.test(match)) {
+              category = 'CURRENCY';
+            } else if (/(tháng|năm|quý|tuần|ngày|q[1-4])/i.test(match)) {
+              category = 'DATE_TIMELINE';
+            }
+
+            whitelist.push({
+              id: `entity-${counter++}`,
+              rawText: match,
+              category,
+              value: match,
+              contextSentence: sentence,
+              sectionType: section.type,
+            });
+          }
+        }
+      }
+    }
+
+    // Khử trùng lặp
+    const seen = new Set<string>();
+    return whitelist.filter((item) => {
+      const key = `${item.value.toLowerCase()}_${item.contextSentence.slice(0, 30)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+}

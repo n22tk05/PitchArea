@@ -1,0 +1,31 @@
+{
+  "name": "pitcharena-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PitchArena - Realtime AI Voice Defense Simulator for University Students (NestJS + ReactJS)",
+  "workspaces": [
+    "packages/*",
+    "server",
+    "client",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run --workspace=@pitcharena/shared build && npm run --workspace=pitcharena-server build && npm run --workspace=pitcharena-client build",
+    "dev:server": "npm run --workspace=pitcharena-server dev",
+    "dev:client": "npm run --workspace=pitcharena-client dev",
+    "build:server": "npm run --workspace=pitcharena-server build",
+    "build:client": "npm run --workspace=pitcharena-client build",
+    "test": "npm run --workspaces --if-present test"
+  },
+  "keywords": [
+    "pitcharena",
+    "nestjs",
+    "reactjs",
+    "tailwindcss",
+    "lucide-react",
+    "voice-defense",
+    "in-memory-rag"
+  ],
+  "author": "PitchArena Team",
+  "license": "MIT"
+}
