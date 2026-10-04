@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Mic, MicOff, Volume2 } from 'lucide-react';
+import { Mic, MicOff } from 'lucide-react';
 
 interface AudioWaveformProps {
   isRecording: boolean;
@@ -14,6 +14,14 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
   estimatedWpm = 0,
   isSilent = false,
 }) => {
+  // Đánh giá nhịp độ WPM chuẩn phong cách Pitching
+  const wpmStatus = useMemo(() => {
+    if (estimatedWpm === 0) return { label: 'CHỜ PHÁT ÂM', color: 'text-neutral-400' };
+    if (estimatedWpm < 110) return { label: 'HƠI CHẬM', color: 'text-amber-600' };
+    if (estimatedWpm <= 165) return { label: 'CHUẨN NHỊP', color: 'text-emerald-600' };
+    return { label: 'QUÁ NHANH', color: 'text-rose-600' };
+  }, [estimatedWpm]);
+
   // Tạo 24 cột sóng âm thanh pixel
   const bars = useMemo(() => {
     return Array.from({ length: 24 }).map((_, index) => {
@@ -25,10 +33,13 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
         return 4; // Độ cao tĩnh khi tắt mic
       }
 
-      // Độ cao biến thiên ngẫu nhiên kết hợp với audioLevel thật
+      // Độ cao biến thiên kết hợp với audioLevel thật (chỉ dao động khi có âm thanh thực tế)
       const baseHeight = (audioLevel / 100) * 38 * factor;
-      const jitter = Math.sin(index * 1.5 + Date.now() / 150) * 4;
-      return Math.max(4, Math.min(40, Math.round(baseHeight + jitter)));
+      const jitter =
+        audioLevel > 6
+          ? Math.sin(index * 1.5 + Date.now() / 120) * 4 * (audioLevel / 50)
+          : 0;
+      return Math.max(3, Math.min(40, Math.round(baseHeight + jitter)));
     });
   }, [isRecording, audioLevel]);
 
@@ -56,25 +67,20 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
 
         <div className="flex items-center gap-3">
           {isRecording && (
-            <>
-              <span className="text-neutral-700">
-                WPM: <strong className="text-black font-bold">{estimatedWpm}</strong>
-              </span>
-              <span
-                className={`px-1.5 py-0.5 border text-[10px] font-bold ${
-                  isSilent
-                    ? 'border-rose-500 bg-rose-50 text-rose-600 animate-pulse'
-                    : 'border-black bg-neutral-100 text-black'
-                }`}
-              >
-                {isSilent ? 'VAD: SILENCE GAP' : 'VAD: SPEAKING'}
-              </span>
-            </>
+            <span className="flex items-center gap-1.5 text-neutral-700">
+              <span>WPM:</span>
+              <strong className="text-black font-bold font-mono">
+                {estimatedWpm > 0 ? estimatedWpm : '--'}
+              </strong>
+              {estimatedWpm > 0 && (
+                <span
+                  className={`text-[9px] font-bold px-1 border border-black/30 bg-neutral-50 ${wpmStatus.color}`}
+                >
+                  [{wpmStatus.label}]
+                </span>
+              )}
+            </span>
           )}
-          <span className="flex items-center gap-1 text-neutral-600">
-            <Volume2 className="w-3.5 h-3.5" />
-            {audioLevel}%
-          </span>
         </div>
       </div>
 

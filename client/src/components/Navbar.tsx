@@ -57,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onStartClick }) => {
             className="font-mono text-xs bg-black hover:bg-neutral-800 active:translate-y-0.5 active:translate-x-0.5 text-white font-bold px-4 py-2 rounded uppercase tracking-wider border-2 border-black arcade-shadow arcade-shadow-hover transition-all inline-flex items-center gap-1.5"
           >
             <Play className="w-3.5 h-3.5" />
-            <span>[ &gt; BẮT ĐẦU ]</span>
+            <span>[ BẮT ĐẦU ]</span>
           </button>
         </div>
 

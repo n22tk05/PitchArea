@@ -89,38 +89,6 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
             BƯỚC {String(hoveredStep !== null ? hoveredStep : autoStep).padStart(2, '0')}/04 ACTIVE
           </span>
         </div>
-
-        {/* The Track Line with Animated Energy Fill */}
-        <div className="relative w-full h-2.5 bg-neutral-200 border-2 border-black rounded-full overflow-hidden p-[1px]">
-          <div
-            className="h-full bg-black transition-all duration-500 ease-out rounded-full"
-            style={{
-              width: `${((hoveredStep !== null ? hoveredStep : autoStep) / 4) * 100}%`,
-            }}
-          />
-        </div>
-
-        {/* 4 Waypoints Nodes directly mapping to 4 cards */}
-        <div className="relative flex justify-between px-[10%] -mt-2 pointer-events-none">
-          {[1, 2, 3, 4].map((stepNum) => {
-            const isPassed = (hoveredStep !== null ? hoveredStep : autoStep) >= stepNum;
-            const isCurrent = (hoveredStep !== null ? hoveredStep : autoStep) === stepNum;
-            return (
-              <div
-                key={stepNum}
-                className={`w-3.5 h-3.5 rounded-full border-2 border-black flex items-center justify-center transition-all duration-300 ${
-                  isPassed
-                    ? 'bg-black text-white scale-125 ring-2 ring-black/20'
-                    : 'bg-white text-neutral-400'
-                }`}
-              >
-                {isCurrent && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                )}
-              </div>
-            );
-          })}
-        </div>
       </div>
 
       {/* 4 Step Cards Grid */}

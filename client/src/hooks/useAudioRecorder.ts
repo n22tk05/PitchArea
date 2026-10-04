@@ -28,6 +28,10 @@ export function useAudioRecorder({
   const lastSpokenTimestampRef = useRef<number>(Date.now());
   const wordsCountRef = useRef<number>(0);
   const startTimeRef = useRef<number>(Date.now());
+  const speechStartTimestampRef = useRef<number | null>(null);
+  const wordSamplesRef = useRef<{ timestamp: number; wordCount: number }[]>([]);
+  const lastWpmRef = useRef<number>(0);
+  const finalTranscriptRef = useRef<string>('');
 
   // Bắt đầu thu âm và kích hoạt Web Speech API
   const startRecording = useCallback(async () => {
@@ -46,38 +50,54 @@ export function useAudioRecorder({
       setTranscript('');
       setInterimTranscript('');
       startTimeRef.current = Date.now();
+      speechStartTimestampRef.current = null;
       wordsCountRef.current = 0;
+      wordSamplesRef.current = [];
+      lastWpmRef.current = 0;
+      finalTranscriptRef.current = '';
+      setEstimatedWpm(0);
+      setIsSilent(false);
       lastSpokenTimestampRef.current = Date.now();
 
-      // 1. Phân tích Sóng âm qua Web Audio API
+      // 1. Phân tích Sóng âm qua Web Audio API (Tối ưu độ nhạy cho dải giọng nói con người)
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       const audioCtx = new AudioCtx();
       audioContextRef.current = audioCtx;
 
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 64;
-      analyser.smoothingTimeConstant = 0.8;
+      analyser.fftSize = 256; // 128 bins với độ phân giải tần số tốt hơn cho giọng nói
+      analyser.smoothingTimeConstant = 0.35; // Phản hồi nhanh tức thì thay vì trễ 0.8
       source.connect(analyser);
       analyserRef.current = analyser;
 
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const freqData = new Uint8Array(analyser.frequencyBinCount);
 
       const updateMeter = () => {
         if (!analyserRef.current) return;
-        analyserRef.current.getByteFrequencyData(dataArray);
+        analyserRef.current.getByteFrequencyData(freqData);
 
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i];
+        // Tập trung đo năng lượng dải tần số giọng người (vocal band: ~100Hz - 4000Hz, bins 1-24)
+        let vocalSum = 0;
+        let peak = 0;
+        const vocalBins = Math.min(24, freqData.length);
+        for (let i = 1; i < vocalBins; i++) {
+          const val = freqData[i];
+          vocalSum += val;
+          if (val > peak) peak = val;
         }
-        const average = sum / dataArray.length;
-        const normalizedLevel = Math.min(100, Math.round((average / 128) * 100));
+        const vocalAvg = vocalBins > 1 ? vocalSum / (vocalBins - 1) : 0;
+
+        // Khuếch đại phi tuyến tính để phản hồi nhạy với giọng nói thông thường
+        const normalizedLevel = Math.min(
+          100,
+          Math.round((vocalAvg / 60) * 80 + (peak / 255) * 20)
+        );
         setAudioLevel(normalizedLevel);
 
-        // Kiểm tra VAD: Nếu có âm lượng > 15 thì đang nói, ngược lại tính thời gian im lặng
+        // Kiểm tra VAD: Nếu âm lượng vocal > 10% thì xác nhận đang phát âm
         const now = Date.now();
-        if (normalizedLevel > 18) {
+        if (normalizedLevel > 10) {
           lastSpokenTimestampRef.current = now;
           setIsSilent(false);
         } else {
@@ -93,7 +113,7 @@ export function useAudioRecorder({
 
       updateMeter();
 
-      // 2. Kích hoạt Web Speech Recognition (Hỗ trợ tiếng Việt độ trễ cực thấp)
+      // 2. Kích hoạt Web Speech Recognition (Tính WPM thời gian thực cả trên Interim lẫn Final)
       const SpeechRecognition =
         (window as any).SpeechRecognition ||
         (window as any).webkitSpeechRecognition;
@@ -118,21 +138,74 @@ export function useAudioRecorder({
           }
 
           if (finalPiece) {
-            setTranscript((prev) => {
-              const updated = (prev + ' ' + finalPiece).trim();
-              const words = updated.split(/\s+/).filter(Boolean).length;
-              wordsCountRef.current = words;
-              const elapsedMinutes = (Date.now() - startTimeRef.current) / 60000;
-              const wpm = elapsedMinutes > 0 ? Math.round(words / elapsedMinutes) : 0;
-              setEstimatedWpm(wpm);
-              onTranscriptChange?.(updated, true, wpm);
-              return updated;
-            });
+            finalTranscriptRef.current = (
+              finalTranscriptRef.current + ' ' + finalPiece
+            ).trim();
+            setTranscript(finalTranscriptRef.current);
           }
 
           setInterimTranscript(currentInterim);
-          if (currentInterim) {
-            lastSpokenTimestampRef.current = Date.now();
+
+          const fullCurrentText = (
+            finalTranscriptRef.current + ' ' + currentInterim
+          ).trim();
+          const currentWords = fullCurrentText
+            ? fullCurrentText.split(/\s+/).filter(Boolean).length
+            : 0;
+          wordsCountRef.current = currentWords;
+
+          // Cập nhật VAD & WPM ngay khi có từ mới (dù là interim hay final)
+          const now = Date.now();
+          if (currentWords > 0) {
+            lastSpokenTimestampRef.current = now;
+            setIsSilent(false);
+
+            if (speechStartTimestampRef.current === null) {
+              speechStartTimestampRef.current = now;
+            }
+
+            // Ghi nhận mẫu từ để tính tốc độ nói tức thời qua Rolling Window
+            wordSamplesRef.current.push({
+              timestamp: now,
+              wordCount: currentWords,
+            });
+            // Giữ cửa sổ mẫu trong 7 giây gần nhất
+            wordSamplesRef.current = wordSamplesRef.current.filter(
+              (s) => now - s.timestamp <= 7000
+            );
+
+            const totalSpeechSec = (now - speechStartTimestampRef.current) / 1000;
+            let calculatedWpm = lastWpmRef.current;
+
+            if (totalSpeechSec >= 1.0) {
+              const oldestSample = wordSamplesRef.current[0];
+              const windowSec = (now - oldestSample.timestamp) / 1000;
+              const wordsInWindow = currentWords - oldestSample.wordCount;
+
+              if (windowSec >= 1.5 && wordsInWindow > 0) {
+                // Tốc độ tức thời trong cửa sổ trượt
+                const instantWpm = (wordsInWindow / windowSec) * 60;
+                // Tốc độ bình quân lũy kế
+                const cumulativeWpm = (currentWords / totalSpeechSec) * 60;
+                // Kết hợp 75% tức thời + 25% bình quân để nhạy nhưng không giật
+                calculatedWpm = Math.round(0.75 * instantWpm + 0.25 * cumulativeWpm);
+              } else {
+                calculatedWpm = Math.round((currentWords / totalSpeechSec) * 60);
+              }
+
+              // Kẹp trong giới hạn thực tế của giọng nói người [40 - 280 WPM]
+              calculatedWpm = Math.min(280, Math.max(40, calculatedWpm));
+              lastWpmRef.current = calculatedWpm;
+              setEstimatedWpm(calculatedWpm);
+            }
+
+            onTranscriptChange?.(
+              finalPiece ? finalTranscriptRef.current : fullCurrentText,
+              Boolean(finalPiece),
+              calculatedWpm
+            );
+          } else if (currentInterim) {
+            lastSpokenTimestampRef.current = now;
             setIsSilent(false);
             onTranscriptChange?.(currentInterim, false);
           }

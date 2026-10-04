@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from "react";
 import {
   CombatDifficulty,
   CombatDifficultyDetails,
@@ -8,36 +8,41 @@ import {
   LobbyConfig as LobbyConfigType,
   DocumentAnalysisResult,
   SessionFsmState,
-} from '@pitcharena/shared';
+  EvaluationPreset,
+  EvaluationPresetDetails,
+} from "@pitcharena/shared";
 import {
-  Shield,
-  Zap,
+  ArrowLeft,
   Flame,
   Swords,
   Coins,
   Cpu,
   ShieldAlert,
-  Sliders,
   Play,
   RotateCcw,
-  Sparkles,
-  Layers,
   Volume2,
-} from 'lucide-react';
-import { useArenaSocket } from '../hooks/useArenaSocket';
-import { useAudioRecorder } from '../hooks/useAudioRecorder';
-import { AudioWaveform } from './AudioWaveform';
-import { TimerDisplay } from './TimerDisplay';
-import { fixMojibake } from './DocumentUploader';
+  Clock,
+  Award,
+  Sliders,
+  Layers,
+  Zap,
+} from "lucide-react";
+import { useArenaSocket } from "../hooks/useArenaSocket";
+import { useAudioRecorder } from "../hooks/useAudioRecorder";
+import { AudioWaveform } from "./AudioWaveform";
+import { fixMojibake } from "./DocumentUploader";
+import { RetroSelect, RetroOption } from "./RetroSelect";
 
 interface LobbyConfigProps {
   documentData: DocumentAnalysisResult;
   onBackToUpload?: () => void;
+  onStartCombat?: () => void;
 }
 
 export const LobbyConfig: React.FC<LobbyConfigProps> = ({
   documentData,
   onBackToUpload,
+  onStartCombat,
 }) => {
   const sessionId = `session-${documentData.documentId}`;
 
@@ -46,6 +51,9 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
     mode: ArenaMode.FULL_ARENA,
     difficulty: CombatDifficulty.NORMAL,
     selectedBoss: JuryBossId.FINANCE_DRAGON,
+    evaluationPreset: EvaluationPreset.SV_STARTUP,
+    pitchDurationMinutes: 2,
+    qaDurationMinutes: 3,
     roundDurationSeconds: 30,
     prepBufferSeconds: 7,
     enableLiveSubtitles: true,
@@ -60,8 +68,6 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
     liveTranscript,
     updateConfig,
     startCombat,
-    skipPrep,
-    togglePause,
     submitTranscript,
   } = useArenaSocket(sessionId, documentData.documentId);
 
@@ -70,7 +76,7 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
     (text: string, isFinal: boolean, wpm?: number) => {
       submitTranscript(text, isFinal, wpm);
     },
-    [submitTranscript]
+    [submitTranscript],
   );
 
   // Audio Recorder Hook với VAD gap tương ứng cấp độ khó đã chọn
@@ -88,27 +94,67 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
     onTranscriptChange: handleTranscriptChange,
   });
 
+  // 1. Chuyển đổi Mode
   const handleModeChange = (mode: ArenaMode) => {
-    if (isCombatStarted) return;
     const updated = { ...config, mode };
     setConfig(updated);
     updateConfig(updated);
   };
 
+  // 2. Chuyển đổi Preset Thẩm định
+  const handlePresetChange = (preset: EvaluationPreset) => {
+    const presetInfo = EvaluationPresetDetails[preset];
+    const updated = {
+      ...config,
+      evaluationPreset: preset,
+      selectedBoss:
+        config.mode === ArenaMode.QUICK_COMBAT
+          ? presetInfo.targetBoss
+          : config.selectedBoss,
+    };
+    setConfig(updated);
+    updateConfig(updated);
+  };
+
+  // 3. Chuyển đổi Độ khó
   const handleDifficultyChange = (difficulty: CombatDifficulty) => {
-    if (isCombatStarted) return;
-    const updated = { ...config, difficulty };
+    const floor =
+      difficulty === CombatDifficulty.EASY
+        ? 30
+        : difficulty === CombatDifficulty.NORMAL
+          ? 20
+          : 10;
+    const updated = { ...config, difficulty, pedagogicalShieldFloor: floor };
     setConfig(updated);
     updateConfig(updated);
   };
 
+  // 4. Chọn Solo Boss
   const handleBossSelect = (bossId: JuryBossId) => {
-    if (isCombatStarted) return;
-    const updated = { ...config, selectedBoss: bossId, mode: ArenaMode.QUICK_COMBAT };
+    const updated = {
+      ...config,
+      selectedBoss: bossId,
+      mode: ArenaMode.QUICK_COMBAT,
+    };
     setConfig(updated);
     updateConfig(updated);
   };
 
+  // 5. Cập nhật thời gian Pitch (1 - 5 phút)
+  const handlePitchDurationChange = (minutes: number) => {
+    const updated = { ...config, pitchDurationMinutes: minutes };
+    setConfig(updated);
+    updateConfig(updated);
+  };
+
+  // 6. Cập nhật thời gian Q&A (1 - 5 phút)
+  const handleQaDurationChange = (minutes: number) => {
+    const updated = { ...config, qaDurationMinutes: minutes };
+    setConfig(updated);
+    updateConfig(updated);
+  };
+
+  // 7. Toggle Phụ đề
   const handleToggleSubtitles = () => {
     const updated = {
       ...config,
@@ -118,217 +164,339 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
     updateConfig(updated);
   };
 
-  const fsmState = timerData?.fsmState || sessionState?.fsmState || SessionFsmState.LOBBY_READY;
+  const fsmState =
+    timerData?.fsmState ||
+    sessionState?.fsmState ||
+    SessionFsmState.LOBBY_READY;
   const isCombatStarted = fsmState !== SessionFsmState.LOBBY_READY;
 
+  const totalMinutes =
+    (config.pitchDurationMinutes || 2) + (config.qaDurationMinutes || 3);
+
+  const handleStart = () => {
+    startCombat();
+    if (onStartCombat) {
+      onStartCombat();
+    }
+  };
+
+  // Retro Options Data Definitions
+  const modeOptions: RetroOption<ArenaMode>[] = [
+    {
+      value: ArenaMode.FULL_ARENA,
+      label: "Hội Đồng Toàn Diện (3 Boss)",
+      subLabel: "3 Giám khảo AI luân phiên phản biện theo 5 phân mục",
+      badge: "3 BOSS",
+      badgeColor: "bg-black text-white",
+      icon: <Layers className="w-3.5 h-3.5" />,
+    },
+    {
+      value: ArenaMode.QUICK_COMBAT,
+      label: "Solo Boss 1-1 (Đối Chất)",
+      subLabel: "Đối chất 1-1 trực diện, 2 Boss còn lại mờ 25%",
+      badge: "SOLO",
+      badgeColor: "bg-amber-400 text-black",
+      icon: <Zap className="w-3.5 h-3.5 text-amber-500" />,
+    },
+  ];
+
+  const presetOptions: RetroOption<EvaluationPreset>[] = [
+    {
+      value: EvaluationPreset.SV_STARTUP,
+      label: "SV-Startup & Euréka",
+      subLabel: "Bộ GD&ĐT / Thành Đoàn (Cấp thiết, Đổi mới, Khả thi)",
+      badge: "PRESET 1",
+      badgeColor: "bg-neutral-100 text-black",
+      icon: <Award className="w-3.5 h-3.5" />,
+    },
+    {
+      value: EvaluationPreset.SEED_ANGEL,
+      label: "Seed / Angel Pitch",
+      subLabel: "Quỹ Thiên Thần / Hạt Giống (Unit Economics, CAC/LTV, Moat)",
+      badge: "PRESET 2",
+      badgeColor: "bg-amber-100 text-amber-900",
+      icon: <Coins className="w-3.5 h-3.5" />,
+    },
+    {
+      value: EvaluationPreset.TECH_PATENT,
+      label: "Tech & IP Patent",
+      subLabel: "Sở Hữu Trí Tuệ & Công Nghệ Lõi (Độ sâu thuật toán, Dữ liệu)",
+      badge: "PRESET 3",
+      badgeColor: "bg-blue-100 text-blue-900",
+      icon: <Cpu className="w-3.5 h-3.5" />,
+    },
+  ];
+
+  const difficultyOptions: RetroOption<CombatDifficulty>[] = [
+    {
+      value: CombatDifficulty.EASY,
+      label: "Tân Thủ (Easy)",
+      subLabel: "VAD gap 3.5s • Phù hợp làm quen & tập dượt",
+    },
+    {
+      value: CombatDifficulty.NORMAL,
+      label: "Tiêu Chuẩn (Normal)",
+      subLabel: "VAD gap 2.0s • Nhịp độ chuẩn thi đấu",
+    },
+    {
+      value: CombatDifficulty.HARDCORE,
+      label: "Khắc Nghiệt (Hardcore)",
+      subLabel: "VAD gap 1.0s • Phản xạ nhanh, dồn dập",
+    },
+  ];
+
+  const pitchOptions: RetroOption<number>[] = [
+    { value: 1, label: "1 Phút (60 giây)" },
+    {
+      value: 2,
+      label: "2 Phút (120 giây)",
+      badge: "KHUYÊN DÙNG",
+      badgeColor: "bg-amber-300 text-black",
+    },
+    { value: 3, label: "3 Phút (180 giây)" },
+    { value: 4, label: "4 Phút (240 giây)" },
+    { value: 5, label: "5 Phút (300 giây)", badge: "TỐI ĐA" },
+  ];
+
+  const qaOptions: RetroOption<number>[] = [
+    { value: 1, label: "1 Phút (60 giây)" },
+    { value: 2, label: "2 Phút (120 giây)" },
+    {
+      value: 3,
+      label: "3 Phút (180 giây)",
+      badge: "KHUYÊN DÙNG",
+      badgeColor: "bg-amber-300 text-black",
+    },
+    { value: 4, label: "4 Phút (240 giây)" },
+    { value: 5, label: "5 Phút (300 giây)", badge: "TỐI ĐA" },
+  ];
+
   return (
-    <div className="w-full flex flex-col gap-6 font-mono text-black">
-      {/* Top Session Bar */}
-      <div className="border-2 border-black bg-white p-3 shadow-[4px_4px_0px_#000] flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-bold bg-black text-white px-2 py-0.5">
-            BƯỚC 02 // SẢNH ĐẤU & VOICE FLOW
-          </span>
-          <span className="text-neutral-600">
-            TÀI LIỆU: <strong className="text-black">{fixMojibake(documentData.filename)}</strong>
-          </span>
-          <span className="text-neutral-500">
-            ({documentData.sections.length} PHÂN MỤC • {documentData.blindSpots.length} ĐIỂM MÙ)
-          </span>
-        </div>
+    <div className="w-full flex flex-col gap-4 font-mono text-black">
+      {/* Top Header: Đồng bộ chiều cao chuẩn Pixel */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {onBackToUpload && (
+          <button
+            type="button"
+            onClick={onBackToUpload}
+            className="h-10 px-3.5 border-2 border-black bg-white hover:bg-neutral-100 flex items-center gap-2 text-xs font-bold active:translate-x-0.5 active:translate-y-0.5 shadow-[3px_3px_0px_#000] transition-all shrink-0"
+            title="Quay về Bước 01: Nạp tài liệu đề tài"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>QUAY VỀ BƯỚC 01</span>
+          </button>
+        )}
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${
-                isConnected ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'
-              }`}
-            />
-            <span className="text-[11px] font-bold">
-              {isConnected ? 'SOCKET ONLINE' : 'DISCONNECTED'}
-            </span>
-          </div>
-
-          {onBackToUpload && (
-            <button
-              onClick={onBackToUpload}
-              className="px-2 py-1 border border-black hover:bg-neutral-100 flex items-center gap-1 text-[11px]"
-            >
-              <RotateCcw className="w-3 h-3" />
-              NẠP LẠI TÀI LIỆU
-            </button>
-          )}
+        <div className="h-10 border-2 border-black bg-white px-4 shadow-[3px_3px_0px_#000] flex-1 flex items-center justify-between gap-3 text-xs overflow-hidden">
+          <span className="font-bold bg-black text-white px-2 py-0.5 shrink-0">
+            BƯỚC 02 // SẢNH ĐẤU & VOICE LOBBY
+          </span>
+          <span className="text-neutral-600 truncate flex items-center gap-1.5">
+            <span>TÀI LIỆU:</span>
+            <strong className="text-black truncate">
+              {fixMojibake(documentData.filename)}
+            </strong>
+          </span>
         </div>
       </div>
 
       {/* Main Grid: 2 Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column (7 cols): Cấu hình Trận đấu & Hội đồng Boss */}
-        <div className="lg:col-span-7 flex flex-col gap-5">
-          {/* 1. Chế độ đấu: Full Arena / Quick Combat */}
-          <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000]">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-black/20">
-              <Swords className="w-4 h-4 text-black" />
-              <h3 className="font-bold text-sm">1. CHẾ ĐỘ THI ĐẤU (ARENA MODE)</h3>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => handleModeChange(ArenaMode.FULL_ARENA)}
-                className={`p-3 border-2 text-left transition-all flex flex-col gap-1.5 ${
-                  config.mode === ArenaMode.FULL_ARENA
-                    ? 'border-black bg-neutral-100 shadow-[3px_3px_0px_#000]'
-                    : 'border-neutral-300 bg-white hover:border-black'
-                }`}
-              >
-                <div className="flex items-center justify-between font-bold text-xs">
-                  <span className="flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5" />
-                    HỘI ĐỒNG TOÀN DIỆN
-                  </span>
-                  {config.mode === ArenaMode.FULL_ARENA && (
-                    <span className="bg-black text-white text-[10px] px-1.5 py-0.2">ACTIVE</span>
-                  )}
-                </div>
-                <p className="text-[11px] text-neutral-600 leading-relaxed font-sans">
-                  3 Giám khảo AI luân phiên phản biện theo 5 phân mục tài liệu đã nạp.
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleModeChange(ArenaMode.QUICK_COMBAT)}
-                className={`p-3 border-2 text-left transition-all flex flex-col gap-1.5 ${
-                  config.mode === ArenaMode.QUICK_COMBAT
-                    ? 'border-black bg-neutral-100 shadow-[3px_3px_0px_#000]'
-                    : 'border-neutral-300 bg-white hover:border-black'
-                }`}
-              >
-                <div className="flex items-center justify-between font-bold text-xs">
-                  <span className="flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    SOLO BOSS COMBAT
-                  </span>
-                  {config.mode === ArenaMode.QUICK_COMBAT && (
-                    <span className="bg-black text-white text-[10px] px-1.5 py-0.2">ACTIVE</span>
-                  )}
-                </div>
-                <p className="text-[11px] text-neutral-600 leading-relaxed font-sans">
-                  Chọn 1 Giám khảo đối chất 1-on-1 (2 Giám khảo còn lại mờ 25% Opacity).
-                </p>
-              </button>
-            </div>
-          </div>
-
-          {/* 2. Cấp độ khó (Difficulty) */}
-          <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000]">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-black/20">
-              <Sliders className="w-4 h-4 text-black" />
-              <h3 className="font-bold text-sm">2. CẤP ĐỘ KHÓ (DIFFICULTY LEVEL)</h3>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              {Object.values(CombatDifficulty).map((diff) => {
-                const details = CombatDifficultyDetails[diff];
-                const isSelected = config.difficulty === diff;
-
-                return (
-                  <button
-                    key={diff}
-                    type="button"
-                    onClick={() => handleDifficultyChange(diff)}
-                    className={`p-2.5 border-2 text-left transition-all flex flex-col gap-1 ${
-                      isSelected
-                        ? 'border-black bg-neutral-100 shadow-[3px_3px_0px_#000]'
-                        : 'border-neutral-300 bg-white hover:border-black'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between font-bold text-xs">
-                      <span>{details.label}</span>
-                      <span className={`text-[10px] px-1 border ${details.badgeColor}`}>
-                        -{details.hpPenalty}% HP
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-neutral-600 leading-snug font-sans">
-                      {details.desc}
-                    </p>
-                    <div className="text-[10px] text-neutral-500 font-mono mt-1">
-                      VAD Gap: {details.vadSilenceSec}s
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. Hội Đồng Giám Khảo & Hiệu Ứng Dimmed Silhouette Opacity 25% */}
-          <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000]">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-black/20">
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-black" />
-                <h3 className="font-bold text-sm">3. THÀNH PHẦN HỘI ĐỒNG GIÁM KHẢO</h3>
-              </div>
-              <span className="text-[11px] text-neutral-500">
-                {config.mode === ArenaMode.QUICK_COMBAT
-                  ? 'Bấm để chọn Solo Boss (2 Boss còn lại mờ 25%)'
-                  : 'Đầy đủ 3 Giám khảo phản biện'}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* ==================== CỘT TRÁI (7 COLS): CẤU HÌNH THI ĐẤU & HỘI ĐỒNG GIÁM KHẢO ==================== */}
+        <div className="lg:col-span-7 flex flex-col gap-4">
+          {/* KHỐI 1: BẢNG THIẾT LẬP DẠNG RETRO SELECT DROPDOWN (Chuẩn Monochrome Retro Pixel) */}
+          <div className="border-2 border-black bg-white p-4 shadow-[3px_3px_0px_#000] flex flex-col gap-3.5 relative z-20">
+            <div className="flex items-center justify-between pb-2 border-b border-black/15">
+              <span className="font-bold text-xs flex items-center gap-1.5 uppercase">
+                <Swords className="w-3.5 h-3.5" />
+                CẤU HÌNH THI ĐẤU (MATCH SETTINGS)
+              </span>
+              <span className="text-[10px] text-neutral-500 font-sans">
+                Tùy chỉnh luật đấu trước khi vào sàn
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Hàng 1: Format thi đấu & Cấp độ khó (2 Retro Selects song song) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs relative z-30">
+              <div>
+                <label className="block text-[11px] font-bold text-neutral-700 mb-1 flex items-center gap-1">
+                  <Swords className="w-3 h-3" />
+                  1. FORMAT THI ĐẤU:
+                </label>
+                <RetroSelect<ArenaMode>
+                  value={config.mode}
+                  onChange={handleModeChange}
+                  options={modeOptions}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-neutral-700 mb-1 flex items-center gap-1">
+                  <Sliders className="w-3 h-3" />
+                  2. CẤP ĐỘ KHÓ:
+                </label>
+                <RetroSelect<CombatDifficulty>
+                  value={config.difficulty}
+                  onChange={handleDifficultyChange}
+                  options={difficultyOptions}
+                />
+              </div>
+            </div>
+
+            {/* Hàng 2: Preset Thẩm định (Retro Select toàn dòng) */}
+            <div className="flex flex-col gap-1 relative z-20">
+              <label className="block text-[11px] font-bold text-neutral-700 mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Award className="w-3 h-3" />
+                  3. PRESET THẨM ĐỊNH MỤC TIÊU:
+                </span>
+                <span className="text-[10px] text-neutral-500 font-sans">
+                  Gợi ý trọng tâm phản biện
+                </span>
+              </label>
+              <RetroSelect<EvaluationPreset>
+                value={config.evaluationPreset || EvaluationPreset.SV_STARTUP}
+                onChange={handlePresetChange}
+                options={presetOptions}
+              />
+
+              {/* Dòng mô tả ngắn gọn về trọng tâm preset */}
+              <div className="text-[10px] font-sans text-neutral-600 bg-neutral-50 px-2.5 py-1.5 border border-neutral-300 flex items-center gap-1.5 mt-1">
+                <span className="font-bold text-black font-mono">
+                  TRỌNG TÂM:
+                </span>
+                <span className="truncate">
+                  {
+                    EvaluationPresetDetails[
+                      config.evaluationPreset || EvaluationPreset.SV_STARTUP
+                    ].focus
+                  }
+                </span>
+              </div>
+            </div>
+
+            {/* Hàng 3: Thời gian Pitch & Q&A (2 Retro Selects song song + Badge tổng) */}
+            <div className="pt-2 border-t border-black/15 flex flex-col gap-2 relative z-10">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  4. THỜI GIAN PITCH & Q&A:
+                </span>
+                <span className="font-bold bg-black text-white px-2 py-0.5 text-[11px] shadow-[1px_1px_0px_#eab308]">
+                  TỔNG CỘNG: {String(totalMinutes).padStart(2, "0")}:00 PHÚT
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-600 mb-1">
+                    A. THỜI GIAN PITCHING:
+                  </label>
+                  <RetroSelect<number>
+                    value={config.pitchDurationMinutes || 2}
+                    onChange={handlePitchDurationChange}
+                    options={pitchOptions}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-600 mb-1">
+                    B. THỜI GIAN PHẢN BIỆN Q&A:
+                  </label>
+                  <RetroSelect<number>
+                    value={config.qaDurationMinutes || 3}
+                    onChange={handleQaDurationChange}
+                    options={qaOptions}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* KHỐI 2: HỘI ĐỒNG GIÁM KHẢO (3 Bosses) */}
+          <div className="border-2 border-black bg-white p-4 shadow-[3px_3px_0px_#000] flex flex-col gap-2.5 relative z-10">
+            <div className="flex items-center justify-between pb-2 border-b border-black/20">
+              <div className="flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-black" />
+                <h3 className="font-bold text-xs uppercase">
+                  5. THÀNH PHẦN HỘI ĐỒNG GIÁM KHẢO
+                </h3>
+              </div>
+              <span className="text-[10px] text-neutral-500">
+                {config.mode === ArenaMode.QUICK_COMBAT
+                  ? "Bấm chọn 1 Solo Boss (2 Boss mờ 25%)"
+                  : "Cả 3 Giám khảo cùng tham gia"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {Object.values(JURY_BOSS_PROFILES).map((boss) => {
                 const isSoloSelected =
-                  config.mode === ArenaMode.QUICK_COMBAT && config.selectedBoss === boss.id;
+                  config.mode === ArenaMode.QUICK_COMBAT &&
+                  config.selectedBoss === boss.id;
                 const isDimmed =
-                  config.mode === ArenaMode.QUICK_COMBAT && config.selectedBoss !== boss.id;
+                  config.mode === ArenaMode.QUICK_COMBAT &&
+                  config.selectedBoss !== boss.id;
+                const isFullActive = config.mode === ArenaMode.FULL_ARENA;
 
                 const IconComponent =
                   boss.id === JuryBossId.FINANCE_DRAGON
                     ? Coins
                     : boss.id === JuryBossId.TECH_SENTINEL
-                    ? Cpu
-                    : ShieldAlert;
+                      ? Cpu
+                      : ShieldAlert;
 
                 return (
                   <div
                     key={boss.id}
                     onClick={() => handleBossSelect(boss.id)}
-                    className={`border-2 p-3 transition-all duration-300 cursor-pointer flex flex-col gap-2 relative ${
+                    className={`border-2 p-2.5 transition-all duration-300 cursor-pointer flex flex-col justify-between gap-1.5 relative ${
                       isDimmed
-                        ? 'opacity-25 border-dashed border-neutral-400 bg-neutral-100 filter grayscale pointer-events-auto'
+                        ? "opacity-25 border-dashed border-neutral-400 bg-neutral-100 filter grayscale"
                         : isSoloSelected
-                        ? 'border-black bg-neutral-50 shadow-[4px_4px_0px_#000] ring-2 ring-amber-400'
-                        : 'border-black bg-white shadow-[2px_2px_0px_#000] hover:shadow-[4px_4px_0px_#000]'
+                          ? "border-black bg-neutral-50 shadow-[3px_3px_0px_#000] ring-2 ring-amber-400"
+                          : isFullActive
+                            ? "border-black bg-white shadow-[2px_2px_0px_#000] hover:shadow-[3px_3px_0px_#000]"
+                            : "border-black bg-white"
                     }`}
                   >
                     {isSoloSelected && (
-                      <span className="absolute -top-2.5 right-2 bg-amber-400 text-black border border-black text-[9px] font-bold px-1.5 py-0.2">
+                      <span className="absolute -top-2 right-1.5 bg-amber-400 text-black border border-black text-[8px] font-bold px-1 py-0.1">
                         TARGET BOSS
                       </span>
                     )}
 
+                    {isFullActive && (
+                      <span className="absolute -top-2 right-1.5 bg-emerald-100 text-emerald-800 border border-emerald-400 text-[8px] font-bold px-1 py-0.1">
+                        CO-DEFENSE
+                      </span>
+                    )}
+
                     <div className="flex items-center justify-between">
-                      <div className="p-1.5 border border-black bg-black text-white">
-                        <IconComponent className="w-4 h-4" />
+                      <div className="p-1 border border-black bg-black text-white">
+                        <IconComponent className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-[10px] font-bold border border-black px-1">
+                      <span className="text-[9px] font-bold border border-black px-1">
                         LV.{boss.level}
                       </span>
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-xs">{boss.name}</h4>
-                      <p className="text-[10px] text-neutral-600 font-sans">{boss.title}</p>
+                      <h4 className="font-bold text-xs truncate">
+                        {boss.name}
+                      </h4>
+                      <p className="text-[9px] text-neutral-500 font-sans truncate">
+                        {boss.title}
+                      </p>
                     </div>
 
-                    <div className="text-[10px] text-neutral-800 bg-neutral-100 p-1.5 border border-black/10 font-sans leading-tight">
-                      <strong>Trọng tâm:</strong> {boss.focus}
-                    </div>
-
-                    {isDimmed && (
-                      <div className="text-[9px] text-center font-bold text-neutral-500 uppercase tracking-widest pt-1">
-                        [ DIMMED SILHOUETTE ]
+                    {isDimmed ? (
+                      <div className="text-[8px] text-center font-bold text-neutral-500 uppercase tracking-widest pt-1 border-t border-dashed border-neutral-300">
+                        [ MỜ 25% ]
+                      </div>
+                    ) : (
+                      <div className="text-[8px] text-neutral-600 font-sans line-clamp-1 border-t border-black/10 pt-1">
+                        {boss.domain}
                       </div>
                     )}
                   </div>
@@ -338,21 +506,23 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
           </div>
         </div>
 
-        {/* Right Column (5 cols): Voice Testing, Audio Waveform & Timer Controls */}
-        <div className="lg:col-span-5 flex flex-col gap-5">
-          {/* Live Waveform & Mic Testing */}
-          <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] flex flex-col gap-3">
+        {/* ==================== CỘT PHẢI (5 COLS): KIỂM THỬ GIỌNG NÓI & NÚT BẮT ĐẦU ==================== */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          {/* Kiểm thử Micro  */}
+          <div className="border-2 border-black bg-white p-4 shadow-[3px_3px_0px_#000] flex flex-col gap-3">
             <div className="flex items-center justify-between pb-2 border-b border-black/20">
-              <div className="flex items-center gap-2">
-                <Volume2 className="w-4 h-4 text-black" />
-                <h3 className="font-bold text-sm">4. KIỂM THỬ MICRO & SÓNG ÂM</h3>
+              <div className="flex items-center gap-1.5">
+                <Volume2 className="w-3.5 h-3.5 text-black" />
+                <h3 className="font-bold text-xs uppercase">
+                  KIỂM THỬ MICRO
+                </h3>
               </div>
               <button
                 type="button"
                 onClick={handleToggleSubtitles}
-                className="text-[10px] font-bold underline cursor-pointer"
+                className="text-[10px] font-bold underline cursor-pointer hover:text-amber-600"
               >
-                {config.enableLiveSubtitles ? 'PHỤ ĐỀ: BẬT' : 'PHỤ ĐỀ: TẮT'}
+                {config.enableLiveSubtitles ? "PHỤ ĐỀ: BẬT" : "PHỤ ĐỀ: TẮT"}
               </button>
             </div>
 
@@ -364,72 +534,74 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
             />
 
             {/* Mic Toggle Button */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={isRecording ? stopRecording : startRecording}
-                className={`flex-1 py-2 font-mono text-xs font-bold border-2 border-black transition-all ${
-                  isRecording
-                    ? 'bg-rose-500 text-white shadow-[2px_2px_0px_#000] active:translate-x-0.5 active:translate-y-0.5'
-                    : 'bg-emerald-400 text-black shadow-[2px_2px_0px_#000] hover:bg-emerald-300 active:translate-x-0.5 active:translate-y-0.5'
-                }`}
-              >
-                {isRecording ? '■ DỪNG MICRO TEST' : '▶ BẬT MICRO TEST GIỌNG NÓI'}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              className={`w-full py-2 font-mono text-xs font-bold border-2 border-black transition-all ${
+                isRecording
+                  ? "bg-rose-500 text-white shadow-[2px_2px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
+                  : "bg-emerald-400 text-black shadow-[2px_2px_0px_#000] hover:bg-emerald-300 active:translate-x-0.5 active:translate-y-0.5"
+              }`}
+            >
+              {isRecording ? "■ DỪNG MICRO TEST" : "▶ BẬT MICRO TEST GIỌNG NÓI"}
+            </button>
 
             {/* Real-time Subtitle & Transcript Preview */}
-            <div className="border border-black bg-neutral-900 text-emerald-400 p-2.5 font-mono text-[11px] min-h-[70px] flex flex-col justify-between">
+            <div className="border border-black bg-neutral-900 text-emerald-400 p-2.5 font-mono text-[11px] min-h-[60px] flex flex-col justify-between">
               <div className="flex items-center justify-between text-[9px] text-neutral-400 border-b border-neutral-700 pb-1 mb-1">
-                <span>LIVE TRANSCRIPT PREVIEW (220ms STREAM)</span>
-                <span>{isRecording ? 'STREAMING...' : 'IDLE'}</span>
+                <span>LIVE PREVIEW (220ms STREAM)</span>
+                <span>{isRecording ? "STREAMING..." : "IDLE"}</span>
               </div>
-              <p className="leading-relaxed">
+              <p className="leading-snug text-xs line-clamp-2">
                 {transcript || interimTranscript || liveTranscript?.text || (
-                  <span className="text-neutral-500 italic">
-                    Bật micro và thử nói: "Xin chào hội đồng, giải pháp của chúng tôi giải quyết vấn đề quy mô thị trường..."
+                  <span className="text-neutral-500 italic text-[11px]">
+                    Bật micro và thử nói: "Xin chào hội đồng, giải pháp của
+                    chúng tôi giải quyết..."
                   </span>
                 )}
               </p>
             </div>
           </div>
 
-          {/* Timer Display Component */}
-          <TimerDisplay
-            fsmState={fsmState}
-            prepRemainingSeconds={
-              timerData?.prepRemainingSeconds ?? sessionState?.prepRemainingSeconds ?? 7
-            }
-            turnRemainingSeconds={
-              timerData?.turnRemainingSeconds ?? sessionState?.turnRemainingSeconds ?? 30
-            }
-            isPaused={sessionState?.isPaused ?? timerData?.isPaused ?? false}
-            onSkipPrep={skipPrep}
-            onTogglePause={togglePause}
-          />
-
-          {/* Action Button: Start Combat */}
-          <div className="border-2 border-black bg-neutral-100 p-4 shadow-[4px_4px_0px_#000] flex flex-col gap-2.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold">SÀN BẢO VỆ TÂN THỦ:</span>
-              <span className="font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 border border-emerald-300">
-                KHÓA MÁU MIN {config.pedagogicalShieldFloor}% HP
+          {/* Action Card: Khởi động Đấu trường (Chuẩn hóa vị trí & bọc khung Retro Card) */}
+          <div className="border-2 border-black bg-white p-4 shadow-[3px_3px_0px_#000] flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-2 border-b border-black/15 text-xs">
+              <span className="font-bold flex items-center gap-1.5 uppercase">
+                <Play className="w-3.5 h-3.5 fill-black" />
+                SẴN SÀNG VÀO SÀN ĐẤU
               </span>
+           
+            </div>
+
+            {/* Tóm tắt nhanh thông số đã chọn */}
+            <div className="grid grid-cols-2 gap-2 text-[11px] bg-neutral-50 p-2.5 border border-black/15">
+              <div>
+                <span className="text-neutral-500 block text-[10px]">ĐỐI THỦ:</span>
+                <strong className="text-black line-clamp-1">
+                  {config.mode === ArenaMode.FULL_ARENA
+                    ? "Hội đồng 3 Boss"
+                    : `Solo: ${JURY_BOSS_PROFILES[config.selectedBoss]?.name || "Solo Boss"}`}
+                </strong>
+              </div>
+              <div>
+                <span className="text-neutral-500 block text-[10px]">THỜI LƯỢNG:</span>
+                <strong className="text-black">
+                  {config.pitchDurationMinutes} phút Pitch + {config.qaDurationMinutes} phút Q&A
+                </strong>
+              </div>
             </div>
 
             <button
               type="button"
-              onClick={startCombat}
-              className="w-full py-3.5 bg-black text-white font-mono font-bold text-sm border-2 border-black shadow-[4px_4px_0px_#eab308] hover:bg-neutral-800 active:translate-x-1 active:translate-y-1 active:shadow-none flex items-center justify-center gap-2 tracking-wide"
+              onClick={handleStart}
+              className="w-full py-3 bg-black text-white font-mono font-bold text-xs border-2 border-black shadow-[3px_3px_0px_#eab308] hover:bg-neutral-800 active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 tracking-wide uppercase transition-all cursor-pointer"
             >
               <Play className="w-4 h-4 fill-amber-400 text-amber-400" />
-              {isCombatStarted
-                ? '[ TÁI KHỞI ĐỘNG VÒNG ĐẤU ]'
-                : '[ KHỞI ĐỘNG VÒNG ĐẤU PHẢN BIỆN ]'}
+              <span>BẮT ĐẦU VÒNG ĐẤU (BƯỚC 03)</span>
             </button>
 
             <p className="text-[10px] text-neutral-500 text-center font-sans">
-              *Hệ thống sẽ kích hoạt 07s đệm suy nghĩ trước khi đồng hồ 30s đối chất đếm lùi.
+              *Hệ thống sẽ nạp cấu hình và kích hoạt 07s đệm suy nghĩ trước khi bước vào chất vấn.
             </p>
           </div>
         </div>

@@ -200,6 +200,51 @@ export const JURY_BOSS_PROFILES: Record<JuryBossId, JuryBossProfile> = {
 };
 
 /**
+ * 3 Presets Thẩm Định Tiêu Biểu
+ */
+export const EvaluationPreset = {
+  SV_STARTUP: 'SV_STARTUP',
+  SEED_ANGEL: 'SEED_ANGEL',
+  TECH_PATENT: 'TECH_PATENT',
+} as const;
+
+export type EvaluationPreset =
+  (typeof EvaluationPreset)[keyof typeof EvaluationPreset];
+
+export const EvaluationPresetDetails: Record<
+  EvaluationPreset,
+  {
+    id: EvaluationPreset;
+    name: string;
+    sub: string;
+    focus: string;
+    targetBoss: JuryBossId;
+  }
+> = {
+  [EvaluationPreset.SV_STARTUP]: {
+    id: EvaluationPreset.SV_STARTUP,
+    name: 'SV-Startup & Euréka',
+    sub: 'Bộ GD&ĐT / Thành Đoàn',
+    focus: 'Tính cấp thiết, đổi mới sáng tạo, tính khả thi & giải quyết nỗi đau thực tiễn.',
+    targetBoss: JuryBossId.MARKET_SHARK,
+  },
+  [EvaluationPreset.SEED_ANGEL]: {
+    id: EvaluationPreset.SEED_ANGEL,
+    name: 'Seed / Angel Pitch',
+    sub: 'Quỹ Thiên Thần / Vòng Hạt Giống',
+    focus: 'Unit Economics, chỉ số CAC/LTV, lộ trình hoàn vốn & rào cản phòng thủ (Moat).',
+    targetBoss: JuryBossId.FINANCE_DRAGON,
+  },
+  [EvaluationPreset.TECH_PATENT]: {
+    id: EvaluationPreset.TECH_PATENT,
+    name: 'Tech & IP Patent',
+    sub: 'Sở Hữu Trí Tuệ & Công Nghệ Lõi',
+    focus: 'Độ sâu thuật toán, kiến trúc kỹ thuật, độ trễ và độc quyền dữ liệu nghiên cứu.',
+    targetBoss: JuryBossId.TECH_SENTINEL,
+  },
+};
+
+/**
  * Zod Schema cho Cấu hình Sảnh Đấu (Lobby Config)
  */
 export const LobbyConfigSchema = z.object({
@@ -216,6 +261,16 @@ export const LobbyConfigSchema = z.object({
       JuryBossId.MARKET_SHARK,
     ])
     .nullable()
+    .optional(),
+  pitchDurationMinutes: z.number().min(1).max(5).default(2).optional(),
+  qaDurationMinutes: z.number().min(1).max(5).default(3).optional(),
+  evaluationPreset: z
+    .enum([
+      EvaluationPreset.SV_STARTUP,
+      EvaluationPreset.SEED_ANGEL,
+      EvaluationPreset.TECH_PATENT,
+    ])
+    .default(EvaluationPreset.SV_STARTUP)
     .optional(),
   roundDurationSeconds: z.number().int().min(15).max(120).default(30),
   prepBufferSeconds: z.number().int().min(0).max(15).default(7),
