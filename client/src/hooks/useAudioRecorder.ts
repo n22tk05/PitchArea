@@ -106,6 +106,16 @@ export function useAudioRecorder({
             setIsSilent(true);
             onVadSilenceAlert?.(silenceSec);
           }
+
+          // Giảm dần (Decay) WPM khi người dùng im lặng hoặc ngắt nghỉ quá 1.8 giây
+          if (silenceSec >= 1.8 && lastWpmRef.current > 0) {
+            const decayFactor = 0.96; // Giảm nhẹ mỗi frame kiểm tra
+            const decayedWpm = Math.max(0, Math.round(lastWpmRef.current * decayFactor));
+            if (decayedWpm < lastWpmRef.current) {
+              lastWpmRef.current = decayedWpm;
+              setEstimatedWpm(decayedWpm);
+            }
+          }
         }
 
         animationFrameRef.current = requestAnimationFrame(updateMeter);
@@ -154,7 +164,7 @@ export function useAudioRecorder({
             : 0;
           wordsCountRef.current = currentWords;
 
-          // Cập nhật VAD & WPM ngay khi có từ mới (dù là interim hay final)
+          // Cập nhật số từ và thời gian nói
           const now = Date.now();
           if (currentWords > 0) {
             lastSpokenTimestampRef.current = now;
@@ -164,39 +174,45 @@ export function useAudioRecorder({
               speechStartTimestampRef.current = now;
             }
 
-            // Ghi nhận mẫu từ để tính tốc độ nói tức thời qua Rolling Window
+            // Ghi nhận mẫu từ để tính tốc độ nói qua Rolling Window (lưu giữ 6 giây gần nhất)
             wordSamplesRef.current.push({
               timestamp: now,
               wordCount: currentWords,
             });
-            // Giữ cửa sổ mẫu trong 7 giây gần nhất
             wordSamplesRef.current = wordSamplesRef.current.filter(
-              (s) => now - s.timestamp <= 7000
+              (s) => now - s.timestamp <= 8000
             );
 
             const totalSpeechSec = (now - speechStartTimestampRef.current) / 1000;
             let calculatedWpm = lastWpmRef.current;
 
-            if (totalSpeechSec >= 1.0) {
+            // Chỉ tính WPM sau ít nhất 2 giây để tránh hiện tượng spike khi Web Speech API xả cụm từ đầu tiên
+            if (totalSpeechSec >= 2.0) {
               const oldestSample = wordSamplesRef.current[0];
               const windowSec = (now - oldestSample.timestamp) / 1000;
               const wordsInWindow = currentWords - oldestSample.wordCount;
 
-              if (windowSec >= 1.5 && wordsInWindow > 0) {
-                // Tốc độ tức thời trong cửa sổ trượt
-                const instantWpm = (wordsInWindow / windowSec) * 60;
-                // Tốc độ bình quân lũy kế
-                const cumulativeWpm = (currentWords / totalSpeechSec) * 60;
-                // Kết hợp 75% tức thời + 25% bình quân để nhạy nhưng không giật
-                calculatedWpm = Math.round(0.75 * instantWpm + 0.25 * cumulativeWpm);
+              // Tốc độ bình quân từ lúc bắt đầu nói
+              const cumulativeWpm = (currentWords / totalSpeechSec) * 60;
+
+              if (windowSec >= 2.5) {
+                // Tốc độ trong cửa sổ trượt 3 - 6 giây
+                const windowWpm = (wordsInWindow / windowSec) * 60;
+                // Kết hợp 35% cửa sổ trượt + 65% bình quân lũy kế để ổn định, không bị vọt ảo
+                calculatedWpm = Math.round(0.35 * windowWpm + 0.65 * cumulativeWpm);
               } else {
-                calculatedWpm = Math.round((currentWords / totalSpeechSec) * 60);
+                calculatedWpm = Math.round(cumulativeWpm);
               }
 
-              // Kẹp trong giới hạn thực tế của giọng nói người [40 - 280 WPM]
-              calculatedWpm = Math.min(280, Math.max(40, calculatedWpm));
+              // Kẹp trong giới hạn tự nhiên của thuyết trình tiếng Việt [0 - 240 WPM]
+              calculatedWpm = Math.min(240, Math.max(0, calculatedWpm));
               lastWpmRef.current = calculatedWpm;
               setEstimatedWpm(calculatedWpm);
+            } else if (totalSpeechSec > 0.5) {
+              // Trong 2 giây đầu: Ước lượng thận trọng
+              const earlyWpm = Math.min(130, Math.round((currentWords / totalSpeechSec) * 60));
+              lastWpmRef.current = earlyWpm;
+              setEstimatedWpm(earlyWpm);
             }
 
             onTranscriptChange?.(

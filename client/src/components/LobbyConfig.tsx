@@ -36,7 +36,7 @@ import { RetroSelect, RetroOption } from "./RetroSelect";
 interface LobbyConfigProps {
   documentData: DocumentAnalysisResult;
   onBackToUpload?: () => void;
-  onStartCombat?: () => void;
+  onStartCombat?: (config: LobbyConfigType) => void;
 }
 
 export const LobbyConfig: React.FC<LobbyConfigProps> = ({
@@ -176,7 +176,7 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
   const handleStart = () => {
     startCombat();
     if (onStartCombat) {
-      onStartCombat();
+      onStartCombat(config);
     }
   };
 
@@ -597,7 +597,7 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
               className="w-full py-3 bg-black text-white font-mono font-bold text-xs border-2 border-black shadow-[3px_3px_0px_#eab308] hover:bg-neutral-800 active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 tracking-wide uppercase transition-all cursor-pointer"
             >
               <Play className="w-4 h-4 fill-amber-400 text-amber-400" />
-              <span>BẮT ĐẦU VÒNG ĐẤU (BƯỚC 03)</span>
+              <span>BƯỚC VÀO PHẦN PITCHING (BƯỚC 03) →</span>
             </button>
 
             <p className="text-[10px] text-neutral-500 text-center font-sans">

@@ -158,7 +158,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       {/* 2. BỐ CỤC 2 CỘT: NƠI UPLOAD NẰM CẠNH DANH SÁCH 5 KHỐI ĐỀ MỤC */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* CỘT TRÁI (5 COLS): NƠI UPLOAD / THẺ FILE ĐÃ NẠP */}
-        <div className="lg:col-span-5 flex flex-col justify-between">
+        <div className="lg:col-span-4 flex flex-col justify-between">
           {!analysisResult ? (
             <div
               onDragOver={handleDragOver}
@@ -290,7 +290,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
         </div>
 
         {/* CỘT PHẢI (7 COLS): DANH SÁCH 5 KHỐI ĐỀ MỤC DẠNG LIST */}
-        <div className="lg:col-span-7 rounded border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-3">
+        <div className="lg:col-span-8 rounded border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-3">
           {/* Header List */}
           <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b-2 border-black">
             <div className="flex items-center gap-2">

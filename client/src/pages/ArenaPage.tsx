@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { DocumentAnalysisResult } from '@pitcharena/shared';
+import { DocumentAnalysisResult, LobbyConfig as LobbyConfigType } from '@pitcharena/shared';
 import {
   ArrowLeft,
   FileUp,
   Sliders,
+  Mic,
   Swords,
   FileSpreadsheet,
   Sparkles,
@@ -12,8 +13,9 @@ import {
 import {
   Step1Upload,
   Step2Lobby,
-  Step3Combat,
-  Step4Report,
+  Step3Pitching,
+  Step4Combat,
+  Step5Report,
   DEMO_PROJECT_DATA,
 } from './arena';
 
@@ -21,7 +23,7 @@ import {
 export { DEMO_PROJECT_DATA };
 
 interface ArenaPageProps {
-  initialStep?: 1 | 2 | 3 | 4;
+  initialStep?: 1 | 2 | 3 | 4 | 5;
   onBackToHome: () => void;
 }
 
@@ -29,9 +31,11 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
   initialStep = 1,
   onBackToHome,
 }) => {
-  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(initialStep);
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4 | 5>(initialStep);
   const [documentData, setDocumentData] =
     useState<DocumentAnalysisResult | null>(null);
+  const [lobbyConfig, setLobbyConfig] = useState<LobbyConfigType | null>(null);
+  const [pitchTranscript, setPitchTranscript] = useState<string>('');
 
   const steps = [
     {
@@ -48,12 +52,18 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
     },
     {
       number: 3,
+      title: 'THUYẾT MINH PITCHING',
+      sub: 'LIVE SPEECH & WPM',
+      icon: Mic,
+    },
+    {
+      number: 4,
       title: 'PHẢN BIỆN ĐỐI CHẤT',
       sub: 'COMBAT ARENA',
       icon: Swords,
     },
     {
-      number: 4,
+      number: 5,
       title: 'TỔNG HỢP & ĐÁNH GIÁ',
       sub: 'DIAGNOSTIC REPORT',
       icon: FileSpreadsheet,
@@ -74,7 +84,7 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
       <header className="sticky top-0 z-50 bg-white border-b-2 border-black shadow-[0_2px_0px_#000]">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2" onClick={onBackToHome}>
+            <div className="flex items-center gap-2 cursor-pointer" onClick={onBackToHome}>
               <div className="w-8 h-8 bg-black text-white flex items-center justify-center border-2 border-black">
                 <Gavel className="w-4 h-4" />
               </div>
@@ -122,21 +132,36 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
           <Step2Lobby
             documentData={documentData}
             onBack={() => setActiveStep(1)}
-            onNext={() => setActiveStep(3)}
+            onNext={(cfg) => {
+              if (cfg) setLobbyConfig(cfg);
+              setActiveStep(3);
+            }}
             onUseDemo={handleUseDemo}
           />
         )}
 
         {activeStep === 3 && (
-          <Step3Combat
+          <Step3Pitching
             documentData={documentData}
+            lobbyConfig={lobbyConfig}
             onBack={() => setActiveStep(2)}
-            onNext={() => setActiveStep(4)}
+            onNext={(transcript) => {
+              if (transcript) setPitchTranscript(transcript);
+              setActiveStep(4);
+            }}
           />
         )}
 
         {activeStep === 4 && (
-          <Step4Report
+          <Step4Combat
+            documentData={documentData}
+            onBack={() => setActiveStep(3)}
+            onNext={() => setActiveStep(5)}
+          />
+        )}
+
+        {activeStep === 5 && (
+          <Step5Report
             documentData={documentData}
             onResetToStep1={() => setActiveStep(1)}
             onRematch={() => setActiveStep(2)}

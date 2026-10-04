@@ -2,13 +2,13 @@ import React from 'react';
 import { DocumentAnalysisResult } from '@pitcharena/shared';
 import { RotateCcw, Play } from 'lucide-react';
 
-interface Step4ReportProps {
+interface Step5ReportProps {
   documentData: DocumentAnalysisResult | null;
   onResetToStep1: () => void;
   onRematch: () => void;
 }
 
-export const Step4Report: React.FC<Step4ReportProps> = ({
+export const Step5Report: React.FC<Step5ReportProps> = ({
   documentData,
   onResetToStep1,
   onRematch,
@@ -19,7 +19,7 @@ export const Step4Report: React.FC<Step4ReportProps> = ({
       <div className="border-2 border-black bg-white p-5 shadow-[4px_4px_0px_#000] flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="font-mono text-xs font-bold bg-black text-white px-2 py-0.5">
-            BƯỚC 04 // TỔNG KẾT TRẬN ĐẤU
+            BƯỚC 05 // TỔNG KẾT & PHÚC KHẢO ĐỀ TÀI
           </span>
           <h2 className="font-headline text-2xl font-black text-black tracking-tight mt-1">
             BÁO CÁO PHỤ LỤC CHẨN ĐOÁN (ACTIONABLE APPENDIX)
@@ -122,3 +122,4 @@ export const Step4Report: React.FC<Step4ReportProps> = ({
     </div>
   );
 };
+export const Step4Report = Step5Report;

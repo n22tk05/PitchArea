@@ -1,12 +1,12 @@
 import React from 'react';
-import { DocumentAnalysisResult } from '@pitcharena/shared';
+import { DocumentAnalysisResult, LobbyConfig as LobbyConfigType } from '@pitcharena/shared';
 import { ArrowLeft, ArrowRight, AlertTriangle } from 'lucide-react';
 import { LobbyConfig } from '../../components/LobbyConfig';
 
 interface Step2LobbyProps {
   documentData: DocumentAnalysisResult | null;
   onBack: () => void;
-  onNext: () => void;
+  onNext: (config?: LobbyConfigType) => void;
   onUseDemo: () => void;
 }
 

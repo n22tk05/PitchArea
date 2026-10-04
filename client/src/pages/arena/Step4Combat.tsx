@@ -2,13 +2,13 @@ import React from 'react';
 import { DocumentAnalysisResult } from '@pitcharena/shared';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
-interface Step3CombatProps {
+interface Step4CombatProps {
   documentData: DocumentAnalysisResult | null;
   onBack: () => void;
   onNext: () => void;
 }
 
-export const Step3Combat: React.FC<Step3CombatProps> = ({
+export const Step4Combat: React.FC<Step4CombatProps> = ({
   documentData,
   onBack,
   onNext,
@@ -22,7 +22,7 @@ export const Step3Combat: React.FC<Step3CombatProps> = ({
           <div className="flex items-center gap-2">
             <span className="bg-rose-600 text-white font-mono text-xs font-bold px-2 py-0.5 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-              LIVE COMBAT // VÒNG 01/03
+              BƯỚC 04 // ĐỐI CHẤT PHẢN BIỆN (COMBAT ARENA)
             </span>
             <span className="font-mono text-xs font-bold text-neutral-600">
               BOSS: GS. VŨ HOÀNG [LV.95]
@@ -73,15 +73,15 @@ export const Step3Combat: React.FC<Step3CombatProps> = ({
           </div>
         </div>
 
-        {/* Step 3 Navigation Controls */}
+        {/* Step 4 Navigation Controls */}
         <div className="flex items-center justify-between pt-2">
           <button
             type="button"
             onClick={onBack}
-            className="px-3 py-2 border-2 border-black font-mono text-xs font-bold hover:bg-neutral-100 flex items-center gap-1"
+            className="px-3 py-2 border-2 border-black font-mono text-xs font-bold hover:bg-neutral-100 flex items-center gap-1.5 active:translate-x-0.5 active:translate-y-0.5 shadow-[2px_2px_0px_#000]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            SẢNH ĐẤU (BƯỚC 02)
+            <span>PITCHING (BƯỚC 03)</span>
           </button>
 
           <button
@@ -89,7 +89,7 @@ export const Step3Combat: React.FC<Step3CombatProps> = ({
             onClick={onNext}
             className="px-5 py-2.5 bg-black text-white font-mono font-bold text-xs border-2 border-black shadow-[3px_3px_0px_#eab308] hover:bg-neutral-800 active:translate-x-0.5 active:translate-y-0.5 flex items-center gap-2"
           >
-            <span>XEM BÁO CÁO PHỤ LỤC (BƯỚC 04)</span>
+            <span>XEM BÁO CÁO PHỤ LỤC (BƯỚC 05)</span>
             <ArrowRight className="w-4 h-4 text-amber-400" />
           </button>
         </div>
@@ -97,3 +97,4 @@ export const Step3Combat: React.FC<Step3CombatProps> = ({
     </div>
   );
 };
+export const Step3Combat = Step4Combat;
