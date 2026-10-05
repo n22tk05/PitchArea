@@ -6,6 +6,9 @@ import {
   LobbyConfig,
   S2CTimerTickPayload,
   S2CLiveTranscriptPayload,
+  S2CBossStreamChunkPayload,
+  S2CTimeFreezePayload,
+  S2CCoachingAlertPayload,
 } from '@pitcharena/shared';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
@@ -15,6 +18,12 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
   const [sessionState, setSessionState] = useState<ArenaSessionState | null>(null);
   const [timerData, setTimerData] = useState<S2CTimerTickPayload | null>(null);
   const [liveTranscript, setLiveTranscript] = useState<S2CLiveTranscriptPayload | null>(null);
+  const [streamingQuestion, setStreamingQuestion] = useState<S2CBossStreamChunkPayload | null>(null);
+  const [timeFreezeInfo, setTimeFreezeInfo] = useState<S2CTimeFreezePayload>({
+    isFrozen: false,
+    reason: 'RESUMED',
+  });
+  const [coachingAlert, setCoachingAlert] = useState<S2CCoachingAlertPayload | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
@@ -51,6 +60,16 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
 
     socket.on(ArenaSocketEvents.S2C_SESSION_SYNC, (data: ArenaSessionState) => {
       setSessionState(data);
+      if (data.activeQuestion && !data.isStreamingQuestion) {
+        setStreamingQuestion({
+          bossId: data.activeBossId,
+          chunk: '',
+          accumulatedText: data.activeQuestion,
+          isComplete: true,
+          isCoachingPivot: data.isCoachingPivot,
+          topic: data.currentTopic,
+        });
+      }
     });
 
     socket.on(ArenaSocketEvents.S2C_TIMER_TICK, (data: S2CTimerTickPayload) => {
@@ -59,6 +78,18 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
 
     socket.on(ArenaSocketEvents.S2C_LIVE_TRANSCRIPT, (data: S2CLiveTranscriptPayload) => {
       setLiveTranscript(data);
+    });
+
+    socket.on(ArenaSocketEvents.S2C_BOSS_STREAM_CHUNK, (data: S2CBossStreamChunkPayload) => {
+      setStreamingQuestion(data);
+    });
+
+    socket.on(ArenaSocketEvents.S2C_TIME_FREEZE, (data: S2CTimeFreezePayload) => {
+      setTimeFreezeInfo(data);
+    });
+
+    socket.on(ArenaSocketEvents.S2C_COACHING_ALERT, (data: S2CCoachingAlertPayload) => {
+      setCoachingAlert(data);
     });
 
     return () => {
@@ -110,16 +141,46 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
     [sessionId, isConnected]
   );
 
+  const submitDefense = useCallback(
+    (defenseText: string) => {
+      if (socketRef.current && isConnected && defenseText.trim()) {
+        socketRef.current.emit(ArenaSocketEvents.C2S_SUBMIT_DEFENSE, {
+          sessionId,
+          defenseText: defenseText.trim(),
+        });
+      }
+    },
+    [sessionId, isConnected]
+  );
+
+  const requestNextQuestion = useCallback(() => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit(ArenaSocketEvents.C2S_REQUEST_NEXT_QUESTION, {
+        sessionId,
+      });
+    }
+  }, [sessionId, isConnected]);
+
+  const dismissCoachingAlert = useCallback(() => {
+    setCoachingAlert(null);
+  }, []);
+
   return {
     isConnected,
     sessionState,
     timerData,
     liveTranscript,
+    streamingQuestion,
+    timeFreezeInfo,
+    coachingAlert,
     connectionError,
     updateConfig,
     startCombat,
     skipPrep,
     togglePause,
     submitTranscript,
+    submitDefense,
+    requestNextQuestion,
+    dismissCoachingAlert,
   };
 }

@@ -155,6 +155,8 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
         {activeStep === 4 && (
           <Step4Combat
             documentData={documentData}
+            lobbyConfig={lobbyConfig}
+            pitchTranscript={pitchTranscript}
             onBack={() => setActiveStep(3)}
             onNext={() => setActiveStep(5)}
           />

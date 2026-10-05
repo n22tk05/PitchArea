@@ -1,5 +1,6 @@
 import { generateObject } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import {
   BusinessSectionType,
@@ -56,7 +57,39 @@ export class EntityExtractor {
       return [];
     }
 
-    // NẾU CÓ GEMINI_API_KEY: Sử dụng Vercel AI SDK generateObject
+    // 1. NẾU CÓ GROQ_API_KEY: Ưu tiên Groq Model (openai/gpt-oss-120b) siêu nhanh, không chạm quota ngày
+    const groqKey = process.env.GROQ_API_KEY;
+    if (groqKey) {
+      try {
+        const groq = createOpenAI({
+          baseURL: 'https://api.groq.com/openai/v1',
+          apiKey: groqKey,
+        });
+
+        const { object } = await generateObject({
+          model: groq.chat('openai/gpt-oss-120b'),
+          schema: ExtractionResponseSchema,
+          system: `Bạn là Chuyên gia Thẩm định Số liệu Dự án Khởi nghiệp (Pitch Deck Auditor). Trích xuất toàn bộ các thực thể số liệu tài chính, kỹ thuật, thị trường từ văn bản.`,
+          prompt: `Trích xuất danh sách thực thể số liệu (Whitelist Entities) từ văn bản:\n\n${aggregatedContent}`,
+        });
+
+        let counter = 1;
+        return object.entities.map((item) => ({
+          id: `entity-${counter++}`,
+          rawText: item.rawText,
+          category: item.category as EntityWhitelistItem['category'],
+          value: item.value,
+          contextSentence: item.contextSentence,
+          sectionType: item.sectionType as BusinessSectionType,
+        }));
+      } catch (groqErr: any) {
+        console.warn(
+          `[EntityExtractor] Groq API gặp lỗi (${groqErr.message}), chuyển sang Gemini dự phòng.`
+        );
+      }
+    }
+
+    // 2. NẾU CÓ GEMINI_API_KEY: Sử dụng Google Gemini
     if (apiKey) {
       try {
         const googleProvider = createGoogleGenerativeAI({
@@ -64,8 +97,9 @@ export class EntityExtractor {
         });
 
         const { object } = await generateObject({
-          model: googleProvider('gemini-1.5-flash'),
+          model: googleProvider('gemini-3.6-flash'),
           schema: ExtractionResponseSchema,
+          maxRetries: 0,
           system: `Bạn là Chuyên gia Thẩm định Số liệu Dự án Khởi nghiệp (Pitch Deck Auditor).
 Nhiệm vụ của bạn là bóc tách toàn bộ các số liệu, chỉ số tài chính, quy mô thị trường, chi phí, chỉ số kỹ thuật và mốc thời gian từ bài thuyết trình của sinh viên.
 Tuyệt đối không bỏ sót các số liệu quan trọng như CAC, LTV, MAU, doanh thu, vốn gọi, tỷ lệ chuyển đổi, độ trễ hệ thống, số lượng mẫu khảo sát...
@@ -82,10 +116,9 @@ Chuẩn hóa và gán chính xác từng số liệu vào đúng khối đề t�
           contextSentence: item.contextSentence,
           sectionType: item.sectionType as BusinessSectionType,
         }));
-      } catch (err) {
+      } catch (err: any) {
         console.warn(
-          '[EntityExtractor] Lỗi khi gọi Vercel AI SDK, chuyển sang Fallback Tokenizer:',
-          err
+          `[EntityExtractor] Gemini gặp sự cố (${err.message}), chuyển sang Fallback Tokenizer.`
         );
       }
     }

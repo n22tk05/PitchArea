@@ -91,7 +91,7 @@ export type UploadDocumentResponse = z.infer<typeof UploadDocumentResponseSchema
 
 /**
  * =========================================================================
- * PHASE 2: ARENA LOBBY, REALTIME VOICE & SESSION CONTRACTS
+ * PHASE 2 & 3: ARENA SESSION, FSM, CONTRACTS & WEBSOCKET EVENTS
  * =========================================================================
  */
 
@@ -200,12 +200,12 @@ export const JURY_BOSS_PROFILES: Record<JuryBossId, JuryBossProfile> = {
 };
 
 /**
- * 3 Presets Thẩm Định Tiêu Biểu
+ * 3 Bộ tiêu chuẩn thẩm định dự án (Evaluation Presets)
  */
 export const EvaluationPreset = {
-  SV_STARTUP: 'SV_STARTUP',
-  SEED_ANGEL: 'SEED_ANGEL',
-  TECH_PATENT: 'TECH_PATENT',
+  SV_STARTUP: 'SV_STARTUP',   // SV-Startup & Euréka
+  SEED_ANGEL: 'SEED_ANGEL',   // Seed / Angel Pitch
+  TECH_PATENT: 'TECH_PATENT', // Tech & IP Patent
 } as const;
 
 export type EvaluationPreset =
@@ -213,34 +213,31 @@ export type EvaluationPreset =
 
 export const EvaluationPresetDetails: Record<
   EvaluationPreset,
-  {
-    id: EvaluationPreset;
-    name: string;
-    sub: string;
-    focus: string;
-    targetBoss: JuryBossId;
-  }
+  { name: string; label: string; desc: string; focus: string; targetBoss: JuryBossId; badgeColor: string }
 > = {
   [EvaluationPreset.SV_STARTUP]: {
-    id: EvaluationPreset.SV_STARTUP,
     name: 'SV-Startup & Euréka',
-    sub: 'Bộ GD&ĐT / Thành Đoàn',
-    focus: 'Tính cấp thiết, đổi mới sáng tạo, tính khả thi & giải quyết nỗi đau thực tiễn.',
-    targetBoss: JuryBossId.MARKET_SHARK,
+    label: 'SV-Startup & Euréka',
+    desc: 'Bộ GD&ĐT / Thành Đoàn (Cấp thiết, Đổi mới, Khả thi)',
+    focus: 'Tính cấp thiết, tính đổi mới sáng tạo và mức độ khả thi thực tế',
+    targetBoss: JuryBossId.FINANCE_DRAGON,
+    badgeColor: 'bg-neutral-100 text-black',
   },
   [EvaluationPreset.SEED_ANGEL]: {
-    id: EvaluationPreset.SEED_ANGEL,
     name: 'Seed / Angel Pitch',
-    sub: 'Quỹ Thiên Thần / Vòng Hạt Giống',
-    focus: 'Unit Economics, chỉ số CAC/LTV, lộ trình hoàn vốn & rào cản phòng thủ (Moat).',
-    targetBoss: JuryBossId.FINANCE_DRAGON,
+    label: 'Seed / Angel Pitch',
+    desc: 'Quỹ Thiên Thần / Hạt Giống (Unit Economics, CAC/LTV, Moat)',
+    focus: 'Unit Economics, CAC, LTV, Biên lợi nhuận và Rào cản phòng thủ (Moat)',
+    targetBoss: JuryBossId.MARKET_SHARK,
+    badgeColor: 'bg-amber-100 text-amber-900',
   },
   [EvaluationPreset.TECH_PATENT]: {
-    id: EvaluationPreset.TECH_PATENT,
     name: 'Tech & IP Patent',
-    sub: 'Sở Hữu Trí Tuệ & Công Nghệ Lõi',
-    focus: 'Độ sâu thuật toán, kiến trúc kỹ thuật, độ trễ và độc quyền dữ liệu nghiên cứu.',
+    label: 'Tech & IP Patent',
+    desc: 'Sở Hữu Trí Tuệ & Công Nghệ Lõi (Độ sâu thuật toán, Dữ liệu)',
+    focus: 'Kiến trúc kỹ thuật, độ sâu thuật toán, an toàn dữ liệu và bằng sáng chế',
     targetBoss: JuryBossId.TECH_SENTINEL,
+    badgeColor: 'bg-blue-100 text-blue-900',
   },
 };
 
@@ -262,16 +259,15 @@ export const LobbyConfigSchema = z.object({
     ])
     .nullable()
     .optional(),
-  pitchDurationMinutes: z.number().min(1).max(5).default(2).optional(),
-  qaDurationMinutes: z.number().min(1).max(5).default(3).optional(),
   evaluationPreset: z
     .enum([
       EvaluationPreset.SV_STARTUP,
       EvaluationPreset.SEED_ANGEL,
       EvaluationPreset.TECH_PATENT,
     ])
-    .default(EvaluationPreset.SV_STARTUP)
     .optional(),
+  pitchDurationMinutes: z.number().int().min(1).max(10).default(2).optional(),
+  qaDurationMinutes: z.number().int().min(1).max(10).default(3).optional(),
   roundDurationSeconds: z.number().int().min(15).max(120).default(30),
   prepBufferSeconds: z.number().int().min(0).max(15).default(7),
   enableLiveSubtitles: z.boolean().default(true),
@@ -287,9 +283,11 @@ export const SessionFsmState = {
   LOBBY_READY: 'LOBBY_READY',         // Ở sảnh chờ, chỉnh thông số
   PREP_BUFFER: 'PREP_BUFFER',         // Đệm 7s suy nghĩ
   CANDIDATE_PITCH: 'CANDIDATE_PITCH', // Sinh viên đang nói qua mic
-  BOSS_QUESTIONING: 'BOSS_QUESTIONING',// Giám khảo đang chất vấn
+  BOSS_QUESTIONING: 'BOSS_QUESTIONING',// Giám khảo đang chất vấn (stream câu hỏi)
   COMBAT_ACTIVE: 'COMBAT_ACTIVE',     // Sinh viên đối chất 30s
   TACTICAL_PAUSE: 'TACTICAL_PAUSE',   // Tạm dừng chiến thuật
+  TIME_FREEZE: 'TIME_FREEZE',         // Đóng băng thời gian
+  COACHING_PIVOT: 'COACHING_PIVOT',   // Giám khảo chuyển hướng gợi mở ở Strike 2
   EVALUATION_REPORT: 'EVALUATION_REPORT', // Kết thúc, hiển thị phụ lục
 } as const;
 
@@ -311,20 +309,21 @@ export interface ArenaSessionState {
   prepRemainingSeconds: number;
   turnRemainingSeconds: number;
   isPaused: boolean;
+  isTimeFrozen?: boolean;
+  activeQuestion?: string;
+  isStreamingQuestion?: boolean;
+  followUpCount?: number;
+  currentTopic?: string;
+  isCoachingPivot?: boolean;
   transcriptHistory: Array<{
     sender: 'CANDIDATE' | 'BOSS';
     bossId?: JuryBossId;
     text: string;
     timestamp: string;
     penaltyApplied?: number;
+    isCoachingPivot?: boolean;
   }>;
 }
-
-/**
- * =========================================================================
- * PHASE 2: WEBSOCKET EVENT CONSTANTS & PAYLOAD SCHEMAS
- * =========================================================================
- */
 
 /**
  * Danh sách Tên sự kiện WebSocket chuẩn hóa hai đầu C2S & S2C
@@ -338,6 +337,8 @@ export const ArenaSocketEvents = {
   C2S_TOGGLE_PAUSE: 'c2s:toggle_pause',
   C2S_AUDIO_STREAM_DATA: 'c2s:audio_stream_data',
   C2S_SUBMIT_TRANSCRIPT: 'c2s:submit_transcript',
+  C2S_REQUEST_NEXT_QUESTION: 'c2s:request_next_question',
+  C2S_SUBMIT_DEFENSE: 'c2s:submit_defense',
 
   // Server to Client (S2C)
   S2C_SESSION_SYNC: 's2c:session_sync',
@@ -345,6 +346,9 @@ export const ArenaSocketEvents = {
   S2C_LIVE_TRANSCRIPT: 's2c:live_transcript',
   S2C_VAD_ALERT: 's2c:vad_alert',
   S2C_BOSS_STATEMENT: 's2c:boss_statement',
+  S2C_BOSS_STREAM_CHUNK: 's2c:boss_stream_chunk',
+  S2C_TIME_FREEZE: 's2c:time_freeze',
+  S2C_COACHING_ALERT: 's2c:coaching_alert',
   S2C_COMBAT_RESULT: 's2c:combat_result',
   S2C_ERROR: 's2c:error',
 } as const;
@@ -384,6 +388,21 @@ export type C2SSessionActionPayload = z.infer<
   typeof C2SSessionActionPayloadSchema
 >;
 
+export const C2SSubmitDefensePayloadSchema = z.object({
+  sessionId: z.string(),
+  defenseText: z.string(),
+});
+export type C2SSubmitDefensePayload = z.infer<
+  typeof C2SSubmitDefensePayloadSchema
+>;
+
+export const C2SRequestNextQuestionPayloadSchema = z.object({
+  sessionId: z.string(),
+});
+export type C2SRequestNextQuestionPayload = z.infer<
+  typeof C2SRequestNextQuestionPayloadSchema
+>;
+
 /**
  * Payloads cho các gói tin S2C
  */
@@ -392,6 +411,7 @@ export interface S2CTimerTickPayload {
   prepRemainingSeconds: number;
   turnRemainingSeconds: number;
   isPaused: boolean;
+  isTimeFrozen?: boolean;
 }
 
 export interface S2CLiveTranscriptPayload {
@@ -405,4 +425,25 @@ export interface S2CVadAlertPayload {
   silenceSeconds: number;
   thresholdSeconds: number;
   warningText: string;
+}
+
+export interface S2CBossStreamChunkPayload {
+  bossId: string;
+  chunk: string;
+  accumulatedText: string;
+  isComplete: boolean;
+  isCoachingPivot?: boolean;
+  topic?: string;
+}
+
+export interface S2CTimeFreezePayload {
+  isFrozen: boolean;
+  reason: 'BOSS_STREAMING' | 'CANDIDATE_SUBMIT' | 'TACTICAL_PAUSE' | 'RESUMED';
+}
+
+export interface S2CCoachingAlertPayload {
+  bossId: string;
+  strikeCount: number;
+  message: string;
+  topic: string;
 }

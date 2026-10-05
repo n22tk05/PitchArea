@@ -12,12 +12,6 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import {
   ArenaSocketEvents,
-  ArenaSessionState,
-  LobbyConfig,
-  LobbyConfigSchema,
-  CombatDifficulty,
-  ArenaMode,
-  JuryBossId,
   SessionFsmState,
   C2SJoinLobbyPayload,
   C2SJoinLobbyPayloadSchema,
@@ -26,8 +20,16 @@ import {
   C2SSubmitTranscriptPayload,
   C2SSubmitTranscriptPayloadSchema,
   C2SSessionActionPayloadSchema,
+  C2SRequestNextQuestionPayloadSchema,
+  C2SSubmitDefensePayloadSchema,
   S2CTimerTickPayload,
+  S2CBossStreamChunkPayload,
+  S2CTimeFreezePayload,
+  S2CCoachingAlertPayload,
 } from '@pitcharena/shared';
+import { ArenaFsmService } from '../domain/fsm/arena-fsm.service';
+import { GeminiService } from '../adapters/llm/gemini.service';
+import { FollowUpEngine } from '../domain/orchestrator/follow-up-engine';
 
 @WebSocketGateway({
   cors: {
@@ -42,14 +44,14 @@ export class ArenaGateway
 
   private readonly logger = new Logger(ArenaGateway.name);
 
-  // In-Memory Sessions Pool
-  private readonly sessions = new Map<string, ArenaSessionState>();
-
-  // In-Memory Timer Handles per Session
-  private readonly sessionTimers = new Map<string, NodeJS.Timeout>();
+  constructor(
+    private readonly fsmService: ArenaFsmService,
+    private readonly geminiService: GeminiService,
+    private readonly followUpEngine: FollowUpEngine
+  ) {}
 
   afterInit() {
-    this.logger.log('🚀 Arena WebSocket Gateway initialized on Socket.io');
+    this.logger.log('🚀 Arena WebSocket Gateway initialized with Multi-Agent FSM Engine');
   }
 
   handleConnection(client: Socket) {
@@ -75,35 +77,30 @@ export class ArenaGateway
 
       client.join(sessionId);
 
-      let session = this.sessions.get(sessionId);
-      if (!session) {
-        // Cấu hình mặc định cho phiên mới
-        const defaultConfig: LobbyConfig = {
-          mode: ArenaMode.FULL_ARENA,
-          difficulty: CombatDifficulty.NORMAL,
-          selectedBoss: JuryBossId.FINANCE_DRAGON,
-          roundDurationSeconds: 30,
-          prepBufferSeconds: 7,
-          enableLiveSubtitles: true,
-          pedagogicalShieldFloor: 20,
-        };
+      const session = this.fsmService.getOrCreateSession(sessionId, documentId);
 
-        session = {
-          sessionId,
-          documentId,
-          config: defaultConfig,
-          fsmState: SessionFsmState.LOBBY_READY,
-          currentTurn: 1,
-          totalTurns: 3,
-          activeBossId: JuryBossId.FINANCE_DRAGON,
-          candidateHp: 100,
-          prepRemainingSeconds: defaultConfig.prepBufferSeconds,
-          turnRemainingSeconds: defaultConfig.roundDurationSeconds,
-          isPaused: false,
-          transcriptHistory: [],
-        };
-
-        this.sessions.set(sessionId, session);
+      // Cấu hình timer callbacks nếu chưa có
+      const timer = this.fsmService.getTimer(sessionId);
+      if (timer) {
+        timer.setCallbacks({
+          onTick: (data) => {
+            this.fsmService.applyTimerTick(sessionId, data);
+            const tickPayload: S2CTimerTickPayload = {
+              fsmState: data.fsmState,
+              prepRemainingSeconds: data.prepRemainingSeconds,
+              turnRemainingSeconds: data.turnRemainingSeconds,
+              isPaused: data.isPaused,
+              isTimeFrozen: data.isTimeFrozen,
+            };
+            this.server.to(sessionId).emit(ArenaSocketEvents.S2C_TIMER_TICK, tickPayload);
+          },
+          onPrepExpire: () => {
+            this.triggerBossQuestioning(sessionId);
+          },
+          onTurnExpire: () => {
+            this.handleTurnTimeOut(sessionId);
+          },
+        });
       }
 
       client.emit(ArenaSocketEvents.S2C_SESSION_SYNC, session);
@@ -118,7 +115,7 @@ export class ArenaGateway
   }
 
   /**
-   * Cập nhật cấu hình phòng đấu (Độ khó, Chế độ, Solo Boss)
+   * Cập nhật cấu hình phòng đấu
    */
   @SubscribeMessage(ArenaSocketEvents.C2S_UPDATE_CONFIG)
   handleUpdateConfig(
@@ -130,23 +127,13 @@ export class ArenaGateway
         C2SUpdateConfigPayloadSchema.parse(rawPayload);
       const { sessionId, config } = payload;
 
-      const session = this.sessions.get(sessionId);
+      const session = this.fsmService.updateConfig(sessionId, config);
       if (!session) {
         client.emit(ArenaSocketEvents.S2C_ERROR, {
           code: 'SESSION_NOT_FOUND',
           message: 'Không tìm thấy phiên đấu tương ứng.',
         });
         return;
-      }
-
-      session.config = config;
-      if (config.selectedBoss) {
-        session.activeBossId = config.selectedBoss;
-      }
-      // Chỉ reset thời gian nếu đang ở trạng thái chuẩn bị LOBBY_READY
-      if (session.fsmState === SessionFsmState.LOBBY_READY) {
-        session.prepRemainingSeconds = config.prepBufferSeconds;
-        session.turnRemainingSeconds = config.roundDurationSeconds;
       }
 
       this.server
@@ -163,7 +150,7 @@ export class ArenaGateway
   }
 
   /**
-   * Bắt đầu trận đấu: Chuyển sang 7s Prep Buffer rồi sang 30s Combat
+   * Bắt đầu trận đấu: Chuyển sang 7s Prep Buffer rồi sang Boss chất vấn
    */
   @SubscribeMessage(ArenaSocketEvents.C2S_START_COMBAT)
   handleStartCombat(
@@ -172,25 +159,28 @@ export class ArenaGateway
   ) {
     try {
       const { sessionId } = C2SSessionActionPayloadSchema.parse(rawPayload);
-      const session = this.sessions.get(sessionId);
+      const session = this.fsmService.getSession(sessionId);
       if (!session) return;
 
-      this.clearSessionTimer(sessionId);
+      const timer = this.fsmService.getTimer(sessionId);
+      if (timer) {
+        timer.setDurations(session.config.prepBufferSeconds, session.config.roundDurationSeconds);
+        this.fsmService.transitionState(sessionId, SessionFsmState.PREP_BUFFER);
+        session.prepRemainingSeconds = session.config.prepBufferSeconds;
+        session.turnRemainingSeconds = session.config.roundDurationSeconds;
+        session.isPaused = false;
+        session.isTimeFrozen = false;
 
-      session.fsmState = SessionFsmState.PREP_BUFFER;
-      session.prepRemainingSeconds = session.config.prepBufferSeconds;
-      session.turnRemainingSeconds = session.config.roundDurationSeconds;
-      session.isPaused = false;
-
-      this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, session);
-      this.startTimerLoop(sessionId);
+        this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, session);
+        timer.start();
+      }
     } catch (err: any) {
       this.logger.error(`Error in handleStartCombat: ${err.message}`);
     }
   }
 
   /**
-   * Bỏ qua 7s đệm suy nghĩ -> Vào luôn 30s đối chất
+   * Bỏ qua 7s đệm suy nghĩ -> Kích hoạt ngay Giám khảo đặt câu hỏi
    */
   @SubscribeMessage(ArenaSocketEvents.C2S_SKIP_PREP)
   handleSkipPrep(
@@ -199,18 +189,12 @@ export class ArenaGateway
   ) {
     try {
       const { sessionId } = C2SSessionActionPayloadSchema.parse(rawPayload);
-      const session = this.sessions.get(sessionId);
+      const session = this.fsmService.getSession(sessionId);
       if (!session) return;
 
       if (session.fsmState === SessionFsmState.PREP_BUFFER) {
-        session.fsmState = SessionFsmState.COMBAT_ACTIVE;
-        session.prepRemainingSeconds = 0;
-        session.turnRemainingSeconds = session.config.roundDurationSeconds;
-
-        this.server
-          .to(sessionId)
-          .emit(ArenaSocketEvents.S2C_SESSION_SYNC, session);
-        this.logger.log(`Skipped prep buffer for session ${sessionId}`);
+        this.logger.log(`[${sessionId}] Skipped prep buffer -> Triggering Boss questioning`);
+        this.triggerBossQuestioning(sessionId);
       }
     } catch (err: any) {
       this.logger.error(`Error in handleSkipPrep: ${err.message}`);
@@ -227,26 +211,119 @@ export class ArenaGateway
   ) {
     try {
       const { sessionId } = C2SSessionActionPayloadSchema.parse(rawPayload);
-      const session = this.sessions.get(sessionId);
-      if (!session) return;
+      const timer = this.fsmService.getTimer(sessionId);
+      const session = this.fsmService.getSession(sessionId);
+      if (!timer || !session) return;
 
-      session.isPaused = !session.isPaused;
+      const isPaused = timer.togglePause();
+      session.isPaused = isPaused;
+
       this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, session);
-
-      // Phát tick tức thời để Client đồng bộ ngay lập tức trạng thái isPaused
-      this.server.to(sessionId).emit(ArenaSocketEvents.S2C_TIMER_TICK, {
-        fsmState: session.fsmState,
-        prepRemainingSeconds: session.prepRemainingSeconds,
-        turnRemainingSeconds: session.turnRemainingSeconds,
-        isPaused: session.isPaused,
-      });
     } catch (err: any) {
       this.logger.error(`Error in handleTogglePause: ${err.message}`);
     }
   }
 
   /**
-   * Tiếp nhận bản phiên âm giọng nói (Live Transcript Stream)
+   * Thí sinh nộp bài phản biện (Defense Submission)
+   */
+  @SubscribeMessage(ArenaSocketEvents.C2S_SUBMIT_DEFENSE)
+  async handleSubmitDefense(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() rawPayload: unknown
+  ) {
+    try {
+      const { sessionId, defenseText } =
+        C2SSubmitDefensePayloadSchema.parse(rawPayload);
+
+      const session = this.fsmService.getSession(sessionId);
+      const timer = this.fsmService.getTimer(sessionId);
+      if (!session || !timer) return;
+
+      // 1. Time Freeze khi tiếp nhận bài nộp
+      timer.freeze('CANDIDATE_SUBMIT_DEFENSE');
+      this.fsmService.transitionState(sessionId, SessionFsmState.TIME_FREEZE);
+
+      const freezePayload: S2CTimeFreezePayload = {
+        isFrozen: true,
+        reason: 'CANDIDATE_SUBMIT',
+      };
+      this.server.to(sessionId).emit(ArenaSocketEvents.S2C_TIME_FREEZE, freezePayload);
+
+      // Lưu vào lịch sử phiên âm
+      session.transcriptHistory.push({
+        sender: 'CANDIDATE',
+        text: defenseText,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+
+      // 2. Phân tích câu trả lời với FollowUpEngine
+      const evalResult = this.followUpEngine.evaluateCandidateSpeech(defenseText);
+      const decision = this.followUpEngine.decideNextMove(
+        session.followUpCount || 0,
+        session.currentTopic || 'Unit Economics & Chi phí vận hành',
+        evalResult,
+        session.activeBossId
+      );
+
+      session.followUpCount = decision.followUpCount;
+      session.currentTopic = decision.topic;
+
+      // Nếu thí sinh trả lời yếu, trừ một lượng máu nhỏ (tối đa giữ sàn 20%)
+      if (evalResult.isVague) {
+        this.fsmService.deductHp(sessionId, 10);
+      }
+
+      // 3. Nếu là Coaching Pivot (Strike 2), cảnh báo qua S2C_COACHING_ALERT
+      if (decision.action === 'COACHING_PIVOT') {
+        session.isCoachingPivot = true;
+        const coachingPayload: S2CCoachingAlertPayload = {
+          bossId: session.activeBossId,
+          topic: decision.topic,
+          strikeCount: 2,
+          message:
+            'Giám khảo nhận thấy bạn đang gặp khó khăn ở chủ đề này. Kích hoạt hướng dẫn gợi mở mang tính xây dựng.',
+        };
+        this.server
+          .to(sessionId)
+          .emit(ArenaSocketEvents.S2C_COACHING_ALERT, coachingPayload);
+      } else {
+        session.isCoachingPivot = false;
+        if (decision.action === 'NEW_QUESTION') {
+          session.activeBossId = decision.suggestedBossId;
+        }
+      }
+
+      // Đồng bộ trạng thái mới
+      this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, session);
+
+      // 4. Kích hoạt Boss đặt câu hỏi mới / Follow-up / Coaching
+      setTimeout(() => {
+        this.triggerBossQuestioning(sessionId);
+      }, 500);
+    } catch (err: any) {
+      this.logger.error(`Error in handleSubmitDefense: ${err.message}`);
+    }
+  }
+
+  /**
+   * Yêu cầu chủ động câu hỏi tiếp theo
+   */
+  @SubscribeMessage(ArenaSocketEvents.C2S_REQUEST_NEXT_QUESTION)
+  handleRequestNextQuestion(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() rawPayload: unknown
+  ) {
+    try {
+      const { sessionId } = C2SRequestNextQuestionPayloadSchema.parse(rawPayload);
+      this.triggerBossQuestioning(sessionId);
+    } catch (err: any) {
+      this.logger.error(`Error in handleRequestNextQuestion: ${err.message}`);
+    }
+  }
+
+  /**
+   * Tiếp nhận bản phiên âm giọng nói trực tiếp (Live Subtitles)
    */
   @SubscribeMessage(ArenaSocketEvents.C2S_SUBMIT_TRANSCRIPT)
   handleSubmitTranscript(
@@ -257,7 +334,7 @@ export class ArenaGateway
       const payload: C2SSubmitTranscriptPayload =
         C2SSubmitTranscriptPayloadSchema.parse(rawPayload);
       const { sessionId, text, isFinal } = payload;
-      const session = this.sessions.get(sessionId);
+      const session = this.fsmService.getSession(sessionId);
       if (!session) return;
 
       const livePayload = {
@@ -267,7 +344,6 @@ export class ArenaGateway
         timestamp: new Date().toLocaleTimeString(),
       };
 
-      // Broadcast live transcript
       this.server
         .to(sessionId)
         .emit(ArenaSocketEvents.S2C_LIVE_TRANSCRIPT, livePayload);
@@ -285,58 +361,110 @@ export class ArenaGateway
   }
 
   /**
-   * Vòng lặp đếm thời gian 1s độc lập trên Server (Server-Authoritative Clock)
+   * Kích hoạt Giám khảo đặt câu hỏi và Stream chữ qua WebSocket
    */
-  private startTimerLoop(sessionId: string) {
-    const timer = setInterval(() => {
-      const session = this.sessions.get(sessionId);
-      if (!session) {
-        this.clearSessionTimer(sessionId);
-        return;
-      }
+  private async triggerBossQuestioning(sessionId: string) {
+    const session = this.fsmService.getSession(sessionId);
+    const timer = this.fsmService.getTimer(sessionId);
+    if (!session || !timer) return;
 
-      if (session.isPaused) return;
+    // Đóng băng đồng hồ khi Boss đang đặt câu hỏi (Time Freeze)
+    timer.freeze('BOSS_STREAMING_QUESTION');
+    this.fsmService.transitionState(sessionId, SessionFsmState.BOSS_QUESTIONING);
+    session.isStreamingQuestion = true;
+    session.activeQuestion = '';
 
-      // 1. Giai đoạn PREP_BUFFER (7s đệm)
-      if (session.fsmState === SessionFsmState.PREP_BUFFER) {
-        if (session.prepRemainingSeconds > 0) {
-          session.prepRemainingSeconds -= 1;
-        } else {
-          // Hết đệm -> Chuyển sang lượt đối chất
-          session.fsmState = SessionFsmState.COMBAT_ACTIVE;
-          session.turnRemainingSeconds = session.config.roundDurationSeconds;
-        }
-      }
-      // 2. Giai đoạn COMBAT_ACTIVE (30s đối chất)
-      else if (session.fsmState === SessionFsmState.COMBAT_ACTIVE) {
-        if (session.turnRemainingSeconds > 0) {
-          session.turnRemainingSeconds -= 1;
-        } else {
-          // Hết 30s -> Tạm dừng lượt
-          session.fsmState = SessionFsmState.BOSS_QUESTIONING;
-          this.clearSessionTimer(sessionId);
-        }
-      }
+    const freezePayload: S2CTimeFreezePayload = {
+      isFrozen: true,
+      reason: 'BOSS_STREAMING',
+    };
+    this.server.to(sessionId).emit(ArenaSocketEvents.S2C_TIME_FREEZE, freezePayload);
+    this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, session);
 
-      // Phát tín hiệu Tick về Client
-      const tickPayload: S2CTimerTickPayload = {
-        fsmState: session.fsmState,
-        prepRemainingSeconds: session.prepRemainingSeconds,
-        turnRemainingSeconds: session.turnRemainingSeconds,
-        isPaused: session.isPaused,
-      };
+    const candidateLastSpeech =
+      session.transcriptHistory.length > 0
+        ? session.transcriptHistory[session.transcriptHistory.length - 1].text
+        : '';
 
-      this.server.to(sessionId).emit(ArenaSocketEvents.S2C_TIMER_TICK, tickPayload);
-    }, 1000);
+    let accumulatedQuestion = '';
 
-    this.sessionTimers.set(sessionId, timer);
+    await this.geminiService.streamBossQuestion({
+      bossId: session.activeBossId,
+      ragContext: `Dự án document ID: ${session.documentId}. Chủ đề chính: ${session.currentTopic || 'Unit Economics'}.`,
+      candidateSpeech: candidateLastSpeech,
+      isFollowUp: (session.followUpCount || 0) > 0,
+      followUpTopic: session.currentTopic,
+      isCoachingPivot: session.isCoachingPivot,
+      onChunk: (chunk: string) => {
+        accumulatedQuestion += chunk;
+        const chunkPayload: S2CBossStreamChunkPayload = {
+          bossId: session.activeBossId,
+          chunk,
+          isComplete: false,
+          accumulatedText: accumulatedQuestion,
+        };
+        this.server
+          .to(sessionId)
+          .emit(ArenaSocketEvents.S2C_BOSS_STREAM_CHUNK, chunkPayload);
+      },
+      onComplete: (fullText: string) => {
+        session.activeQuestion = fullText;
+        session.isStreamingQuestion = false;
+
+        const completePayload: S2CBossStreamChunkPayload = {
+          bossId: session.activeBossId,
+          chunk: '',
+          isComplete: true,
+          accumulatedText: fullText,
+        };
+        this.server
+          .to(sessionId)
+          .emit(ArenaSocketEvents.S2C_BOSS_STREAM_CHUNK, completePayload);
+
+        // Lưu câu hỏi của Boss vào transcript
+        session.transcriptHistory.push({
+          sender: 'BOSS',
+          text: fullText,
+          timestamp: new Date().toLocaleTimeString(),
+        });
+
+        // Bỏ đóng băng đồng hồ, chuyển sang lượt thí sinh đối chất
+        timer.unfreeze();
+        this.fsmService.transitionState(sessionId, SessionFsmState.COMBAT_ACTIVE);
+        session.turnRemainingSeconds = session.config.roundDurationSeconds;
+
+        const unfreezePayload: S2CTimeFreezePayload = {
+          isFrozen: false,
+          reason: 'RESUMED',
+        };
+        this.server.to(sessionId).emit(ArenaSocketEvents.S2C_TIME_FREEZE, unfreezePayload);
+        this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, session);
+      },
+      onError: () => {
+        timer.unfreeze();
+        this.fsmService.transitionState(sessionId, SessionFsmState.COMBAT_ACTIVE);
+      },
+    });
   }
 
-  private clearSessionTimer(sessionId: string) {
-    const timer = this.sessionTimers.get(sessionId);
-    if (timer) {
-      clearInterval(timer);
-      this.sessionTimers.delete(sessionId);
+  /**
+   * Xử lý khi hết thời gian 30s của lượt
+   */
+  private handleTurnTimeOut(sessionId: string) {
+    const session = this.fsmService.getSession(sessionId);
+    const timer = this.fsmService.getTimer(sessionId);
+    if (!session || !timer) return;
+
+    this.logger.log(`[${sessionId}] Turn time expired!`);
+
+    // Tự động chuyển lượt tiếp theo hoặc kết thúc
+    if (session.currentTurn < session.totalTurns) {
+      session.currentTurn += 1;
+      this.triggerBossQuestioning(sessionId);
+    } else {
+      this.fsmService.transitionState(sessionId, SessionFsmState.EVALUATION_REPORT);
+      timer.stop();
+      this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, session);
     }
   }
 }
