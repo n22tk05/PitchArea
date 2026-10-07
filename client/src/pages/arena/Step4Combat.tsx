@@ -121,11 +121,6 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 border border-emerald-300 flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>SÀN BẢO VỆ TÂN THỦ: 20% HP</span>
-          </span>
-
           {sessionState?.fsmState === SessionFsmState.PREP_BUFFER && (
             <button
               type="button"

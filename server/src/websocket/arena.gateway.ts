@@ -26,10 +26,12 @@ import {
   S2CBossStreamChunkPayload,
   S2CTimeFreezePayload,
   S2CCoachingAlertPayload,
+  getAvailableBossesForSections,
 } from '@pitcharena/shared';
 import { ArenaFsmService } from '../domain/fsm/arena-fsm.service';
 import { GeminiService } from '../adapters/llm/gemini.service';
 import { FollowUpEngine } from '../domain/orchestrator/follow-up-engine';
+import { DocumentService } from '../document/document.service';
 
 @WebSocketGateway({
   cors: {
@@ -47,7 +49,8 @@ export class ArenaGateway
   constructor(
     private readonly fsmService: ArenaFsmService,
     private readonly geminiService: GeminiService,
-    private readonly followUpEngine: FollowUpEngine
+    private readonly followUpEngine: FollowUpEngine,
+    private readonly documentService: DocumentService
   ) {}
 
   afterInit() {
@@ -77,7 +80,9 @@ export class ArenaGateway
 
       client.join(sessionId);
 
-      const session = this.fsmService.getOrCreateSession(sessionId, documentId);
+      const doc = this.documentService.getDocument(documentId);
+      const availableBossIds = doc ? getAvailableBossesForSections(doc.sections) : undefined;
+      const session = this.fsmService.getOrCreateSession(sessionId, documentId, availableBossIds);
 
       // Cấu hình timer callbacks nếu chưa có
       const timer = this.fsmService.getTimer(sessionId);
@@ -263,7 +268,8 @@ export class ArenaGateway
         session.followUpCount || 0,
         session.currentTopic || 'Unit Economics & Chi phí vận hành',
         evalResult,
-        session.activeBossId
+        session.activeBossId,
+        session.availableBossIds
       );
 
       session.followUpCount = decision.followUpCount;
@@ -371,6 +377,15 @@ export class ArenaGateway
     // Đóng băng đồng hồ khi Boss đang đặt câu hỏi (Time Freeze)
     timer.freeze('BOSS_STREAMING_QUESTION');
     this.fsmService.transitionState(sessionId, SessionFsmState.BOSS_QUESTIONING);
+    // Đảm bảo Giám khảo chất vấn luôn thuộc khối đề mục có thực sự trong tài liệu
+    if (
+      session.availableBossIds &&
+      session.availableBossIds.length > 0 &&
+      !session.availableBossIds.includes(session.activeBossId)
+    ) {
+      session.activeBossId = session.availableBossIds[0];
+    }
+
     session.isStreamingQuestion = true;
     session.activeQuestion = '';
 
@@ -395,6 +410,7 @@ export class ArenaGateway
       isFollowUp: (session.followUpCount || 0) > 0,
       followUpTopic: session.currentTopic,
       isCoachingPivot: session.isCoachingPivot,
+      preset: session.config.evaluationPreset,
       onChunk: (chunk: string) => {
         accumulatedQuestion += chunk;
         const chunkPayload: S2CBossStreamChunkPayload = {

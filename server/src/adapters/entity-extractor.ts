@@ -68,13 +68,17 @@ export class EntityExtractor {
 
         const { object } = await generateObject({
           model: groq.chat('openai/gpt-oss-120b'),
-          schema: ExtractionResponseSchema,
+          schema: ExtractionResponseSchema as any,
           system: `Bạn là Chuyên gia Thẩm định Số liệu Dự án Khởi nghiệp (Pitch Deck Auditor). Trích xuất toàn bộ các thực thể số liệu tài chính, kỹ thuật, thị trường từ văn bản.`,
           prompt: `Trích xuất danh sách thực thể số liệu (Whitelist Entities) từ văn bản:\n\n${aggregatedContent}`,
         });
 
+        console.log(
+          `[EntityExtractor] 🚀 Groq (openai/gpt-oss-120b) đã trích xuất thành công ${(object as any).entities?.length || 0} thực thể số liệu.`
+        );
+
         let counter = 1;
-        return object.entities.map((item) => ({
+        return (object as any).entities.map((item: any) => ({
           id: `entity-${counter++}`,
           rawText: item.rawText,
           category: item.category as EntityWhitelistItem['category'],
@@ -84,7 +88,7 @@ export class EntityExtractor {
         }));
       } catch (groqErr: any) {
         console.warn(
-          `[EntityExtractor] Groq API gặp lỗi (${groqErr.message}), chuyển sang Gemini dự phòng.`
+          `[EntityExtractor] [FALLBACK] ⚠️ Groq API gặp sự cố: "${groqErr.message}". Tự động Fallback sang Google Gemini...`
         );
       }
     }
@@ -98,7 +102,7 @@ export class EntityExtractor {
 
         const { object } = await generateObject({
           model: googleProvider('gemini-3.6-flash'),
-          schema: ExtractionResponseSchema,
+          schema: ExtractionResponseSchema as any,
           maxRetries: 0,
           system: `Bạn là Chuyên gia Thẩm định Số liệu Dự án Khởi nghiệp (Pitch Deck Auditor).
 Nhiệm vụ của bạn là bóc tách toàn bộ các số liệu, chỉ số tài chính, quy mô thị trường, chi phí, chỉ số kỹ thuật và mốc thời gian từ bài thuyết trình của sinh viên.
@@ -107,8 +111,12 @@ Chuẩn hóa và gán chính xác từng số liệu vào đúng khối đề t�
           prompt: `Hãy phân tích toàn bộ văn bản sau đây và trích xuất danh sách thực thể số liệu (Whitelist Entities):\n\n${aggregatedContent}`,
         });
 
+        console.log(
+          `[EntityExtractor] 🚀 Google Gemini (gemini-3.6-flash) đã trích xuất thành công ${(object as any).entities?.length || 0} thực thể số liệu.`
+        );
+
         let counter = 1;
-        return object.entities.map((item) => ({
+        return (object as any).entities.map((item: any) => ({
           id: `entity-${counter++}`,
           rawText: item.rawText,
           category: item.category as EntityWhitelistItem['category'],
@@ -118,13 +126,15 @@ Chuẩn hóa và gán chính xác từng số liệu vào đúng khối đề t�
         }));
       } catch (err: any) {
         console.warn(
-          `[EntityExtractor] Gemini gặp sự cố (${err.message}), chuyển sang Fallback Tokenizer.`
+          `[EntityExtractor] [FALLBACK] ⚠️ Google Gemini gặp sự cố: "${err.message}". Tự động Fallback sang Generic Number-Unit Tokenizer...`
         );
       }
     }
 
     // FALLBACK TỰ ĐỘNG (Khi chưa cấu hình API Key hoặc lỗi mạng):
-    // Sử dụng bộ Generic Number-Unit Tokenizer (không hardcode từ vựng)
+    console.warn(
+      `[EntityExtractor] [FALLBACK] 🚨 Không thể trích xuất qua Cloud AI (Groq/Gemini). Đang kích hoạt Fallback Generic Number-Unit Tokenizer cục bộ...`
+    );
     return this.fallbackGenericExtract(sections);
   }
 
@@ -178,11 +188,17 @@ Chuẩn hóa và gán chính xác từng số liệu vào đúng khối đề t�
 
     // Khử trùng lặp
     const seen = new Set<string>();
-    return whitelist.filter((item) => {
+    const deduplicated = whitelist.filter((item) => {
       const key = `${item.value.toLowerCase()}_${item.contextSentence.slice(0, 30)}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
+
+    console.log(
+      `[EntityExtractor] 🛠️ Generic Tokenizer cục bộ đã bóc tách thành công ${deduplicated.length} cụm số liệu chuẩn hóa.`
+    );
+
+    return deduplicated;
   }
 }

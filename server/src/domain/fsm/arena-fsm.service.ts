@@ -22,14 +22,23 @@ export class ArenaFsmService {
    */
   public getOrCreateSession(
     sessionId: string,
-    documentId: string
+    documentId: string,
+    availableBossIds?: JuryBossId[]
   ): ArenaSessionState {
     let session = this.sessions.get(sessionId);
+
+    const validBosses =
+      availableBossIds && availableBossIds.length > 0
+        ? availableBossIds
+        : Object.values(JuryBossId);
+
+    const defaultBoss = validBosses[0];
+
     if (!session) {
       const defaultConfig: LobbyConfig = {
         mode: ArenaMode.FULL_ARENA,
         difficulty: CombatDifficulty.NORMAL,
-        selectedBoss: JuryBossId.FINANCE_DRAGON,
+        selectedBoss: defaultBoss,
         roundDurationSeconds: 30,
         prepBufferSeconds: 7,
         enableLiveSubtitles: true,
@@ -43,7 +52,8 @@ export class ArenaFsmService {
         fsmState: SessionFsmState.LOBBY_READY,
         currentTurn: 1,
         totalTurns: 3,
-        activeBossId: JuryBossId.FINANCE_DRAGON,
+        activeBossId: defaultBoss,
+        availableBossIds: validBosses,
         candidateHp: 100,
         prepRemainingSeconds: defaultConfig.prepBufferSeconds,
         turnRemainingSeconds: defaultConfig.roundDurationSeconds,
@@ -67,7 +77,12 @@ export class ArenaFsmService {
         defaultConfig.roundDurationSeconds
       );
       this.timers.set(sessionId, timer);
-      this.logger.log(`Initialized in-memory session: ${sessionId}`);
+      this.logger.log(`Initialized in-memory session: ${sessionId} with available bosses: [${validBosses.join(', ')}]`);
+    } else if (availableBossIds && availableBossIds.length > 0) {
+      session.availableBossIds = availableBossIds;
+      if (!availableBossIds.includes(session.activeBossId)) {
+        session.activeBossId = availableBossIds[0];
+      }
     }
 
     return session;
@@ -93,7 +108,14 @@ export class ArenaFsmService {
 
     session.config = config;
     if (config.selectedBoss) {
-      session.activeBossId = config.selectedBoss;
+      if (
+        !session.availableBossIds ||
+        session.availableBossIds.includes(config.selectedBoss)
+      ) {
+        session.activeBossId = config.selectedBoss;
+      } else if (session.availableBossIds && session.availableBossIds.length > 0) {
+        session.activeBossId = session.availableBossIds[0];
+      }
     }
 
     const timer = this.timers.get(sessionId);

@@ -38,6 +38,7 @@ export interface DocumentSection {
   content: string;
   charCount: number;
   wordCount: number;
+  isDetected?: boolean;
 }
 
 /**
@@ -200,6 +201,48 @@ export const JURY_BOSS_PROFILES: Record<JuryBossId, JuryBossProfile> = {
 };
 
 /**
+ * Ánh xạ giữa Giám khảo và các Khối đề mục chuyên môn phụ trách
+ */
+export const BOSS_TO_SECTION_MAP: Record<JuryBossId, BusinessSectionType[]> = {
+  [JuryBossId.FINANCE_DRAGON]: [BusinessSectionType.BUSINESS_MODEL_UNIT_ECONOMICS],
+  [JuryBossId.TECH_SENTINEL]: [BusinessSectionType.SOLUTION_PRODUCT],
+  [JuryBossId.MARKET_SHARK]: [
+    BusinessSectionType.PROBLEM_MARKET,
+    BusinessSectionType.COMPETITION_MOAT,
+    BusinessSectionType.SOCIAL_IMPACT_ROADMAP,
+  ],
+};
+
+/**
+ * Hàm kiểm tra các Giám khảo khả dụng dựa trên danh sách các khối đề mục có trong tài liệu
+ */
+export function getAvailableBossesForSections(sections?: DocumentSection[]): JuryBossId[] {
+  if (!sections || sections.length === 0) {
+    return Object.values(JuryBossId);
+  }
+
+  // Khối được coi là tồn tại nếu isDetected = true hoặc charCount > 20 và không phải chuỗi placeholder
+  const existingSectionTypes = new Set(
+    sections
+      .filter((s) => {
+        if (s.isDetected !== undefined) return s.isDetected;
+        return (
+          s.charCount > 20 &&
+          !s.content.includes('Chưa phát hiện nội dung rõ ràng cho mục')
+        );
+      })
+      .map((s) => s.type)
+  );
+
+  const matched = Object.values(JuryBossId).filter((bossId) => {
+    const requiredSections = BOSS_TO_SECTION_MAP[bossId];
+    return requiredSections.some((secType) => existingSectionTypes.has(secType));
+  });
+
+  return matched.length > 0 ? matched : [JuryBossId.FINANCE_DRAGON];
+}
+
+/**
  * 3 Bộ tiêu chuẩn thẩm định dự án (Evaluation Presets)
  */
 export const EvaluationPreset = {
@@ -305,6 +348,7 @@ export interface ArenaSessionState {
   currentTurn: number;
   totalTurns: number;
   activeBossId: JuryBossId;
+  availableBossIds?: JuryBossId[];
   candidateHp: number; // 0 - 100%
   prepRemainingSeconds: number;
   turnRemainingSeconds: number;

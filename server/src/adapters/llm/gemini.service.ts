@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
-import { JuryBossId } from '@pitcharena/shared';
+import { JuryBossId, EvaluationPreset } from '@pitcharena/shared';
 import {
   BOSS_PERSONAS,
   buildCoachingPivotPrompt,
@@ -17,6 +17,7 @@ export interface StreamQuestionOptions {
   followUpTopic?: string;
   isCoachingPivot?: boolean;
   candidateHistory?: string;
+  preset?: EvaluationPreset;
   onChunk: (chunk: string) => void;
   onComplete: (fullText: string) => void;
   onError?: (err: any) => void;
@@ -38,6 +39,7 @@ export class GeminiService {
       followUpTopic,
       isCoachingPivot,
       candidateHistory,
+      preset,
       onChunk,
       onComplete,
       onError,
@@ -54,7 +56,8 @@ export class GeminiService {
       prompt = buildCoachingPivotPrompt(
         persona,
         followUpTopic,
-        candidateHistory || candidateSpeech
+        candidateHistory || candidateSpeech,
+        preset
       );
     } else {
       prompt = buildQuestionPrompt(
@@ -62,7 +65,8 @@ export class GeminiService {
         ragContext,
         candidateSpeech,
         isFollowUp,
-        followUpTopic
+        followUpTopic,
+        preset
       );
     }
 
@@ -92,8 +96,8 @@ export class GeminiService {
         onComplete(accumulated);
         return accumulated;
       } catch (groqErr: any) {
-        this.logger.error(
-          `[GroqProvider] Lỗi khi gọi Groq API (${groqErr.message}). Chuyển sang Gemini dự phòng.`
+        this.logger.warn(
+          `[FALLBACK] ⚠️ Groq Provider gặp sự cố: "${groqErr.message}". Tự động kích hoạt Fallback Bước 1: Chuyển sang Google Gemini (${geminiKey ? 'API Key khả dụng' : 'Chưa cấu hình API Key'}).`
         );
       }
     }
@@ -120,16 +124,21 @@ export class GeminiService {
         return accumulated;
       } catch (err: any) {
         this.logger.warn(
-          `[GeminiService] Gemini API gặp vấn đề (${err.message}). Kích hoạt Fallback nội bộ.`
+          `[FALLBACK] ⚠️ Google Gemini gặp sự cố: "${err.message}". Tự động kích hoạt Fallback Bước 2: Chuyển sang Smart Offline Fallback Generator.`
         );
       }
     }
 
     // Smart Fallback nếu không có API key hoặc mạng gián đoạn
+    this.logger.warn(
+      `[FALLBACK] 🚨 TẤT CẢ AI CLOUD PROVIDERS ĐỀU KHÔNG KHẢ DỤNG. Đang kích hoạt Smart Offline Fallback Stream cho Giám khảo: ${persona.name} (${persona.role}) [Preset: ${preset || 'DEFAULT'}]`
+    );
+
     return this.fallbackStreamQuestion(
       persona,
       followUpTopic,
       isCoachingPivot,
+      preset,
       onChunk,
       onComplete
     );
@@ -142,19 +151,38 @@ export class GeminiService {
     persona: any,
     topic?: string,
     isCoaching?: boolean,
+    preset?: EvaluationPreset,
     onChunk?: (c: string) => void,
     onComplete?: (t: string) => void
   ): Promise<string> {
+    this.logger.log(
+      `[FALLBACK] 🔄 Đang tạo câu hỏi Fallback mô phỏng cho Giám khảo ${persona.name} | Chủ đề: ${topic || 'Tổng quát'} | Preset: ${preset || 'SV_STARTUP'}`
+    );
     let fallbackText = '';
 
     if (isCoaching) {
-      fallbackText = `Tôi hiểu đây là bài toán khó khi làm sản phẩm thực tế. Một hướng tiếp cận khả thi là bạn có thể áp dụng caching kết hợp batch inference để cắt giảm 70% chi phí API. Bạn thấy giải pháp phân kỳ này có thể áp dụng cho giai đoạn MVP của dự án không?`;
+      fallbackText =
+        preset === EvaluationPreset.SV_STARTUP
+          ? `Thầy cô hiểu đây là khó khăn lớn khi sinh viên làm sản phẩm thực tế. Một hướng tiếp cận khả thi là nhóm nên bắt đầu thử nghiệm trong quy mô hẹp tại trường để lấy phản hồi thực tế trước. Các em thấy giải pháp từng bước này có phù hợp với nguồn lực hiện tại của nhóm không?`
+          : `Tôi hiểu đây là bài toán khó khi làm sản phẩm thực tế. Một hướng tiếp cận khả thi là bạn có thể áp dụng caching kết hợp batch inference để cắt giảm 70% chi phí API. Bạn thấy giải pháp phân kỳ này có thể áp dụng cho giai đoạn MVP của dự án không?`;
     } else if (persona.id === JuryBossId.FINANCE_DRAGON) {
-      fallbackText = `Trong tài liệu, bạn công bố CAC là 3.2 triệu và LTV 48 triệu VNĐ. Tuy nhiên với mô hình LLM API chạy real-time cho hàng trăm người dùng, chi phí suy luận ước tính ngốn hơn 50% biên lợi nhuận. Bạn dự phòng dòng tiền cạn kiệt trong 6 tháng đầu thế nào?`;
+      if (preset === EvaluationPreset.SV_STARTUP) {
+        fallbackText = `Trong tài liệu, nhóm đưa ra kết quả từ 200 phiếu khảo sát online nhưng chưa có dữ liệu bán thử nghiệm thực tế. Với nguồn kinh phí sinh viên eo hẹp, nhóm phân bổ ngân sách thế nào để hoàn thiện sản phẩm mẫu và kiểm chứng nhu cầu thực tế của người dùng?`;
+      } else {
+        fallbackText = `Trong tài liệu, bạn công bố CAC là 3.2 triệu và LTV 48 triệu VNĐ. Tuy nhiên với mô hình LLM API chạy real-time cho hàng trăm người dùng, chi phí suy luận ước tính ngốn hơn 50% biên lợi nhuận. Bạn dự phòng dòng tiền cạn kiệt trong 6 tháng đầu thế nào?`;
+      }
     } else if (persona.id === JuryBossId.TECH_SENTINEL) {
-      fallbackText = `Hệ thống của bạn phụ thuộc hoàn toàn vào API LLM bên thứ ba. Trong trường hợp nhà cung cấp quá tải hoặc độ trễ tăng đột biến lên trên 3 giây, cơ chế fallback tại chỗ của bạn là gì để không làm đứt gãy trải nghiệm người dùng?`;
+      if (preset === EvaluationPreset.SV_STARTUP) {
+        fallbackText = `Đề tài của nhóm áp dụng công nghệ mới, nhưng nhóm đã thử nghiệm với bao nhiêu sinh viên thực tế rồi? Liệu giải pháp này có hoạt động ổn định ngoài môi trường phòng thí nghiệm khi các bạn trong trường cùng truy cập không?`;
+      } else {
+        fallbackText = `Hệ thống của bạn phụ thuộc hoàn toàn vào API LLM bên thứ ba. Trong trường hợp nhà cung cấp quá tải hoặc độ trễ tăng đột biến lên trên 3 giây, cơ chế fallback tại chỗ của bạn là gì để không làm đứt gãy trải nghiệm người dùng?`;
+      }
     } else {
-      fallbackText = `Thị trường giải pháp này hiện có ít nhất 3 đối thủ lớn với tiềm lực tài chính gấp 20 lần bạn. Rào cản công nghệ hay tính năng độc quyền (Moat) thực sự của bạn là gì để ngăn họ sao chép sản phẩm trong vòng 3 tháng?`;
+      if (preset === EvaluationPreset.SV_STARTUP) {
+        fallbackText = `Hiện trên thị trường đã có nhiều giải pháp tương tự từ các doanh nghiệp lớn. Điểm khác biệt lớn nhất và lý do vì sao người dùng ở địa phương hoặc trường học sẽ chọn sản phẩm của nhóm sinh viên là gì?`;
+      } else {
+        fallbackText = `Thị trường giải pháp này hiện có ít nhất 3 đối thủ lớn với tiềm lực tài chính gấp 20 lần bạn. Rào cản công nghệ hay tính năng độc quyền (Moat) thực sự của bạn là gì để ngăn họ sao chép sản phẩm trong vòng 3 tháng?`;
+      }
     }
 
     const words = fallbackText.split(' ');

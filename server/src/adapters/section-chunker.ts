@@ -116,16 +116,21 @@ export class SectionChunker {
 
     // Chuyển đổi sang mảng DocumentSection chuẩn
     return Object.values(BusinessSectionType).map((type, index) => {
-      const content = (sectionsMap.get(type) || []).join('\n').trim();
+      const rawContent = (sectionsMap.get(type) || []).join('\n').trim();
+      const isDetected =
+        rawContent.length > 20 &&
+        !rawContent.includes('Chưa phát hiện nội dung rõ ràng cho mục');
+
       return {
         id: `sec-${index + 1}-${type.toLowerCase()}`,
         type,
         title: BusinessSectionLabel[type],
         content:
-          content ||
+          rawContent ||
           `(Chưa phát hiện nội dung rõ ràng cho mục ${BusinessSectionLabel[type]})`,
-        charCount: content.length,
-        wordCount: content.split(/\s+/).filter(Boolean).length,
+        charCount: rawContent.length,
+        wordCount: rawContent.split(/\s+/).filter(Boolean).length,
+        isDetected,
       };
     });
   }

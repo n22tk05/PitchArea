@@ -66,7 +66,8 @@ export class FollowUpEngine {
     currentFollowUpCount: number,
     currentTopic: string,
     evaluation: CandidateAnswerEvaluation,
-    currentBossId: JuryBossId
+    currentBossId: JuryBossId,
+    availableBossIds?: JuryBossId[]
   ): FollowUpDecision {
     // Nếu thí sinh trả lời yếu / lảng tránh:
     if (evaluation.isVague) {
@@ -99,7 +100,7 @@ export class FollowUpEngine {
       topic: this.rotateTopic(currentTopic),
       followUpCount: 0,
       reason: 'Thí sinh đã giải trình tương đối rõ ràng hoặc chuyển chủ đề mới.',
-      suggestedBossId: this.rotateBoss(currentBossId),
+      suggestedBossId: this.rotateBoss(currentBossId, availableBossIds),
     };
   }
 
@@ -115,13 +116,21 @@ export class FollowUpEngine {
     return topics[nextIndex];
   }
 
-  private rotateBoss(currentBossId: JuryBossId): JuryBossId {
-    if (currentBossId === JuryBossId.FINANCE_DRAGON) {
-      return JuryBossId.TECH_SENTINEL;
-    } else if (currentBossId === JuryBossId.TECH_SENTINEL) {
-      return JuryBossId.MARKET_SHARK;
-    } else {
-      return JuryBossId.FINANCE_DRAGON;
+  private rotateBoss(currentBossId: JuryBossId, availableBossIds?: JuryBossId[]): JuryBossId {
+    const allowed =
+      availableBossIds && availableBossIds.length > 0
+        ? availableBossIds
+        : Object.values(JuryBossId);
+
+    if (allowed.length === 1) {
+      return allowed[0];
     }
+
+    const currentIndex = allowed.indexOf(currentBossId);
+    if (currentIndex === -1) {
+      return allowed[0];
+    }
+    const nextIndex = (currentIndex + 1) % allowed.length;
+    return allowed[nextIndex];
   }
 }

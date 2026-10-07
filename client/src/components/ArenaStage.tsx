@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArenaSessionState,
   JuryBossId,
@@ -54,6 +54,11 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
 }) => {
   const [manualDefenseText, setManualDefenseText] = useState('');
 
+  // Theo dõi biến động HP để nhấp nháy background màu nền thông báo
+  const [hpFlashType, setHpFlashType] = useState<'damage' | 'heal' | null>(null);
+  const [hpDelta, setHpDelta] = useState<number>(0);
+  const prevHpRef = useRef<number | null>(null);
+
   // Tự động đồng bộ giọng nói vào ô nhập khi có kết quả
   useEffect(() => {
     if (transcript) {
@@ -64,9 +69,44 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
   const activeBossId = sessionState?.activeBossId || JuryBossId.FINANCE_DRAGON;
   const mode = sessionState?.config.mode || ArenaMode.FULL_ARENA;
   const hp = sessionState?.candidateHp ?? 100;
+
+  // Lắng nghe biến động HP để nháy nền
+  useEffect(() => {
+    if (prevHpRef.current !== null && prevHpRef.current !== hp) {
+      const diff = hp - prevHpRef.current;
+      setHpDelta(Math.abs(diff));
+      if (diff < 0) {
+        setHpFlashType('damage');
+      } else if (diff > 0) {
+        setHpFlashType('heal');
+      }
+
+      const timer = setTimeout(() => {
+        setHpFlashType(null);
+      }, 900);
+
+      return () => clearTimeout(timer);
+    }
+    prevHpRef.current = hp;
+  }, [hp]);
   const isFrozen = timeFreezeInfo.isFrozen || sessionState?.isTimeFrozen;
   const isPaused = timerData?.isPaused || sessionState?.isPaused;
   const fsmState = timerData?.fsmState || sessionState?.fsmState;
+
+  // Lọc chỉ những Giám khảo có khối đề mục tồn tại trong tài liệu
+  const availableBosses = useMemo(() => {
+    if (sessionState?.availableBossIds && sessionState.availableBossIds.length > 0) {
+      return sessionState.availableBossIds;
+    }
+    return [JuryBossId.FINANCE_DRAGON, JuryBossId.TECH_SENTINEL, JuryBossId.MARKET_SHARK];
+  }, [sessionState?.availableBossIds]);
+
+  const gridColsClass =
+    availableBosses.length === 1
+      ? 'grid-cols-1 max-w-md mx-auto'
+      : availableBosses.length === 2
+      ? 'grid-cols-1 md:grid-cols-2'
+      : 'grid-cols-1 md:grid-cols-3';
 
   const turnRemaining =
     timerData?.turnRemainingSeconds ??
@@ -88,48 +128,43 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
 
   return (
     <div className="flex flex-col gap-5 w-full">
-      {/* 1. HỘI ĐỒNG GIÁM KHẢO (3 Ghế Thẩm Định) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <JudgeCard
-          bossId={JuryBossId.FINANCE_DRAGON}
-          isActive={activeBossId === JuryBossId.FINANCE_DRAGON}
-          isDimmed={
-            mode === ArenaMode.QUICK_COMBAT &&
-            activeBossId !== JuryBossId.FINANCE_DRAGON
-          }
-          isSpeaking={
-            activeBossId === JuryBossId.FINANCE_DRAGON &&
-            fsmState === SessionFsmState.BOSS_QUESTIONING
-          }
-        />
-        <JudgeCard
-          bossId={JuryBossId.TECH_SENTINEL}
-          isActive={activeBossId === JuryBossId.TECH_SENTINEL}
-          isDimmed={
-            mode === ArenaMode.QUICK_COMBAT &&
-            activeBossId !== JuryBossId.TECH_SENTINEL
-          }
-          isSpeaking={
-            activeBossId === JuryBossId.TECH_SENTINEL &&
-            fsmState === SessionFsmState.BOSS_QUESTIONING
-          }
-        />
-        <JudgeCard
-          bossId={JuryBossId.MARKET_SHARK}
-          isActive={activeBossId === JuryBossId.MARKET_SHARK}
-          isDimmed={
-            mode === ArenaMode.QUICK_COMBAT &&
-            activeBossId !== JuryBossId.MARKET_SHARK
-          }
-          isSpeaking={
-            activeBossId === JuryBossId.MARKET_SHARK &&
-            fsmState === SessionFsmState.BOSS_QUESTIONING
-          }
-        />
+      {/* 1. HỘI ĐỒNG GIÁM KHẢO (Chỉ xuất hiện Giám khảo có khối đề mục tồn tại trong tài liệu) */}
+      <div className={`grid ${gridColsClass} gap-3 w-full`}>
+        {availableBosses.map((bossId) => (
+          <JudgeCard
+            key={bossId}
+            bossId={bossId}
+            isActive={activeBossId === bossId}
+            isDimmed={
+              mode === ArenaMode.QUICK_COMBAT &&
+              activeBossId !== bossId
+            }
+            isSpeaking={
+              activeBossId === bossId &&
+              fsmState === SessionFsmState.BOSS_QUESTIONING
+            }
+          />
+        ))}
       </div>
 
       {/* 2. KHUNG ĐẤU TRƯỜNG CHÍNH (Arena Viewport) */}
-      <div className="relative border-2 border-black bg-neutral-900 text-white p-5 shadow-[6px_6px_0px_#000] flex flex-col gap-4 overflow-hidden font-mono">
+      <div
+        className={`relative border-2 text-white p-5 shadow-[6px_6px_0px_#000] flex flex-col gap-4 overflow-hidden font-mono transition-all duration-300 ${
+          hpFlashType === 'damage'
+            ? 'border-rose-500 bg-rose-950/70 shadow-[0_0_35px_rgba(225,29,72,0.7)]'
+            : hpFlashType === 'heal'
+            ? 'border-emerald-400 bg-emerald-950/70 shadow-[0_0_35px_rgba(16,185,129,0.7)]'
+            : 'border-black bg-neutral-900'
+        }`}
+      >
+        {/* HP Change Flash Overlay Background */}
+        {hpFlashType === 'damage' && (
+          <div className="absolute inset-0 pointer-events-none z-0 animate-hp-damage" />
+        )}
+        {hpFlashType === 'heal' && (
+          <div className="absolute inset-0 pointer-events-none z-0 animate-hp-heal" />
+        )}
+
         {/* CRT Scanline Retro Effect */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.35)_50%)] bg-[length:100%_4px] pointer-events-none opacity-30 z-0" />
 
@@ -181,10 +216,17 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
           <div className="flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5 font-bold text-neutral-300">
               <ShieldAlert className="w-3.5 h-3.5 text-emerald-400" />
-              <span>THANH MÁU THÍ SINH (RESILIENCE): {hp}%</span>
-            </span>
-            <span className="text-[10px] text-emerald-400 font-bold">
-              [SÀN BẢO VỆ TÂN THỦ: 20% HP]
+              <span>THANH MÁU THÍ SINH: {hp}%</span>
+              {hpFlashType === 'damage' && (
+                <span className="ml-2 px-1.5 py-0.5 bg-rose-600 text-white font-extrabold text-[10px] animate-bounce border border-rose-400 shadow-[2px_2px_0px_#000]">
+                  🔻 -{hpDelta} HP (BỊ TRỪ MÁU)
+                </span>
+              )}
+              {hpFlashType === 'heal' && (
+                <span className="ml-2 px-1.5 py-0.5 bg-emerald-500 text-black font-extrabold text-[10px] animate-bounce border border-emerald-300 shadow-[2px_2px_0px_#000]">
+                  🟢 +{hpDelta} HP (HỒI MÁU)
+                </span>
+              )}
             </span>
           </div>
 
@@ -234,7 +276,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
           <div className="flex items-center justify-between text-xs text-neutral-400 border-b border-neutral-800 pb-1.5">
             <span className="text-amber-400 font-bold flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-              LỜI CHẤT VẤN TỪ GIÁM KHẢO:
+              GIÁM KHẢO:
             </span>
             {streamingQuestion?.isCoachingPivot && (
               <span className="text-emerald-400 font-bold text-[10px]">
@@ -265,7 +307,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
           <div className="flex items-center justify-between text-xs text-neutral-300">
             <span className="flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${isRecording ? 'bg-rose-500 animate-ping' : 'bg-neutral-600'}`} />
-              <span className="font-bold">LỜI PHẢN BIỆN CỦA THÍ SINH:</span>
+              <span className="font-bold">THÍ SINH:</span>
             </span>
 
             <button
@@ -299,16 +341,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
           </div>
 
           {/* Thanh Nút Hành Động */}
-          <div className="flex items-center justify-between pt-1">
-            <button
-              type="button"
-              onClick={onRequestNextQuestion}
-              className="px-3 py-2 bg-neutral-800 border border-neutral-600 text-neutral-300 hover:bg-neutral-700 text-xs font-bold flex items-center gap-1.5"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>ĐỔI CÂU HỎI MỚI</span>
-            </button>
-
+          <div className="flex items-center justify-end pt-1">
             <button
               type="submit"
               disabled={!manualDefenseText.trim() && !interimTranscript.trim()}

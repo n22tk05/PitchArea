@@ -115,4 +115,44 @@
   animation: periodic-glitch 4s ease-in-out infinite;
 }
 
+/* HP Damage / Heal Flash Keyframes */
+@keyframes hp-damage-flash {
+  0% {
+    background-color: rgba(225, 29, 72, 0.45);
+    box-shadow: 0 0 35px rgba(225, 29, 72, 0.8), inset 0 0 25px rgba(225, 29, 72, 0.5);
+  }
+  50% {
+    background-color: rgba(159, 18, 57, 0.25);
+    box-shadow: 0 0 20px rgba(225, 29, 72, 0.4), inset 0 0 15px rgba(225, 29, 72, 0.3);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+@keyframes hp-heal-flash {
+  0% {
+    background-color: rgba(16, 185, 129, 0.45);
+    box-shadow: 0 0 35px rgba(16, 185, 129, 0.8), inset 0 0 25px rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    background-color: rgba(6, 95, 70, 0.25);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4), inset 0 0 15px rgba(16, 185, 129, 0.3);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.animate-hp-damage {
+  animation: hp-damage-flash 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.animate-hp-heal {
+  animation: hp-heal-flash 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+
 

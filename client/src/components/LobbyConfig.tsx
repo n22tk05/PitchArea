@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   CombatDifficulty,
   CombatDifficultyDetails,
@@ -10,6 +10,9 @@ import {
   SessionFsmState,
   EvaluationPreset,
   EvaluationPresetDetails,
+  getAvailableBossesForSections,
+  BOSS_TO_SECTION_MAP,
+  BusinessSectionLabel,
 } from "@pitcharena/shared";
 import {
   ArrowLeft,
@@ -46,11 +49,18 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
 }) => {
   const sessionId = `session-${documentData.documentId}`;
 
+  // Lọc danh sách Giám khảo có khối đề mục tồn tại trong tài liệu
+  const availableBossIds = useMemo(() => {
+    return getAvailableBossesForSections(documentData?.sections);
+  }, [documentData?.sections]);
+
+  const defaultBoss = availableBossIds[0] || JuryBossId.FINANCE_DRAGON;
+
   // Cấu hình ban đầu
   const [config, setConfig] = useState<LobbyConfigType>({
     mode: ArenaMode.FULL_ARENA,
     difficulty: CombatDifficulty.NORMAL,
-    selectedBoss: JuryBossId.FINANCE_DRAGON,
+    selectedBoss: defaultBoss,
     evaluationPreset: EvaluationPreset.SV_STARTUP,
     pitchDurationMinutes: 2,
     qaDurationMinutes: 3,
@@ -59,6 +69,18 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
     enableLiveSubtitles: true,
     pedagogicalShieldFloor: 20,
   });
+
+  // Tự động chuyển Solo Boss sang Boss khả dụng nếu boss hiện tại không tồn tại trong tài liệu
+  useEffect(() => {
+    if (
+      availableBossIds.length > 0 &&
+      config.selectedBoss &&
+      !availableBossIds.includes(config.selectedBoss)
+    ) {
+      const fallbackBoss = availableBossIds[0];
+      setConfig((prev) => ({ ...prev, selectedBoss: fallbackBoss }));
+    }
+  }, [availableBossIds, config.selectedBoss]);
 
   // WebSocket Hook
   const {
@@ -104,12 +126,15 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
   // 2. Chuyển đổi Preset Thẩm định
   const handlePresetChange = (preset: EvaluationPreset) => {
     const presetInfo = EvaluationPresetDetails[preset];
+    const targetBoss = availableBossIds.includes(presetInfo.targetBoss)
+      ? presetInfo.targetBoss
+      : (availableBossIds[0] ?? config.selectedBoss);
     const updated = {
       ...config,
       evaluationPreset: preset,
       selectedBoss:
         config.mode === ArenaMode.QUICK_COMBAT
-          ? presetInfo.targetBoss
+          ? targetBoss
           : config.selectedBoss,
     };
     setConfig(updated);
@@ -131,6 +156,7 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
 
   // 4. Chọn Solo Boss
   const handleBossSelect = (bossId: JuryBossId) => {
+    if (!availableBossIds.includes(bossId)) return;
     const updated = {
       ...config,
       selectedBoss: bossId,
@@ -425,19 +451,28 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
               <span className="text-[10px] text-neutral-500">
                 {config.mode === ArenaMode.QUICK_COMBAT
                   ? "Bấm chọn 1 Solo Boss (2 Boss mờ 25%)"
-                  : "Cả 3 Giám khảo cùng tham gia"}
+                  : `Cả ${availableBossIds.length} Giám khảo khả dụng cùng tham gia`}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {Object.values(JURY_BOSS_PROFILES).map((boss) => {
+                const isAvailable = availableBossIds.includes(boss.id);
                 const isSoloSelected =
+                  isAvailable &&
                   config.mode === ArenaMode.QUICK_COMBAT &&
                   config.selectedBoss === boss.id;
                 const isDimmed =
+                  isAvailable &&
                   config.mode === ArenaMode.QUICK_COMBAT &&
                   config.selectedBoss !== boss.id;
-                const isFullActive = config.mode === ArenaMode.FULL_ARENA;
+                const isFullActive =
+                  isAvailable && config.mode === ArenaMode.FULL_ARENA;
+
+                const requiredSections = BOSS_TO_SECTION_MAP[boss.id] || [];
+                const missingSectionNames = requiredSections
+                  .map((s) => BusinessSectionLabel[s] || s)
+                  .join(", ");
 
                 const IconComponent =
                   boss.id === JuryBossId.FINANCE_DRAGON
@@ -449,17 +484,25 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
                 return (
                   <div
                     key={boss.id}
-                    onClick={() => handleBossSelect(boss.id)}
-                    className={`border-2 p-2.5 transition-all duration-300 cursor-pointer flex flex-col justify-between gap-1.5 relative ${
-                      isDimmed
-                        ? "opacity-25 border-dashed border-neutral-400 bg-neutral-100 filter grayscale"
-                        : isSoloSelected
-                          ? "border-black bg-neutral-50 shadow-[3px_3px_0px_#000] ring-2 ring-amber-400"
-                          : isFullActive
-                            ? "border-black bg-white shadow-[2px_2px_0px_#000] hover:shadow-[3px_3px_0px_#000]"
-                            : "border-black bg-white"
+                    onClick={() => isAvailable && handleBossSelect(boss.id)}
+                    className={`border-2 p-2.5 transition-all duration-300 flex flex-col justify-between gap-1.5 relative ${
+                      !isAvailable
+                        ? "opacity-40 border-dashed border-neutral-400 bg-neutral-100 cursor-not-allowed filter grayscale select-none"
+                        : isDimmed
+                          ? "opacity-25 border-dashed border-neutral-400 bg-neutral-100 filter grayscale cursor-pointer"
+                          : isSoloSelected
+                            ? "border-black bg-neutral-50 shadow-[3px_3px_0px_#000] ring-2 ring-amber-400 cursor-pointer"
+                            : isFullActive
+                              ? "border-black bg-white shadow-[2px_2px_0px_#000] hover:shadow-[3px_3px_0px_#000] cursor-pointer"
+                              : "border-black bg-white cursor-pointer"
                     }`}
                   >
+                    {!isAvailable && (
+                      <span className="absolute -top-2 right-1.5 bg-neutral-800 text-white border border-black text-[8px] font-bold px-1.5 py-0.5 tracking-wider">
+                        VẮNG MẶT
+                      </span>
+                    )}
+
                     {isSoloSelected && (
                       <span className="absolute -top-2 right-1.5 bg-amber-400 text-black border border-black text-[8px] font-bold px-1 py-0.1">
                         TARGET BOSS
@@ -473,7 +516,11 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
                     )}
 
                     <div className="flex items-center justify-between">
-                      <div className="p-1 border border-black bg-black text-white">
+                      <div
+                        className={`p-1 border border-black ${
+                          !isAvailable ? "bg-neutral-500" : "bg-black"
+                        } text-white`}
+                      >
                         <IconComponent className="w-3.5 h-3.5" />
                       </div>
                       <span className="text-[9px] font-bold border border-black px-1">
@@ -490,7 +537,16 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
                       </p>
                     </div>
 
-                    {isDimmed ? (
+                    {!isAvailable ? (
+                      <div className="text-[8px] text-neutral-600 font-sans pt-1 border-t border-dashed border-neutral-300">
+                        <span className="font-bold uppercase tracking-wider block text-red-600">
+                          Thiếu đề mục:
+                        </span>
+                        <span className="line-clamp-2" title={missingSectionNames}>
+                          {missingSectionNames}
+                        </span>
+                      </div>
+                    ) : isDimmed ? (
                       <div className="text-[8px] text-center font-bold text-neutral-500 uppercase tracking-widest pt-1 border-t border-dashed border-neutral-300">
                         [ MỜ 25% ]
                       </div>
