@@ -37,6 +37,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     streamingQuestion,
     timeFreezeInfo,
     coachingAlert,
+    lastVerdict,
     connectionError,
     startCombat,
     skipPrep,
@@ -105,19 +106,6 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
             BƯỚC 04 // SÀN ĐẤU PHẢN BIỆN (COMBAT ARENA)
           </span>
 
-          <div className="flex items-center gap-1.5 text-xs font-mono text-neutral-600">
-            {isConnected ? (
-              <span className="flex items-center gap-1 text-emerald-600 font-bold">
-                <Wifi className="w-3.5 h-3.5" />
-                <span>SERVER FSM CONNECTED</span>
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-rose-500 font-bold">
-                <WifiOff className="w-3.5 h-3.5 animate-pulse" />
-                <span>CONNECTING...</span>
-              </span>
-            )}
-          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -154,6 +142,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
         streamingQuestion={streamingQuestion}
         timeFreezeInfo={timeFreezeInfo}
         coachingAlert={coachingAlert}
+        lastVerdict={lastVerdict}
         isRecording={isRecording}
         transcript={transcript}
         interimTranscript={interimTranscript}

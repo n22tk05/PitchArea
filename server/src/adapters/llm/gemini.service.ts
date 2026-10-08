@@ -92,19 +92,18 @@ export class GeminiService {
           accumulated += textPart;
           onChunk(textPart);
         }
-        console.log(accumulated);
         onComplete(accumulated);
         return accumulated;
       } catch (groqErr: any) {
         this.logger.warn(
-          `[FALLBACK] ⚠️ Groq Provider gặp sự cố: "${groqErr.message}". Tự động kích hoạt Fallback Bước 1: Chuyển sang Google Gemini (${geminiKey ? 'API Key khả dụng' : 'Chưa cấu hình API Key'}).`
+          `[FALLBACK] Groq Provider gap su co: "${groqErr.message}". Chuyen sang Gemini (${geminiKey ? 'API Key hop le' : 'Chua cau hinh'}).`
         );
       }
     }
 
     // 2. Dự phòng Google Gemini (gemini-3.6-flash) nếu không có Groq hoặc Groq lỗi
     if (geminiKey) {
-      this.logger.log(`[GeminiService] Đang gọi Google Gemini API stream câu hỏi...`);
+      this.logger.log(`[GeminiService] Dang stream qua Google Gemini API...`);
       try {
         const googleProvider = createGoogleGenerativeAI({ apiKey: geminiKey });
         const result = streamText({
@@ -119,7 +118,6 @@ export class GeminiService {
           accumulated += textPart;
           onChunk(textPart);
         }
-        console.log(accumulated);
         onComplete(accumulated);
         return accumulated;
       } catch (err: any) {

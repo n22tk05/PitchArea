@@ -26,7 +26,7 @@ export class BlindSpotDetector {
       (s) => s.type === BusinessSectionType.COMPETITION_MOAT
     );
 
-    // Điểm mù 1: Unit Economics & CAC (Financial Vulnerability)
+    // Điểm mù 1: Bài toán Chi phí Tiếp cận Khách hàng & Biên lợi nhuận
     const hasCacData = whitelist.some(
       (e) =>
         e.sectionType === BusinessSectionType.BUSINESS_MODEL_UNIT_ECONOMICS &&
@@ -37,36 +37,36 @@ export class BlindSpotDetector {
       id: 'blindspot-1-unit-economics',
       domain: BusinessSectionType.BUSINESS_MODEL_UNIT_ECONOMICS,
       severity: 'HIGH',
-      title: 'Giả định Chi phí Tiếp cận Khách hàng (CAC) & Biên lợi nhuận',
+      title: 'Chi phí Tìm kiếm Khách hàng & Lợi nhuận Thực tế',
       description: hasCacData
-        ? 'Dự án đã có số liệu chi phí nhưng mức ước tính còn tiềm ẩn rủi ro lạc quan quá mức so với thực tế ngành.'
-        : 'Chưa có dữ liệu kiểm chứng thực nghiệm về CAC hoặc thời gian thu hồi vốn (Payback Period).',
+        ? 'Dự án đã có số liệu chi phí nhưng mức ước tính còn tiềm ẩn rủi ro lạc quan quá mức so với thực tế.'
+        : 'Chưa có số liệu thực tế về chi phí để có một khách hàng mới hoặc thời gian thu hồi vốn.',
       attackVector:
-        'GS. Vũ Hoàng (Giám khảo Tài chính) sẽ xoáy sâu vào cơ sở thực nghiệm của giả định chi phí thu hút người dùng.',
+        'GS. Vũ Hoàng (Giám khảo Tài chính) sẽ xoáy sâu vào cơ sở thực tế của chi phí thu hút người dùng.',
     });
 
-    // Điểm mù 2: Overfitting & Cỡ mẫu Thử nghiệm (Technical Vulnerability)
+    // Điểm mù 2: Cỡ mẫu Thử nghiệm & Độ Ổn định Kỹ thuật
     blindSpots.push({
       id: 'blindspot-2-tech-validation',
       domain: BusinessSectionType.SOLUTION_PRODUCT,
       severity: 'HIGH',
-      title: 'Cỡ mẫu Thử nghiệm (Dataset Size) & Nguy cơ Overfitting',
+      title: 'Cỡ mẫu Thử nghiệm & Độ Ổn định Kỹ thuật',
       description:
         'Độ chính xác kỹ thuật hoặc tính hiệu quả của thuật toán cần được đối chứng trên bộ dữ liệu kiểm thử độc lập ngoài môi trường phòng thí nghiệm.',
       attackVector:
-        'TS. Lê Minh Trang (Giám khảo Công nghệ) sẽ chất vấn về phương pháp kiểm định chéo và khả năng khái quát hóa mô hình.',
+        'TS. Lê Minh Trang (Giám khảo Công nghệ) sẽ chất vấn về phương pháp kiểm tra thực nghiệm và độ tin cậy của mô hình.',
     });
 
-    // Điểm mù 3: Lợi thế Cạnh tranh & Đòn phản công từ Big Tech (Moat Vulnerability)
+    // Điểm mù 3: Lợi thế Cạnh tranh trước Đối thủ Lớn
     blindSpots.push({
       id: 'blindspot-3-competitive-moat',
       domain: BusinessSectionType.COMPETITION_MOAT,
       severity: 'HIGH',
-      title: 'Rào cản Phòng thủ (Moat) trước Đối thủ Lớn',
+      title: 'Lợi thế Cạnh tranh & Điểm Khác biệt Trước Đối thủ Lớn',
       description:
-        'Nếu một đối thủ có tiềm lực vốn lớn hoặc tập đoàn công nghệ tích hợp miễn phí tính năng tương tự, dự án chưa nêu rõ vũ khí giữ chân người dùng.',
+        'Nếu một đối thủ có tiềm lực vốn lớn hoặc công ty lớn làm tính năng tương tự, dự án chưa nêu rõ điểm khác biệt để giữ chân người dùng.',
       attackVector:
-        'Shark Trần Nam (Giám khảo Thị trường) sẽ dồn ép về tốc độ mở rộng thị trường và chi phí chuyển đổi (Switching Cost).',
+        'Shark Trần Nam (Giám khảo Thị trường) sẽ dồn ép về lý do khách hàng chọn bạn thay vì dùng giải pháp có sẵn của các bên lớn.',
     });
 
     return blindSpots;

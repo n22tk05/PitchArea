@@ -106,9 +106,9 @@ export class FollowUpEngine {
 
   private rotateTopic(currentTopic: string): string {
     const topics = [
-      'Unit Economics & Chi phí vận hành',
-      'Kiến trúc dự phòng kỹ thuật & Latency LLM',
-      'Rào cản độc quyền Moat & Go-to-Market',
+      'Bài toán giá bán & Chi phí vận hành',
+      'Kiến trúc dự phòng kỹ thuật & Độ trễ hệ thống',
+      'Lợi thế cạnh tranh & Cách tiếp cận khách hàng',
       'Định giá & Thời gian thu hồi vốn',
     ];
     const currentIndex = topics.indexOf(currentTopic);

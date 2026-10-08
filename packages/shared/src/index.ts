@@ -359,14 +359,50 @@ export interface ArenaSessionState {
   followUpCount?: number;
   currentTopic?: string;
   isCoachingPivot?: boolean;
+  lastVerdict?: VerdictResult;
+  streak?: {
+    count: number;
+    type: 'WIN' | 'LOSE' | 'NEUTRAL';
+  };
   transcriptHistory: Array<{
-    sender: 'CANDIDATE' | 'BOSS';
+    sender: 'CANDIDATE' | 'BOSS' | 'PROSECUTOR' | 'DEFENDER' | 'ARBITER';
     bossId?: JuryBossId;
+    agentName?: string;
     text: string;
     timestamp: string;
     penaltyApplied?: number;
     isCoachingPivot?: boolean;
+    score?: number;
   }>;
+}
+
+/**
+ * Đánh giá chi tiết của Hội đồng MAD Chamber
+ */
+export interface VerdictScore {
+  directness: number;          // D: 0 - 100 (Đúng trọng tâm câu hỏi)
+  factualBacking: number;      // F: 0 - 100 (Có căn cứ tài liệu / số liệu thực tế)
+  intellectualHonesty: number; // H: 0 - 100 (Thẳng thắn, không ngụy biện)
+  overallScore: number;        // Q: Điểm tổng hợp 0 - 100
+}
+
+/**
+ * Phán quyết cuối cùng của Hội đồng trọng tài (Arbiter)
+ */
+export interface VerdictResult {
+  turnIndex: number;
+  bossId: JuryBossId;
+  topic: string;
+  score: VerdictScore;
+  hpDelta: number;             // Máu thay đổi (+ hồi, - trừ)
+  isHeal: boolean;
+  reason: string;              // Tóm tắt lý do phán quyết
+  attitudeMultiplier: number;  // 0.3x (cầu thị) -> 1.5x (cãi cùn)
+  streakCount: number;         // Chuỗi thắng/thua hiện tại
+  isShieldProtected: boolean;  // Có được sàn tân thủ 20% bảo vệ không
+  isRedemptionQuestion?: boolean; // Kích hoạt khi máu <= 10%
+  prosecutorArgument?: string; // Góc nhìn công tố viên (bắt bẻ)
+  defenderArgument?: string;   // Góc nhìn bào chữa (suy đoán vô tội)
 }
 
 /**
@@ -393,6 +429,7 @@ export const ArenaSocketEvents = {
   S2C_BOSS_STREAM_CHUNK: 's2c:boss_stream_chunk',
   S2C_TIME_FREEZE: 's2c:time_freeze',
   S2C_COACHING_ALERT: 's2c:coaching_alert',
+  S2C_VERDICT_ANNOUNCED: 's2c:verdict_announced',
   S2C_COMBAT_RESULT: 's2c:combat_result',
   S2C_ERROR: 's2c:error',
 } as const;
@@ -491,3 +528,9 @@ export interface S2CCoachingAlertPayload {
   message: string;
   topic: string;
 }
+
+export interface S2CVerdictAnnouncedPayload {
+  verdict: VerdictResult;
+  candidateHp: number;
+}
+

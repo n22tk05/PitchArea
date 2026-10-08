@@ -8,6 +8,7 @@ import {
   S2CTimeFreezePayload,
   S2CCoachingAlertPayload,
   S2CTimerTickPayload,
+  VerdictResult,
 } from '@pitcharena/shared';
 import { JudgeCard } from './JudgeCard';
 import {
@@ -20,6 +21,13 @@ import {
   RotateCcw,
   Sparkles,
   HelpCircle,
+  Scale,
+  ShieldCheck,
+  AlertTriangle,
+  Flame,
+  History,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface ArenaStageProps {
@@ -28,6 +36,7 @@ interface ArenaStageProps {
   streamingQuestion: S2CBossStreamChunkPayload | null;
   timeFreezeInfo: S2CTimeFreezePayload;
   coachingAlert: S2CCoachingAlertPayload | null;
+  lastVerdict?: VerdictResult | null;
   isRecording: boolean;
   transcript: string;
   interimTranscript: string;
@@ -44,6 +53,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
   streamingQuestion,
   timeFreezeInfo,
   coachingAlert,
+  lastVerdict,
   isRecording,
   transcript,
   interimTranscript,
@@ -278,11 +288,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
               GIÁM KHẢO:
             </span>
-            {streamingQuestion?.isCoachingPivot && (
-              <span className="text-emerald-400 font-bold text-[10px]">
-                [GỢI MỞ HƯỚNG DẪN XÂY DỰNG]
-              </span>
-            )}
+          
           </div>
 
           <div className="text-sm text-neutral-100 leading-relaxed font-sans mt-1">

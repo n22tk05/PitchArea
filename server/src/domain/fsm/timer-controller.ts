@@ -60,6 +60,17 @@ export class SessionTimerController {
   }
 
   /**
+   * Đặt lại thời gian lượt thi đấu khi Giám khảo vừa dứt câu hỏi
+   */
+  public resetTurnTimer(roundDurationSeconds?: number) {
+    if (roundDurationSeconds !== undefined) {
+      this.turnSeconds = roundDurationSeconds;
+    }
+    this.overtimeGraceSeconds = 0;
+    this.emitCurrentTick();
+  }
+
+  /**
    * Đóng băng thời gian (Time Freeze)
    * Sử dụng khi AI stream câu hỏi hoặc thí sinh nộp bài phản biện
    */

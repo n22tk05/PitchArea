@@ -9,6 +9,8 @@ import {
   S2CBossStreamChunkPayload,
   S2CTimeFreezePayload,
   S2CCoachingAlertPayload,
+  S2CVerdictAnnouncedPayload,
+  VerdictResult,
 } from '@pitcharena/shared';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
@@ -19,6 +21,7 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
   const [timerData, setTimerData] = useState<S2CTimerTickPayload | null>(null);
   const [liveTranscript, setLiveTranscript] = useState<S2CLiveTranscriptPayload | null>(null);
   const [streamingQuestion, setStreamingQuestion] = useState<S2CBossStreamChunkPayload | null>(null);
+  const [lastVerdict, setLastVerdict] = useState<VerdictResult | null>(null);
   const [timeFreezeInfo, setTimeFreezeInfo] = useState<S2CTimeFreezePayload>({
     isFrozen: false,
     reason: 'RESUMED',
@@ -90,6 +93,10 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
 
     socket.on(ArenaSocketEvents.S2C_COACHING_ALERT, (data: S2CCoachingAlertPayload) => {
       setCoachingAlert(data);
+    });
+
+    socket.on(ArenaSocketEvents.S2C_VERDICT_ANNOUNCED, (data: S2CVerdictAnnouncedPayload) => {
+      setLastVerdict(data.verdict);
     });
 
     return () => {
@@ -173,6 +180,7 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
     streamingQuestion,
     timeFreezeInfo,
     coachingAlert,
+    lastVerdict,
     connectionError,
     updateConfig,
     startCombat,
