@@ -29,6 +29,7 @@ import {
   S2CVerdictAnnouncedPayload,
   getAvailableBossesForSections,
   JURY_BOSS_PROFILES,
+  BOSS_TO_SECTION_MAP,
 } from '@pitcharena/shared';
 import { ArenaFsmService } from '../domain/fsm/arena-fsm.service';
 import { GeminiService } from '../adapters/llm/gemini.service';
@@ -330,7 +331,7 @@ export class ArenaGateway
       const isWeak = verdict.score.overallScore < 55 || evalResult.isVague;
       const decision = this.followUpEngine.decideNextMove(
         session.followUpCount || 0,
-        session.currentTopic || 'Bài toán giá bán & Chi phí vận hành',
+        session.currentTopic || this.followUpEngine.getDefaultTopicForBoss(session.activeBossId),
         {
           isVague: isWeak,
           isDefensive: evalResult.isDefensive,
@@ -338,14 +339,21 @@ export class ArenaGateway
           wordCount: evalResult.wordCount,
         },
         session.activeBossId,
-        session.availableBossIds
+        session.availableBossIds,
+        session.isCoachingPivot
       );
 
       session.followUpCount = decision.followUpCount;
       session.currentTopic = decision.topic;
 
-      // 4. Nếu là Coaching Pivot (Strike 2), cảnh báo qua S2C_COACHING_ALERT
-      if (decision.action === 'COACHING_PIVOT') {
+      // 4. Kiểm tra xem trận đấu đã hết lượt hay chưa
+      // Nếu là câu hỏi mới (NEW_QUESTION) hoặc đã qua Coaching Pivot:
+      if (decision.action === 'NEW_QUESTION') {
+        session.isCoachingPivot = false;
+        session.activeBossId = decision.suggestedBossId;
+        // Chuyển sang lượt chất vấn tiếp theo
+        session.currentTurn += 1;
+      } else if (decision.action === 'COACHING_PIVOT') {
         session.isCoachingPivot = true;
         const coachingPayload: S2CCoachingAlertPayload = {
           bossId: session.activeBossId,
@@ -359,9 +367,14 @@ export class ArenaGateway
           .emit(ArenaSocketEvents.S2C_COACHING_ALERT, coachingPayload);
       } else {
         session.isCoachingPivot = false;
-        if (decision.action === 'NEW_QUESTION') {
-          session.activeBossId = decision.suggestedBossId;
-        }
+      }
+
+      // Nếu đã vượt quá tổng số lượt quy định (ví dụ 3/3 lượt), kết thúc trận đấu chuyển sang Báo cáo Tổng kết
+      if (session.currentTurn > session.totalTurns) {
+        this.fsmService.transitionState(sessionId, SessionFsmState.EVALUATION_REPORT);
+        timer.stop();
+        this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, this.sanitizeSessionForClient(session));
+        return;
       }
 
       // Đồng bộ trạng thái mới
@@ -441,13 +454,18 @@ export class ArenaGateway
     // Đóng băng đồng hồ khi Boss đang đặt câu hỏi (Time Freeze)
     timer.freeze('BOSS_STREAMING_QUESTION');
     this.fsmService.transitionState(sessionId, SessionFsmState.BOSS_QUESTIONING);
-    // Đảm bảo Giám khảo chất vấn luôn thuộc khối đề mục có thực sự trong tài liệu
+    // Đảm bảo Giám khảo chất vấn luôn thuộc danh sách khả dụng
     if (
       session.availableBossIds &&
       session.availableBossIds.length > 0 &&
       !session.availableBossIds.includes(session.activeBossId)
     ) {
       session.activeBossId = session.availableBossIds[0];
+    }
+
+    // Đảm bảo chủ đề hiện tại luôn khớp với chuyên môn của Boss
+    if (!session.currentTopic) {
+      session.currentTopic = this.followUpEngine.getDefaultTopicForBoss(session.activeBossId);
     }
 
     session.isStreamingQuestion = true;
@@ -465,11 +483,31 @@ export class ArenaGateway
         ? session.transcriptHistory[session.transcriptHistory.length - 1].text
         : '';
 
+    // Trích xuất nội dung thực tế từ tài liệu theo chuyên môn của Giám khảo đang chất vấn
+    let docContext = '';
+    const doc = this.documentService.getDocument(session.documentId);
+    if (doc) {
+      const relevantSectionTypes = BOSS_TO_SECTION_MAP[session.activeBossId] || [];
+      const relevantSections = doc.sections.filter((s) => relevantSectionTypes.includes(s.type));
+      if (relevantSections.length > 0) {
+        docContext = relevantSections
+          .map((s) => `[MỤC ${s.title || s.type}]: ${s.content.slice(0, 800)}`)
+          .join('\n\n');
+      } else {
+        docContext = doc.markdownContent.slice(0, 1500);
+      }
+    }
+
+    const ragContext = `Dự án: ${doc?.filename || session.documentId}
+Chủ đề chất vấn: ${session.currentTopic}
+Trọng tâm nội dung hồ sơ dự án:
+${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
+
     let accumulatedQuestion = '';
 
     await this.geminiService.streamBossQuestion({
       bossId: session.activeBossId,
-      ragContext: `Dự án document ID: ${session.documentId}. Chủ đề chính: ${session.currentTopic || 'Chi phí vận hành & Giá bán'}.`,
+      ragContext,
       candidateSpeech: candidateLastSpeech,
       isFollowUp: (session.followUpCount || 0) > 0,
       followUpTopic: session.currentTopic,
@@ -557,6 +595,17 @@ export class ArenaGateway
     // Tự động chuyển lượt tiếp theo hoặc kết thúc
     if (session.currentTurn < session.totalTurns) {
       session.currentTurn += 1;
+      session.followUpCount = 0;
+      session.isCoachingPivot = false;
+      const decision = this.followUpEngine.decideNextMove(
+        0,
+        session.currentTopic || this.followUpEngine.getDefaultTopicForBoss(session.activeBossId),
+        { isVague: false, isDefensive: false, hasNumbers: false, wordCount: 0 },
+        session.activeBossId,
+        session.availableBossIds
+      );
+      session.activeBossId = decision.suggestedBossId;
+      session.currentTopic = decision.topic;
       this.triggerBossQuestioning(sessionId);
     } else {
       this.fsmService.transitionState(sessionId, SessionFsmState.EVALUATION_REPORT);

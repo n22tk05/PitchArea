@@ -60,6 +60,35 @@ export class FollowUpEngine {
   }
 
   /**
+   * Bảng ánh xạ chủ đề chuyên môn mặc định cho từng Giám khảo
+   */
+  public static readonly BOSS_TOPICS: Record<JuryBossId, string[]> = {
+    [JuryBossId.FINANCE_DRAGON]: [
+      'Bài toán giá bán & Chi phí vận hành',
+      'Chi phí tìm kiếm khách hàng & Điểm hòa vốn',
+      'Kế hoạch doanh thu & Nguồn kinh phí duy trì đội ngũ',
+    ],
+    [JuryBossId.TECH_SENTINEL]: [
+      'Kiến trúc hệ thống & Độ trễ phản hồi',
+      'Khả năng mở rộng quy mô (Scalability) & Chi phí máy chủ AI',
+      'Độ tin cậy của thuật toán & Phương pháp kiểm thử thực nghiệm',
+    ],
+    [JuryBossId.MARKET_SHARK]: [
+      'Lợi thế cạnh tranh & Điểm khác biệt trước đối thủ lớn',
+      'Kế hoạch tiếp cận khách hàng mục tiêu & Bán hàng thực tế',
+      'Lý do khách hàng từ bỏ giải pháp cũ để chọn sản phẩm mới',
+    ],
+  };
+
+  /**
+   * Lấy chủ đề mặc định phù hợp với chuyên môn của từng Giám khảo
+   */
+  public getDefaultTopicForBoss(bossId: JuryBossId): string {
+    const topics = FollowUpEngine.BOSS_TOPICS[bossId];
+    return topics && topics.length > 0 ? topics[0] : 'Định hướng phát triển dự án';
+  }
+
+  /**
    * Quyết định bước tiếp theo: Đào sâu thêm lần 2 hay Chuyển sang Coaching Pivot (Strike 2)
    */
   public decideNextMove(
@@ -67,12 +96,30 @@ export class FollowUpEngine {
     currentTopic: string,
     evaluation: CandidateAnswerEvaluation,
     currentBossId: JuryBossId,
-    availableBossIds?: JuryBossId[]
+    availableBossIds?: JuryBossId[],
+    isCurrentCoachingPivot = false
   ): FollowUpDecision {
+    // Nếu lượt vừa qua ĐÃ là Coaching Pivot (thí sinh đã nhận hướng dẫn sư phạm),
+    // lượt tiếp theo bắt buộc phải chuyển sang câu hỏi mới và đổi Giám khảo, không được kẹt lại.
+    if (isCurrentCoachingPivot || currentFollowUpCount >= 2) {
+      const nextBoss = this.rotateBoss(currentBossId, availableBossIds);
+      const nextTopic = this.rotateTopicForBoss(nextBoss, currentTopic);
+      this.logger.log(
+        `[FollowUpEngine] Completed coaching/follow-up cycle. Rotating to new boss: ${nextBoss} with topic: "${nextTopic}"`
+      );
+      return {
+        action: 'NEW_QUESTION',
+        topic: nextTopic,
+        followUpCount: 0,
+        reason: 'Đã hoàn thành vòng gợi ý sư phạm/follow-up. Chuyển sang Giám khảo và chủ đề tiếp theo.',
+        suggestedBossId: nextBoss,
+      };
+    }
+
     // Nếu thí sinh trả lời yếu / lảng tránh:
     if (evaluation.isVague) {
       if (currentFollowUpCount === 0) {
-        // Lần 1: Bới sâu thêm 1 tầng nữa
+        // Lần 1: Bới sâu thêm 1 tầng nữa (cùng Boss, cùng Topic)
         this.logger.log(`[FollowUpEngine] Strike 1 on topic "${currentTopic}" -> FOLLOW_UP_DEEP`);
         return {
           action: 'FOLLOW_UP_DEEP',
@@ -81,37 +128,42 @@ export class FollowUpEngine {
           reason: 'Thí sinh trả lời còn chung chung, thiếu số liệu định lượng.',
           suggestedBossId: currentBossId,
         };
-      } else if (currentFollowUpCount >= 1) {
+      } else if (currentFollowUpCount === 1) {
         // Lần 2 liên tiếp bối rối ở cùng chủ đề -> Kích hoạt Coaching Pivot
         this.logger.log(`[FollowUpEngine] Strike 2 on topic "${currentTopic}" -> COACHING_PIVOT`);
         return {
           action: 'COACHING_PIVOT',
           topic: currentTopic,
-          followUpCount: currentFollowUpCount + 1,
+          followUpCount: 2,
           reason: 'Thí sinh 2 lần liên tiếp gặp khó khăn ở cùng chủ đề. Chuyển sang gợi ý sư phạm.',
           suggestedBossId: currentBossId,
         };
       }
     }
 
-    // Nếu trả lời tốt, chuyển sang câu hỏi hoặc chủ đề mới luân phiên
+    // Nếu trả lời tốt hoặc không bị bối rối, chuyển sang câu hỏi mới và đổi Giám khảo luân phiên
+    const nextBoss = this.rotateBoss(currentBossId, availableBossIds);
+    const nextTopic = this.rotateTopicForBoss(nextBoss, currentTopic);
     return {
       action: 'NEW_QUESTION',
-      topic: this.rotateTopic(currentTopic),
+      topic: nextTopic,
       followUpCount: 0,
-      reason: 'Thí sinh đã giải trình tương đối rõ ràng hoặc chuyển chủ đề mới.',
-      suggestedBossId: this.rotateBoss(currentBossId, availableBossIds),
+      reason: 'Thí sinh đã giải trình tương đối rõ ràng. Chuyển sang Giám khảo và chủ đề mới.',
+      suggestedBossId: nextBoss,
     };
   }
 
-  private rotateTopic(currentTopic: string): string {
-    const topics = [
-      'Bài toán giá bán & Chi phí vận hành',
-      'Kiến trúc dự phòng kỹ thuật & Độ trễ hệ thống',
-      'Lợi thế cạnh tranh & Cách tiếp cận khách hàng',
-      'Định giá & Thời gian thu hồi vốn',
+  private rotateTopicForBoss(bossId: JuryBossId, currentTopic?: string): string {
+    const topics = FollowUpEngine.BOSS_TOPICS[bossId] || [
+      'Định hướng phát triển dự án',
     ];
+    if (!currentTopic) {
+      return topics[0];
+    }
     const currentIndex = topics.indexOf(currentTopic);
+    if (currentIndex === -1) {
+      return topics[0];
+    }
     const nextIndex = (currentIndex + 1) % topics.length;
     return topics[nextIndex];
   }
