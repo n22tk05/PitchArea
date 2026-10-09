@@ -149,9 +149,10 @@ export type ArenaMode = (typeof ArenaMode)[keyof typeof ArenaMode];
  * Định danh 3 Giám khảo Solo Boss
  */
 export const JuryBossId = {
-  FINANCE_DRAGON: 'FINANCE_DRAGON', // GS. Vũ Hoàng
-  TECH_SENTINEL: 'TECH_SENTINEL',   // TS. Lê Minh Trang
-  MARKET_SHARK: 'MARKET_SHARK',     // Shark Trần Nam
+  MARKET_SHARK: 'MARKET_SHARK',         // Shark Trần Nam - Nhóm 1: Vấn đề & Thị trường
+  TECH_SENTINEL: 'TECH_SENTINEL',       // TS. Lê Minh Trang - Nhóm 2: Sản phẩm & Công nghệ
+  FINANCE_DRAGON: 'FINANCE_DRAGON',     // GS. Vũ Hoàng - Nhóm 3: Mô hình kinh doanh & Tài chính
+  RISK_STRATEGIST: 'RISK_STRATEGIST',   // ThS. Đặng Mai Lan - Nhóm 4: Rủi ro & Kế hoạch tương lai
 } as const;
 
 export type JuryBossId = (typeof JuryBossId)[keyof typeof JuryBossId];
@@ -168,46 +169,56 @@ export interface JuryBossProfile {
 }
 
 export const JURY_BOSS_PROFILES: Record<JuryBossId, JuryBossProfile> = {
-  [JuryBossId.FINANCE_DRAGON]: {
-    id: JuryBossId.FINANCE_DRAGON,
-    name: 'GS. Vũ Hoàng',
-    title: 'Trưởng Ban Thẩm Định Tài Chính',
-    level: 95,
-    domain: 'Tài chính & Unit Economics',
-    focus: 'Xoáy sâu dòng tiền, CAC, LTV, biên hòa vốn và rủi ro cạn vốn.',
-    avatarIcon: 'Coins',
-    signatureStyle: 'Lạnh lùng, bóc trần từng con số, không chấp nhận dự phóng vô căn cứ.',
+  [JuryBossId.MARKET_SHARK]: {
+    id: JuryBossId.MARKET_SHARK,
+    name: 'Shark Trần Nam',
+    title: 'Nhà Đầu Tư Chiến Lược Thị Trường',
+    level: 98,
+    domain: 'Vấn đề & Thị Trường (Problem & Market)',
+    focus: 'Truy vấn nỗi đau khách hàng, cơ sở khảo sát, dung lượng thị trường và mức độ sẵn sàng chi trả.',
+    avatarIcon: 'TrendingUp',
+    signatureStyle: 'Gai góc, thực chiến, bóc trần những khảo sát hình thức và nhu cầu ảo.',
   },
   [JuryBossId.TECH_SENTINEL]: {
     id: JuryBossId.TECH_SENTINEL,
     name: 'TS. Lê Minh Trang',
-    title: 'Chuyên Gia Thẩm Định Công Nghệ',
+    title: 'Chuyên Gia Thẩm Định Công Nghệ & AI',
     level: 92,
-    domain: 'Kiến Trúc Kỹ Thuật & Đổi Mới AI',
-    focus: 'Bóc tách độ trễ hệ thống, rủi ro ảo giác AI, rò rỉ dữ liệu và khả năng mở rộng.',
+    domain: 'Sản Phẩm & Công Nghệ (Product & Tech)',
+    focus: 'Bóc tách kiến trúc hệ thống, độ trễ phản hồi, tính độc quyền công nghệ, mẫu thử MVP và an toàn dữ liệu.',
     avatarIcon: 'Cpu',
-    signatureStyle: 'Kỹ tính, logic thực nghiệm, truy vấn tận gốc công nghệ lõi.',
+    signatureStyle: 'Kỹ tính, logic thực nghiệm, truy vấn tận gốc công nghệ lõi và tính ổn định kỹ thuật.',
   },
-  [JuryBossId.MARKET_SHARK]: {
-    id: JuryBossId.MARKET_SHARK,
-    name: 'Shark Trần Nam',
-    title: 'Nhà Đầu Tư Chiến Lược',
-    level: 98,
-    domain: 'Quy Mô Thị Trường & Rào Cản Phòng Thủ (Moat)',
-    focus: 'Truy vấn Product-Market Fit, TAM/SAM/SOM và kịch bản bị Big Tech bóp nghẹt.',
+  [JuryBossId.FINANCE_DRAGON]: {
+    id: JuryBossId.FINANCE_DRAGON,
+    name: 'GS. Vũ Hoàng',
+    title: 'Trưởng Ban Thẩm Định Tài Chính & Doanh Thu',
+    level: 95,
+    domain: 'Mô Hình Kinh Doanh & Tài Chính (Business Model & Finance)',
+    focus: 'Xoáy sâu giá bán, biên lợi nhuận, chi phí tìm kiếm khách hàng, điểm hòa vốn và nguồn tiền duy trì đội ngũ.',
+    avatarIcon: 'Coins',
+    signatureStyle: 'Lạnh lùng, bóc trần từng con số, không chấp nhận dự phóng vô căn cứ.',
+  },
+  [JuryBossId.RISK_STRATEGIST]: {
+    id: JuryBossId.RISK_STRATEGIST,
+    name: 'ThS. Đặng Mai Lan',
+    title: 'Chuyên Gia Chiến Lược & Quản Trị Rủi Ro',
+    level: 94,
+    domain: 'Rủi Ro & Kế Hoạch Tương Lai (Risk & Roadmap)',
+    focus: 'Bắt bẻ kịch bản bị đối thủ lớn sao chép, rào cản phòng thủ (Moat), lộ trình triển khai 6-12 tháng và tác động xã hội.',
     avatarIcon: 'ShieldAlert',
-    signatureStyle: 'Sắc bén, nhắm thẳng tử huyệt kinh doanh, áp đảo tâm lý.',
+    signatureStyle: 'Điềm tĩnh, nhìn xa trông rộng, chất vấn khả năng sống sót dài hạn và tính khả thi của lộ trình.',
   },
 };
 
 /**
- * Ánh xạ giữa Giám khảo và các Khối đề mục chuyên môn phụ trách
+ * Ánh xạ giữa 4 Giám khảo và đúng 4 Nhóm Đề mục chuyên môn phụ trách
  */
 export const BOSS_TO_SECTION_MAP: Record<JuryBossId, BusinessSectionType[]> = {
-  [JuryBossId.FINANCE_DRAGON]: [BusinessSectionType.BUSINESS_MODEL_UNIT_ECONOMICS],
+  [JuryBossId.MARKET_SHARK]: [BusinessSectionType.PROBLEM_MARKET],
   [JuryBossId.TECH_SENTINEL]: [BusinessSectionType.SOLUTION_PRODUCT],
-  [JuryBossId.MARKET_SHARK]: [
-    BusinessSectionType.PROBLEM_MARKET,
+  [JuryBossId.FINANCE_DRAGON]: [BusinessSectionType.BUSINESS_MODEL_UNIT_ECONOMICS],
+  [JuryBossId.RISK_STRATEGIST]: [
     BusinessSectionType.COMPETITION_MOAT,
     BusinessSectionType.SOCIAL_IMPACT_ROADMAP,
   ],
@@ -239,7 +250,7 @@ export function getAvailableBossesForSections(sections?: DocumentSection[]): Jur
     return requiredSections.some((secType) => existingSectionTypes.has(secType));
   });
 
-  return matched.length > 0 ? matched : [JuryBossId.FINANCE_DRAGON];
+  return matched.length > 0 ? matched : [JuryBossId.MARKET_SHARK];
 }
 
 /**
@@ -296,9 +307,10 @@ export const LobbyConfigSchema = z.object({
   ]),
   selectedBoss: z
     .enum([
-      JuryBossId.FINANCE_DRAGON,
-      JuryBossId.TECH_SENTINEL,
       JuryBossId.MARKET_SHARK,
+      JuryBossId.TECH_SENTINEL,
+      JuryBossId.FINANCE_DRAGON,
+      JuryBossId.RISK_STRATEGIST,
     ])
     .nullable()
     .optional(),

@@ -26,7 +26,31 @@ export class BlindSpotDetector {
       (s) => s.type === BusinessSectionType.COMPETITION_MOAT
     );
 
-    // Điểm mù 1: Bài toán Chi phí Tiếp cận Khách hàng & Biên lợi nhuận
+    // Điểm mù 1: Vấn đề & Khảo sát thị trường thực tế (Shark Trần Nam)
+    blindSpots.push({
+      id: 'blindspot-1-problem-market',
+      domain: BusinessSectionType.PROBLEM_MARKET,
+      severity: 'HIGH',
+      title: 'Xác Thực Nhu Cầu & Khảo Sát Người Dùng Thực Tế',
+      description:
+        'Cần có bằng chứng phỏng vấn sâu hoặc thử nghiệm trực tiếp chứng minh khách hàng thực sự đau đớn và sẵn sàng chi tiền giải quyết vấn đề.',
+      attackVector:
+        'Shark Trần Nam (Giám khảo Thị trường) sẽ chất vấn tính thực chất của các số liệu khảo sát và nhu cầu thực của khách hàng.',
+    });
+
+    // Điểm mù 2: Cỡ mẫu Thử nghiệm & Độ Ổn định Kỹ thuật (TS. Lê Minh Trang)
+    blindSpots.push({
+      id: 'blindspot-2-tech-validation',
+      domain: BusinessSectionType.SOLUTION_PRODUCT,
+      severity: 'HIGH',
+      title: 'Cỡ Mẫu Thử Nghiệm & Độ Ổn Định Sản Phẩm',
+      description:
+        'Độ chính xác kỹ thuật, độ trễ và tính ổn định của MVP cần được kiểm chứng trên người dùng thật ngoài môi trường thử nghiệm.',
+      attackVector:
+        'TS. Lê Minh Trang (Giám khảo Công nghệ) sẽ chất vấn về kiến trúc MVP, độ trễ phản hồi và phương pháp thử nghiệm.',
+    });
+
+    // Điểm mù 3: Chi phí Sản xuất, Giá bán & Dòng tiền Duy trì (GS. Vũ Hoàng)
     const hasCacData = whitelist.some(
       (e) =>
         e.sectionType === BusinessSectionType.BUSINESS_MODEL_UNIT_ECONOMICS &&
@@ -34,39 +58,27 @@ export class BlindSpotDetector {
     );
 
     blindSpots.push({
-      id: 'blindspot-1-unit-economics',
+      id: 'blindspot-3-unit-economics',
       domain: BusinessSectionType.BUSINESS_MODEL_UNIT_ECONOMICS,
       severity: 'HIGH',
-      title: 'Chi phí Tìm kiếm Khách hàng & Lợi nhuận Thực tế',
+      title: 'Giá Bán, Biên Lợi Nhuận & Dòng Tiền Hòa Vốn',
       description: hasCacData
         ? 'Dự án đã có số liệu chi phí nhưng mức ước tính còn tiềm ẩn rủi ro lạc quan quá mức so với thực tế.'
         : 'Chưa có số liệu thực tế về chi phí để có một khách hàng mới hoặc thời gian thu hồi vốn.',
       attackVector:
-        'GS. Vũ Hoàng (Giám khảo Tài chính) sẽ xoáy sâu vào cơ sở thực tế của chi phí thu hút người dùng.',
+        'GS. Vũ Hoàng (Giám khảo Tài chính) sẽ xoáy sâu vào bài toán lời/lỗ trên từng sản phẩm và nguồn vốn duy trì đội ngũ.',
     });
 
-    // Điểm mù 2: Cỡ mẫu Thử nghiệm & Độ Ổn định Kỹ thuật
+    // Điểm mù 4: Rào cản Cạnh tranh & Lộ trình Sống sót (ThS. Đặng Mai Lan)
     blindSpots.push({
-      id: 'blindspot-2-tech-validation',
-      domain: BusinessSectionType.SOLUTION_PRODUCT,
-      severity: 'HIGH',
-      title: 'Cỡ mẫu Thử nghiệm & Độ Ổn định Kỹ thuật',
-      description:
-        'Độ chính xác kỹ thuật hoặc tính hiệu quả của thuật toán cần được đối chứng trên bộ dữ liệu kiểm thử độc lập ngoài môi trường phòng thí nghiệm.',
-      attackVector:
-        'TS. Lê Minh Trang (Giám khảo Công nghệ) sẽ chất vấn về phương pháp kiểm tra thực nghiệm và độ tin cậy của mô hình.',
-    });
-
-    // Điểm mù 3: Lợi thế Cạnh tranh trước Đối thủ Lớn
-    blindSpots.push({
-      id: 'blindspot-3-competitive-moat',
+      id: 'blindspot-4-risk-roadmap',
       domain: BusinessSectionType.COMPETITION_MOAT,
       severity: 'HIGH',
-      title: 'Lợi thế Cạnh tranh & Điểm Khác biệt Trước Đối thủ Lớn',
+      title: 'Rủi Ro Cạnh Tranh Trước Đối Thủ Lớn & Lộ Trình Sống Sót',
       description:
-        'Nếu một đối thủ có tiềm lực vốn lớn hoặc công ty lớn làm tính năng tương tự, dự án chưa nêu rõ điểm khác biệt để giữ chân người dùng.',
+        'Nếu đối thủ lớn hoặc công ty nhiều vốn làm tính năng tương tự, dự án chưa nêu rõ vũ khí độc quyền để giữ chân khách hàng dài hạn.',
       attackVector:
-        'Shark Trần Nam (Giám khảo Thị trường) sẽ dồn ép về lý do khách hàng chọn bạn thay vì dùng giải pháp có sẵn của các bên lớn.',
+        'ThS. Đặng Mai Lan (Giám khảo Rủi ro & Chiến lược) sẽ chất vấn kịch bản phòng thủ và tính khả thi của lộ trình 6-12 tháng tới.',
     });
 
     return blindSpots;

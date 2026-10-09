@@ -455,7 +455,7 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {Object.values(JURY_BOSS_PROFILES).map((boss) => {
                 const isAvailable = availableBossIds.includes(boss.id);
                 const isSoloSelected =
@@ -475,11 +475,13 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
                   .join(", ");
 
                 const IconComponent =
-                  boss.id === JuryBossId.FINANCE_DRAGON
-                    ? Coins
+                  boss.id === JuryBossId.MARKET_SHARK
+                    ? Zap
                     : boss.id === JuryBossId.TECH_SENTINEL
-                      ? Cpu
-                      : ShieldAlert;
+                    ? Cpu
+                    : boss.id === JuryBossId.FINANCE_DRAGON
+                    ? Coins
+                    : ShieldAlert;
 
                 return (
                   <div

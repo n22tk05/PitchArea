@@ -3,7 +3,7 @@ import {
   JuryBossId,
   JURY_BOSS_PROFILES,
 } from '@pitcharena/shared';
-import { Coins, Cpu, ShieldAlert, Radio } from 'lucide-react';
+import { Coins, Cpu, ShieldAlert, TrendingUp, Radio } from 'lucide-react';
 
 interface JudgeCardProps {
   bossId: JuryBossId;
@@ -24,12 +24,14 @@ export const JudgeCard: React.FC<JudgeCardProps> = ({
 
   const renderIcon = () => {
     switch (bossId) {
-      case JuryBossId.FINANCE_DRAGON:
-        return <Coins className="w-5 h-5 text-amber-600" />;
+      case JuryBossId.MARKET_SHARK:
+        return <TrendingUp className="w-5 h-5 text-rose-600" />;
       case JuryBossId.TECH_SENTINEL:
         return <Cpu className="w-5 h-5 text-cyan-600" />;
-      case JuryBossId.MARKET_SHARK:
-        return <ShieldAlert className="w-5 h-5 text-rose-600" />;
+      case JuryBossId.FINANCE_DRAGON:
+        return <Coins className="w-5 h-5 text-amber-600" />;
+      case JuryBossId.RISK_STRATEGIST:
+        return <ShieldAlert className="w-5 h-5 text-purple-600" />;
       default:
         return <Radio className="w-5 h-5 text-neutral-600" />;
     }

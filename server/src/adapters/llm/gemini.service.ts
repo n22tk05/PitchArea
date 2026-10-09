@@ -163,23 +163,29 @@ export class GeminiService {
         preset === EvaluationPreset.SV_STARTUP
           ? `Thầy cô hiểu đây là khó khăn lớn khi sinh viên làm sản phẩm thực tế. Một hướng tiếp cận khả thi là nhóm nên bắt đầu thử nghiệm trong quy mô hẹp tại trường để lấy phản hồi thực tế trước. Các em thấy giải pháp từng bước này có phù hợp với nguồn lực hiện tại của nhóm không?`
           : `Tôi hiểu đây là bài toán khó khi làm sản phẩm thực tế. Một hướng tiếp cận khả thi là bạn có thể áp dụng caching kết hợp batch inference để cắt giảm 70% chi phí API. Bạn thấy giải pháp phân kỳ này có thể áp dụng cho giai đoạn MVP của dự án không?`;
-    } else if (persona.id === JuryBossId.FINANCE_DRAGON) {
+    } else if (persona.id === JuryBossId.MARKET_SHARK) {
       if (preset === EvaluationPreset.SV_STARTUP) {
-        fallbackText = `Trong tài liệu, nhóm đưa ra kết quả từ 200 phiếu khảo sát online nhưng chưa có dữ liệu bán thử nghiệm thực tế. Với nguồn kinh phí sinh viên eo hẹp, nhóm phân bổ ngân sách thế nào để hoàn thiện sản phẩm mẫu và kiểm chứng nhu cầu thực tế của người dùng?`;
+        fallbackText = `Nhóm đưa ra kết quả từ phiếu khảo sát nhưng chưa có người dùng chi tiền thực tế. Nhóm đã nói chuyện trực tiếp với bao nhiêu khách hàng tiềm năng và bằng chứng nào cho thấy họ sẵn sàng bỏ tiền mua sản phẩm này?`;
       } else {
-        fallbackText = `Trong tài liệu, bạn công bố CAC là 3.2 triệu và LTV 48 triệu VNĐ. Tuy nhiên với mô hình LLM API chạy real-time cho hàng trăm người dùng, chi phí suy luận ước tính ngốn hơn 50% biên lợi nhuận. Bạn dự phòng dòng tiền cạn kiệt trong 6 tháng đầu thế nào?`;
+        fallbackText = `Khách hàng hiện tại đang quen với các cách làm truyền thống. Lý do thực tế và cấp bách nhất nào khiến họ chấp nhận thay đổi thói quen và trả tiền sử dụng giải pháp của nhóm ngay trong tháng đầu tiên?`;
       }
     } else if (persona.id === JuryBossId.TECH_SENTINEL) {
       if (preset === EvaluationPreset.SV_STARTUP) {
-        fallbackText = `Đề tài của nhóm áp dụng công nghệ mới, nhưng nhóm đã thử nghiệm với bao nhiêu sinh viên thực tế rồi? Liệu giải pháp này có hoạt động ổn định ngoài môi trường phòng thí nghiệm khi các bạn trong trường cùng truy cập không?`;
+        fallbackText = `Sản phẩm mẫu MVP của nhóm hiện tại đã chạy thực tế được những tính năng cốt lõi nào? Khi có hàng trăm sinh viên cùng truy cập một lúc, nhóm làm sao để giữ hệ thống không bị chậm hoặc sập máy chủ?`;
       } else {
-        fallbackText = `Hệ thống của bạn phụ thuộc hoàn toàn vào API LLM bên thứ ba. Trong trường hợp nhà cung cấp quá tải hoặc độ trễ tăng đột biến lên trên 3 giây, cơ chế fallback tại chỗ của bạn là gì để không làm đứt gãy trải nghiệm người dùng?`;
+        fallbackText = `Hệ thống của bạn có độ trễ đo đạc thực tế là bao nhiêu giây? Nếu mô hình AI gặp sự cố trả lời sai lệch thông tin nghiêm trọng, kiến trúc của bạn có phương án dự phòng tại chỗ nào để bảo vệ người dùng?`;
       }
-    } else {
+    } else if (persona.id === JuryBossId.FINANCE_DRAGON) {
       if (preset === EvaluationPreset.SV_STARTUP) {
-        fallbackText = `Hiện trên thị trường đã có nhiều giải pháp tương tự từ các doanh nghiệp lớn. Điểm khác biệt lớn nhất và lý do vì sao người dùng ở địa phương hoặc trường học sẽ chọn sản phẩm của nhóm sinh viên là gì?`;
+        fallbackText = `Mức giá bán dự kiến cho mỗi sản phẩm là bao nhiêu tiền, và sau khi trừ chi phí sản xuất nhóm lãi được bao nhiêu? Với nguồn vốn sinh viên hạn hẹp, số tiền hiện có đủ duy trì hoạt động trong mấy tháng?`;
       } else {
-        fallbackText = `Thị trường giải pháp này hiện có ít nhất 3 đối thủ lớn với tiềm lực tài chính gấp 20 lần bạn. Rào cản công nghệ hay tính năng độc quyền (Moat) thực sự của bạn là gì để ngăn họ sao chép sản phẩm trong vòng 3 tháng?`;
+        fallbackText = `Chi phí thực tế để nhóm có được một khách hàng trả tiền là bao nhiêu, và mất bao lâu để thu hồi vốn? Dự báo doanh thu 6 tháng đầu dựa trên căn cứ số liệu nào hay chỉ là ước tính chủ quan?`;
+      }
+    } else if (persona.id === JuryBossId.RISK_STRATEGIST) {
+      if (preset === EvaluationPreset.SV_STARTUP) {
+        fallbackText = `Nếu một doanh nghiệp lớn trên thị trường ra mắt tính năng tương tự, nhóm lấy vũ khí hay điểm khác biệt nào để cạnh tranh? Kế hoạch hành động cụ thể trong 6 tháng tới để đưa sản phẩm ra ngoài thực tế là gì?`;
+      } else {
+        fallbackText = `Thị trường hiện có những đối thủ với tiềm lực tài chính vượt trội. Rào cản phòng thủ độc quyền nào giúp bạn giữ chân khách hàng dài hạn, và các cột mốc kiểm chứng sống còn trong lộ trình 1 năm tới là gì?`;
       }
     }
 

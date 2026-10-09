@@ -51,7 +51,7 @@ export class ArenaFsmService {
         config: defaultConfig,
         fsmState: SessionFsmState.LOBBY_READY,
         currentTurn: 1,
-        totalTurns: 3,
+        totalTurns: 4,
         activeBossId: defaultBoss,
         availableBossIds: validBosses,
         candidateHp: 100,

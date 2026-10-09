@@ -60,23 +60,28 @@ export class FollowUpEngine {
   }
 
   /**
-   * Bảng ánh xạ chủ đề chuyên môn mặc định cho từng Giám khảo
+   * Bảng ánh xạ chủ đề chuyên môn mặc định cho từng Giám khảo (4 Nhóm Trụ Cột)
    */
   public static readonly BOSS_TOPICS: Record<JuryBossId, string[]> = {
-    [JuryBossId.FINANCE_DRAGON]: [
-      'Bài toán giá bán & Chi phí vận hành',
-      'Chi phí tìm kiếm khách hàng & Điểm hòa vốn',
-      'Kế hoạch doanh thu & Nguồn kinh phí duy trì đội ngũ',
+    [JuryBossId.MARKET_SHARK]: [
+      'Nỗi đau khách hàng & Cơ sở khảo sát thực tế',
+      'Chân dung khách hàng mục tiêu & Mức độ sẵn sàng chi trả',
+      'Quy mô thị trường có thể tiếp cận & Kế hoạch bán hàng',
     ],
     [JuryBossId.TECH_SENTINEL]: [
       'Kiến trúc hệ thống & Độ trễ phản hồi',
-      'Khả năng mở rộng quy mô (Scalability) & Chi phí máy chủ AI',
-      'Độ tin cậy của thuật toán & Phương pháp kiểm thử thực nghiệm',
+      'Tính ổn định của MVP & Xử lý khi AI sai lệch',
+      'Khả năng mở rộng quy mô (Scalability) & Chi phí máy chủ',
     ],
-    [JuryBossId.MARKET_SHARK]: [
-      'Lợi thế cạnh tranh & Điểm khác biệt trước đối thủ lớn',
-      'Kế hoạch tiếp cận khách hàng mục tiêu & Bán hàng thực tế',
-      'Lý do khách hàng từ bỏ giải pháp cũ để chọn sản phẩm mới',
+    [JuryBossId.FINANCE_DRAGON]: [
+      'Bài toán giá bán & Chi phí sản xuất trên từng sản phẩm',
+      'Chi phí tìm kiếm khách hàng & Điểm hòa vốn',
+      'Dòng tiền thực tế & Nguồn kinh phí duy trì đội ngũ',
+    ],
+    [JuryBossId.RISK_STRATEGIST]: [
+      'Rủi ro cạnh tranh & Điểm khác biệt trước đối thủ lớn',
+      'Vũ khí độc quyền giữ chân khách hàng (Moat) & Pháp lý',
+      'Lộ trình triển khai 6-12 tháng & Cột mốc kiểm chứng',
     ],
   };
 

@@ -108,7 +108,12 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
     if (sessionState?.availableBossIds && sessionState.availableBossIds.length > 0) {
       return sessionState.availableBossIds;
     }
-    return [JuryBossId.FINANCE_DRAGON, JuryBossId.TECH_SENTINEL, JuryBossId.MARKET_SHARK];
+    return [
+      JuryBossId.MARKET_SHARK,
+      JuryBossId.TECH_SENTINEL,
+      JuryBossId.FINANCE_DRAGON,
+      JuryBossId.RISK_STRATEGIST,
+    ];
   }, [sessionState?.availableBossIds]);
 
   const gridColsClass =
@@ -116,7 +121,9 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
       ? 'grid-cols-1 max-w-md mx-auto'
       : availableBosses.length === 2
       ? 'grid-cols-1 md:grid-cols-2'
-      : 'grid-cols-1 md:grid-cols-3';
+      : availableBosses.length === 3
+      ? 'grid-cols-1 md:grid-cols-3'
+      : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
 
   const turnRemaining =
     timerData?.turnRemainingSeconds ??
