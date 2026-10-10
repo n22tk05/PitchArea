@@ -84,7 +84,7 @@ export class GeminiService {
 
         try {
           this.logger.log(
-            `[GroqProvider] Kích hoạt Groq Key [${i + 1}/${groqKeys.length}] (${masked}) - Model: openai/gpt-oss-120b stream trực tiếp...`
+            `[GroqProvider] Kích hoạt Groq Key [${i + 1}/${groqKeys.length}] (${masked}) - Model: llama-3.3-70b-versatile stream trực tiếp...`
           );
 
           const groq = createOpenAI({
@@ -93,7 +93,7 @@ export class GeminiService {
           });
 
           const result = streamText({
-            model: groq.chat('openai/gpt-oss-120b'),
+            model: groq.chat('llama-3.3-70b-versatile'),
             prompt,
             temperature: 0.85,
           });
