@@ -20,7 +20,7 @@ export class SessionTimerController {
   private isTimeFrozen = false;
   private freezeReason: string | null = null;
 
-  private prepSeconds = 7;
+  private prepSeconds = 3;
   private turnSeconds = 30;
   private overtimeGraceSeconds = 0;
   private readonly MAX_OVERTIME_GRACE = 15;
@@ -32,7 +32,7 @@ export class SessionTimerController {
   constructor(
     private readonly sessionId: string,
     private fsmState: SessionFsmState = SessionFsmState.LOBBY_READY,
-    defaultPrepSeconds = 7,
+    defaultPrepSeconds = 3,
     defaultTurnSeconds = 30
   ) {
     this.prepSeconds = defaultPrepSeconds;
@@ -144,11 +144,10 @@ export class SessionTimerController {
     ) {
       if (this.turnSeconds > 0) {
         this.turnSeconds -= 1;
-      } else if (this.overtimeGraceSeconds > 0) {
-        // Sử dụng quỹ Overtime Grace
-        this.overtimeGraceSeconds -= 1;
-      } else {
-        // Hết thời gian thi đấu lượt này
+      }
+      
+      // Khi thời gian về đúng 0: Lập tức ngắt giờ thi đấu và gọi callback chuyển lượt, không nán lại thời gian
+      if (this.turnSeconds <= 0) {
         if (this.onTurnExpireCallback) {
           this.onTurnExpireCallback();
         }

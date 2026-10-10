@@ -65,7 +65,7 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
     pitchDurationMinutes: 2,
     qaDurationMinutes: 3,
     roundDurationSeconds: 30,
-    prepBufferSeconds: 7,
+    prepBufferSeconds: 3,
     enableLiveSubtitles: true,
     pedagogicalShieldFloor: 20,
   });
@@ -659,7 +659,7 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
             </button>
 
             <p className="text-[10px] text-neutral-500 text-center font-sans">
-              *Hệ thống sẽ nạp cấu hình và kích hoạt 07s đệm suy nghĩ trước khi bước vào chất vấn.
+              *Hệ thống sẽ nạp cấu hình và kích hoạt 03s đệm suy nghĩ trước khi bước vào chất vấn.
             </p>
           </div>
         </div>

@@ -10,6 +10,7 @@ import { DocxParser } from '../adapters/docx-parser';
 import { SectionChunker } from '../adapters/section-chunker';
 import { EntityExtractor } from '../adapters/entity-extractor';
 import { BlindSpotDetector } from '../adapters/blind-spot-detector';
+import { FoundationFactsExtractor } from '../adapters/foundation-facts-extractor';
 
 @Injectable()
 export class DocumentService {
@@ -83,19 +84,28 @@ export class DocumentService {
         `[DocumentService] ✅ [Bước 3/4] Trích xuất hoàn tất: ${entityWhitelist.length} thực thể số liệu được kiểm chứng.`
       );
 
-      // 4. Phát hiện 3 điểm mù rủi ro
+      // 4. Phát hiện các điểm mù rủi ro
       this.logger.log(
-        `[DocumentService] ⏳ [Bước 4/4] Đang phân tích các điểm mù rủi ro (Blind Spots)...`
+        `[DocumentService] ⏳ [Bước 4/5] Đang phân tích các điểm mù rủi ro (Blind Spots)...`
       );
       const blindSpots: BlindSpot[] = BlindSpotDetector.detect(sections, entityWhitelist);
       this.logger.log(
-        `[DocumentService] ✅ [Bước 4/4] Phát hiện thành công ${blindSpots.length} điểm mù trọng yếu:`
+        `[DocumentService] ✅ [Bước 4/5] Phát hiện thành công ${blindSpots.length} điểm mù trọng yếu:`
       );
       blindSpots.forEach((spot, idx) => {
         this.logger.log(
           `   ├─ [Điểm mù ${idx + 1}] [${spot.domain}] ${spot.title} (Mức độ: ${spot.severity})`
         );
       });
+
+      // 5. Trích xuất Dữ kiện nền tảng (Foundation Facts) để điều hướng logic câu hỏi
+      this.logger.log(
+        `[DocumentService] ⏳ [Bước 5/5] Đang định vị dữ kiện nền tảng (Foundation Facts)...`
+      );
+      const foundationFacts = FoundationFactsExtractor.extract(parsed.markdown, sections);
+      this.logger.log(
+        `[DocumentService] ✅ [Bước 5/5] Định vị nền tảng: Khách hàng=${foundationFacts.targetCustomerType} (${foundationFacts.isCustomerExplicit ? 'Rõ ràng' : 'Bỏ ngỏ'}), Mô hình thu tiền=${foundationFacts.revenueModelType} (${foundationFacts.isRevenueModelExplicit ? 'Rõ ràng' : 'Bỏ ngỏ'}), Giai đoạn=${foundationFacts.productStage}`
+      );
 
       const result: DocumentAnalysisResult = {
         documentId: `doc-${Date.now()}`,
@@ -105,6 +115,7 @@ export class DocumentService {
         sections,
         entityWhitelist,
         blindSpots,
+        foundationFacts,
         processedAt: new Date().toISOString(),
       };
 

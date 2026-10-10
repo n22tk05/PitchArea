@@ -154,5 +154,37 @@
   animation: hp-heal-flash 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
+/* Hiệu ứng hào quang xanh lục tỏa sáng liên tục khi trả lời đúng / xuất sắc */
+@keyframes correct-answer-pulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.35), inset 0 0 10px rgba(16, 185, 129, 0.2);
+    border-color: #10b981;
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(16, 185, 129, 0.7), inset 0 0 20px rgba(16, 185, 129, 0.35);
+    border-color: #34d399;
+  }
+}
+
+.animate-correct-pulse {
+  animation: correct-answer-pulse 2s ease-in-out infinite;
+}
+
+/* Hiệu ứng ngọn lửa chuỗi bất bại (Streak Flame) */
+@keyframes streak-fire {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.8));
+  }
+  50% {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.9));
+  }
+}
+
+.animate-streak-fire {
+  animation: streak-fire 1.2s ease-in-out infinite;
+}
+
 
 

@@ -49,6 +49,7 @@ export class ArenaGateway
   server: Server;
 
   private readonly logger = new Logger(ArenaGateway.name);
+  private readonly latestCandidateSpeech = new Map<string, string>();
 
   constructor(
     private readonly fsmService: ArenaFsmService,
@@ -169,7 +170,7 @@ export class ArenaGateway
   }
 
   /**
-   * Bắt đầu trận đấu: Chuyển sang 7s Prep Buffer rồi sang Boss chất vấn
+   * Bắt đầu trận đấu: Chuyển sang 3s Prep Buffer rồi sang Boss chất vấn
    */
   @SubscribeMessage(ArenaSocketEvents.C2S_START_COMBAT)
   handleStartCombat(
@@ -199,7 +200,7 @@ export class ArenaGateway
   }
 
   /**
-   * Bỏ qua 7s đệm suy nghĩ -> Kích hoạt ngay Giám khảo đặt câu hỏi
+   * Bỏ qua 3s đệm suy nghĩ -> Kích hoạt ngay Giám khảo đặt câu hỏi
    */
   @SubscribeMessage(ArenaSocketEvents.C2S_SKIP_PREP)
   handleSkipPrep(
@@ -254,10 +255,23 @@ export class ArenaGateway
     try {
       const { sessionId, defenseText } =
         C2SSubmitDefensePayloadSchema.parse(rawPayload);
+      await this.processCandidateDefense(sessionId, defenseText);
+    } catch (err: any) {
+      this.logger.error(`Error in handleSubmitDefense: ${err.message}`);
+    }
+  }
 
+  /**
+   * Quy trình xử lý bài nộp phản biện và phán xử (dùng cho cả submit chủ động và khi hết giờ)
+   */
+  private async processCandidateDefense(sessionId: string, defenseText: string) {
+    try {
       const session = this.fsmService.getSession(sessionId);
       const timer = this.fsmService.getTimer(sessionId);
       if (!session || !timer) return;
+
+      // Xóa lời nói tạm sau khi đã tiếp nhận xử lý
+      this.latestCandidateSpeech.delete(sessionId);
 
       // 1. Time Freeze khi tiếp nhận bài nộp
       timer.freeze('CANDIDATE_SUBMIT_DEFENSE');
@@ -311,6 +325,7 @@ export class ArenaGateway
       });
 
       // Cập nhật máu theo phán quyết của Arbiter (có sàn tân thủ 20% và thưởng hồi máu)
+      session.lastVerdict = verdict;
       if (verdict.hpDelta > 0) {
         session.candidateHp = Math.min(100, session.candidateHp + verdict.hpDelta);
       } else if (verdict.hpDelta < 0) {
@@ -431,6 +446,10 @@ export class ArenaGateway
         .to(sessionId)
         .emit(ArenaSocketEvents.S2C_LIVE_TRANSCRIPT, livePayload);
 
+      if (text.trim()) {
+        this.latestCandidateSpeech.set(sessionId, text.trim());
+      }
+
       if (isFinal && text.trim()) {
         session.transcriptHistory.push({
           sender: 'CANDIDATE',
@@ -463,9 +482,9 @@ export class ArenaGateway
       session.activeBossId = session.availableBossIds[0];
     }
 
-    // Đảm bảo chủ đề hiện tại luôn khớp với chuyên môn của Boss
+    // Đảm bảo chủ đề hiện tại luôn khớp với chuyên môn của Boss và đa dạng ngẫu nhiên giữa các phiên
     if (!session.currentTopic) {
-      session.currentTopic = this.followUpEngine.getDefaultTopicForBoss(session.activeBossId);
+      session.currentTopic = this.followUpEngine.getRandomTopicForBoss(session.activeBossId);
     }
 
     session.isStreamingQuestion = true;
@@ -485,8 +504,19 @@ export class ArenaGateway
 
     // Trích xuất nội dung thực tế từ tài liệu theo chuyên môn của Giám khảo đang chất vấn
     let docContext = '';
+    let foundationContext = '';
     const doc = this.documentService.getDocument(session.documentId);
     if (doc) {
+      if (doc.foundationFacts) {
+        const ff = doc.foundationFacts;
+        foundationContext = `[ĐỊNH VỊ NỀN TẢNG DỰ ÁN]:
+- Đối tượng khách hàng mục tiêu: ${ff.targetCustomerSummary} (Trạng thái: ${ff.isCustomerExplicit ? 'ĐÃ NÊU RÕ TRONG BÁO CÁO' : 'CHƯA NÊU RÕ / BỎ NGỎ'})
+- Mô hình doanh thu & Dòng tiền: ${ff.revenueModelSummary} (Trạng thái: ${ff.isRevenueModelExplicit ? 'ĐÃ NÊU RÕ TRONG BÁO CÁO' : 'CHƯA NÊU RÕ / BỎ NGỎ'})
+- Phân loại sản phẩm: ${ff.productType} | Giai đoạn hiện tại: ${ff.productStage} (Trạng thái: ${ff.isStageExplicit ? 'ĐÃ XÁC ĐỊNH' : 'MỚI LÀ Ý TƯỞNG / CHƯA RÕ RÀNG'})
+- Lợi thế cạnh tranh: ${ff.hasIdentifiedMoat ? ff.moatSummary : 'Chưa có lợi thế phòng thủ rõ ràng'}
+- Lộ trình phát triển: ${ff.hasExecutionRoadmap ? 'Đã có các mốc thời gian' : 'Chưa có lộ trình cụ thể'}`;
+      }
+
       const relevantSectionTypes = BOSS_TO_SECTION_MAP[session.activeBossId] || [];
       const relevantSections = doc.sections.filter((s) => relevantSectionTypes.includes(s.type));
       if (relevantSections.length > 0) {
@@ -500,10 +530,16 @@ export class ArenaGateway
 
     const ragContext = `Dự án: ${doc?.filename || session.documentId}
 Chủ đề chất vấn: ${session.currentTopic}
+${foundationContext ? `${foundationContext}\n` : ''}
 Trọng tâm nội dung hồ sơ dự án:
 ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
 
     let accumulatedQuestion = '';
+
+    // Thu thập danh sách các câu hỏi trước đó của Giám khảo để cấm AI đặt câu hỏi trùng lặp ý
+    const previousQuestions = session.transcriptHistory
+      .filter((t) => t.sender === 'BOSS' && t.text.trim())
+      .map((t) => t.text.trim());
 
     await this.geminiService.streamBossQuestion({
       bossId: session.activeBossId,
@@ -513,6 +549,7 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
       followUpTopic: session.currentTopic,
       isCoachingPivot: session.isCoachingPivot,
       preset: session.config.evaluationPreset,
+      previousQuestions,
       onChunk: (chunk: string) => {
         accumulatedQuestion += chunk;
         const chunkPayload: S2CBossStreamChunkPayload = {
@@ -562,18 +599,27 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
           `[LUOT ${session.currentTurn}/${session.totalTurns}] [GIAM KHAO: ${bossName}] ${turnTag} Topic: "${session.currentTopic || 'Chung'}" | Cau hoi: "${fullText}"`
         );
 
-        // Bỏ đóng băng đồng hồ, đặt lại thời gian lượt thi đấu đầy đủ cho thí sinh đối chất
-        timer.resetTurnTimer(session.config.roundDurationSeconds);
-        timer.unfreeze();
-        this.fsmService.transitionState(sessionId, SessionFsmState.COMBAT_ACTIVE);
-        session.turnRemainingSeconds = session.config.roundDurationSeconds;
-
-        const unfreezePayload: S2CTimeFreezePayload = {
-          isFrozen: false,
-          reason: 'RESUMED',
+        // Bổ sung khoảng nghỉ 1.8s (tầm 1-2s) sau khi render câu hỏi xong để thí sinh đọc và chuẩn bị
+        const readingPausePayload: S2CTimeFreezePayload = {
+          isFrozen: true,
+          reason: 'READING_BUFFER',
         };
-        this.server.to(sessionId).emit(ArenaSocketEvents.S2C_TIME_FREEZE, unfreezePayload);
-        this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, this.sanitizeSessionForClient(session));
+        this.server.to(sessionId).emit(ArenaSocketEvents.S2C_TIME_FREEZE, readingPausePayload);
+
+        setTimeout(() => {
+          // Bỏ đóng băng đồng hồ, đặt lại thời gian lượt thi đấu đầy đủ cho thí sinh đối chất
+          timer.resetTurnTimer(session.config.roundDurationSeconds);
+          timer.unfreeze();
+          this.fsmService.transitionState(sessionId, SessionFsmState.COMBAT_ACTIVE);
+          session.turnRemainingSeconds = session.config.roundDurationSeconds;
+
+          const unfreezePayload: S2CTimeFreezePayload = {
+            isFrozen: false,
+            reason: 'RESUMED',
+          };
+          this.server.to(sessionId).emit(ArenaSocketEvents.S2C_TIME_FREEZE, unfreezePayload);
+          this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, this.sanitizeSessionForClient(session));
+        }, 1800);
       },
       onError: () => {
         timer.unfreeze();
@@ -592,7 +638,15 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
 
     this.logger.log(`[${sessionId}] Turn time expired!`);
 
-    // Tự động chuyển lượt tiếp theo hoặc kết thúc
+    // Nếu thí sinh đang nói dở khi hết giờ, lập tức ngắt lời và nộp bài phản biện đó để phán xử ngay
+    const pendingSpeech = this.latestCandidateSpeech.get(sessionId)?.trim();
+    if (pendingSpeech) {
+      this.logger.log(`[${sessionId}] Auto-submitting pending candidate speech on timeout: "${pendingSpeech}"`);
+      this.processCandidateDefense(sessionId, pendingSpeech);
+      return;
+    }
+
+    // Tự động chuyển lượt tiếp theo hoặc kết thúc nếu thí sinh hoàn toàn im lặng
     if (session.currentTurn < session.totalTurns) {
       session.currentTurn += 1;
       session.followUpCount = 0;

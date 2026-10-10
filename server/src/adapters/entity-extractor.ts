@@ -7,6 +7,7 @@ import {
   DocumentSection,
   EntityWhitelistItem,
 } from '@pitcharena/shared';
+import { GroqKeyManager } from './llm/groq-key-manager';
 
 // Zod Schema định nghĩa cấu trúc Entity cho Vercel AI SDK
 const ExtractedEntitySchema = z.object({
@@ -57,39 +58,51 @@ export class EntityExtractor {
       return [];
     }
 
-    // 1. NẾU CÓ GROQ_API_KEY: Ưu tiên Groq Model (openai/gpt-oss-120b) siêu nhanh, không chạm quota ngày
-    const groqKey = process.env.GROQ_API_KEY;
-    if (groqKey) {
-      try {
-        const groq = createOpenAI({
-          baseURL: 'https://api.groq.com/openai/v1',
-          apiKey: groqKey,
-        });
+    // 1. NẾU CÓ GROQ_API_KEY: Ưu tiên Groq Model (openai/gpt-oss-120b) siêu nhanh, xoay vòng nhiều Keys để tránh Rate Limit
+    const groqKeys = GroqKeyManager.getRotatedKeys();
+    if (groqKeys.length > 0) {
+      for (let i = 0; i < groqKeys.length; i++) {
+        const currentKey = groqKeys[i];
+        const masked = GroqKeyManager.maskKey(currentKey);
 
-        const { object } = await generateObject({
-          model: groq.chat('openai/gpt-oss-120b'),
-          schema: ExtractionResponseSchema as any,
-          system: `Bạn là Chuyên gia Thẩm định Số liệu Dự án Khởi nghiệp (Pitch Deck Auditor). Trích xuất toàn bộ các thực thể số liệu tài chính, kỹ thuật, thị trường từ văn bản.`,
-          prompt: `Trích xuất danh sách thực thể số liệu (Whitelist Entities) từ văn bản:\n\n${aggregatedContent}`,
-        });
+        try {
+          const groq = createOpenAI({
+            baseURL: 'https://api.groq.com/openai/v1',
+            apiKey: currentKey,
+          });
 
-        console.log(
-          `[EntityExtractor] 🚀 Groq (openai/gpt-oss-120b) đã trích xuất thành công ${(object as any).entities?.length || 0} thực thể số liệu.`
-        );
+          const { object } = await generateObject({
+            model: groq.chat('openai/gpt-oss-120b'),
+            schema: ExtractionResponseSchema as any,
+            system: `Bạn là Chuyên gia Thẩm định Số liệu Dự án Khởi nghiệp (Pitch Deck Auditor). Trích xuất toàn bộ các thực thể số liệu tài chính, kỹ thuật, thị trường từ văn bản.`,
+            prompt: `Trích xuất danh sách thực thể số liệu (Whitelist Entities) từ văn bản:\n\n${aggregatedContent}`,
+          });
 
-        let counter = 1;
-        return (object as any).entities.map((item: any) => ({
-          id: `entity-${counter++}`,
-          rawText: item.rawText,
-          category: item.category as EntityWhitelistItem['category'],
-          value: item.value,
-          contextSentence: item.contextSentence,
-          sectionType: item.sectionType as BusinessSectionType,
-        }));
-      } catch (groqErr: any) {
-        console.warn(
-          `[EntityExtractor] [FALLBACK] ⚠️ Groq API gặp sự cố: "${groqErr.message}". Tự động Fallback sang Google Gemini...`
-        );
+          console.log(
+            `[EntityExtractor] 🚀 Groq Key [${i + 1}/${groqKeys.length}] (${masked}) đã trích xuất thành công ${(object as any).entities?.length || 0} thực thể số liệu.`
+          );
+
+          let counter = 1;
+          return (object as any).entities.map((item: any) => ({
+            id: `entity-${counter++}`,
+            rawText: item.rawText,
+            category: item.category as EntityWhitelistItem['category'],
+            value: item.value,
+            contextSentence: item.contextSentence,
+            sectionType: item.sectionType as BusinessSectionType,
+          }));
+        } catch (groqErr: any) {
+          console.warn(
+            `[EntityExtractor] [RATE_LIMIT/ERROR] ⚠️ Groq Key [${i + 1}/${groqKeys.length}] (${masked}) gặp sự cố: "${groqErr.message}".`
+          );
+          if (i + 1 < groqKeys.length) {
+            console.log(`[EntityExtractor] 🔄 Đang tự động thử Groq Key tiếp theo...`);
+          } else {
+            console.warn(
+              `[EntityExtractor] [FALLBACK] ⚠️ Tất cả ${groqKeys.length} Groq Keys đều lỗi. Tự động Fallback sang Google Gemini...`
+            );
+          }
+        }
       }
     }
 

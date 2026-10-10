@@ -66,6 +66,32 @@ export interface BlindSpot {
 }
 
 /**
+ * 4 Dữ kiện nền tảng định vị dự án (Project Foundation Facts)
+ * Dùng để điều hướng logic câu hỏi cho Hội đồng Giám khảo tránh nhảy cóc
+ */
+export interface ProjectFoundationFacts {
+  // 1. Nhóm 1: Thị trường & Khách hàng
+  targetCustomerType: 'B2C' | 'B2B' | 'B2G_G2C' | 'UNKNOWN';
+  targetCustomerSummary: string;
+  isCustomerExplicit: boolean;
+
+  // 2. Nhóm 2: Sản phẩm & Công nghệ
+  productType: 'SOFTWARE_APP' | 'AI_SYSTEM' | 'HARDWARE_IOT' | 'PHYSICAL_SERVICE' | 'UNKNOWN';
+  productStage: 'IDEA_RESEARCH' | 'LAB_PROTOTYPE' | 'WORKING_MVP' | 'MARKET_READY';
+  isStageExplicit: boolean;
+
+  // 3. Nhóm 3: Mô hình kinh doanh & Dòng tiền
+  revenueModelType: 'SUBSCRIPTION' | 'ONE_TIME_SALE' | 'COMMISSION_FEE' | 'FREEMIUM_ADS' | 'UNKNOWN';
+  revenueModelSummary: string;
+  isRevenueModelExplicit: boolean;
+
+  // 4. Nhóm 4: Lợi thế cạnh tranh & Rủi ro
+  hasIdentifiedMoat: boolean;
+  moatSummary: string;
+  hasExecutionRoadmap: boolean;
+}
+
+/**
  * Kết quả phân tích toàn diện file Word .docx
  */
 export interface DocumentAnalysisResult {
@@ -76,6 +102,7 @@ export interface DocumentAnalysisResult {
   sections: DocumentSection[];
   entityWhitelist: EntityWhitelistItem[];
   blindSpots: BlindSpot[];
+  foundationFacts?: ProjectFoundationFacts;
   processedAt: string;
 }
 
@@ -324,7 +351,7 @@ export const LobbyConfigSchema = z.object({
   pitchDurationMinutes: z.number().int().min(1).max(10).default(2).optional(),
   qaDurationMinutes: z.number().int().min(1).max(10).default(3).optional(),
   roundDurationSeconds: z.number().int().min(15).max(120).default(30),
-  prepBufferSeconds: z.number().int().min(0).max(15).default(7),
+  prepBufferSeconds: z.number().int().min(0).max(15).default(3),
   enableLiveSubtitles: z.boolean().default(true),
   pedagogicalShieldFloor: z.number().min(0).max(50).default(20), // Khóa máu tối thiểu 20%
 });
@@ -336,7 +363,7 @@ export type LobbyConfig = z.infer<typeof LobbyConfigSchema>;
  */
 export const SessionFsmState = {
   LOBBY_READY: 'LOBBY_READY',         // Ở sảnh chờ, chỉnh thông số
-  PREP_BUFFER: 'PREP_BUFFER',         // Đệm 7s suy nghĩ
+  PREP_BUFFER: 'PREP_BUFFER',         // Đệm 3s suy nghĩ
   CANDIDATE_PITCH: 'CANDIDATE_PITCH', // Sinh viên đang nói qua mic
   BOSS_QUESTIONING: 'BOSS_QUESTIONING',// Giám khảo đang chất vấn (stream câu hỏi)
   COMBAT_ACTIVE: 'COMBAT_ACTIVE',     // Sinh viên đối chất 30s
@@ -531,7 +558,7 @@ export interface S2CBossStreamChunkPayload {
 
 export interface S2CTimeFreezePayload {
   isFrozen: boolean;
-  reason: 'BOSS_STREAMING' | 'CANDIDATE_SUBMIT' | 'TACTICAL_PAUSE' | 'RESUMED';
+  reason: 'BOSS_STREAMING' | 'READING_BUFFER' | 'CANDIDATE_SUBMIT' | 'TACTICAL_PAUSE' | 'RESUMED';
 }
 
 export interface S2CCoachingAlertPayload {

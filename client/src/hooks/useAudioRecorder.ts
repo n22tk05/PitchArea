@@ -263,6 +263,18 @@ export function useAudioRecorder({
     }
   }, []);
 
+  // Xóa sạch dữ liệu transcript và bộ đệm lời nói để chuẩn bị cho câu hỏi mới
+  const resetTranscript = useCallback(() => {
+    setTranscript('');
+    setInterimTranscript('');
+    finalTranscriptRef.current = '';
+    wordsCountRef.current = 0;
+    wordSamplesRef.current = [];
+    lastWpmRef.current = 0;
+    speechStartTimestampRef.current = null;
+    setEstimatedWpm(0);
+  }, []);
+
   useEffect(() => {
     return () => {
       stopRecording();
@@ -279,5 +291,6 @@ export function useAudioRecorder({
     isSilent,
     startRecording,
     stopRecording,
+    resetTranscript,
   };
 }

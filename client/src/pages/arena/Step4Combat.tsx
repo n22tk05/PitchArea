@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   DocumentAnalysisResult,
   LobbyConfig as LobbyConfigType,
@@ -56,7 +56,13 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     interimTranscript,
     startRecording,
     stopRecording,
+    resetTranscript,
   } = useAudioRecorder();
+
+  // Khi chuyển lượt mới: Xóa sạch transcript của câu hỏi trước
+  useEffect(() => {
+    resetTranscript();
+  }, [sessionState?.currentTurn, resetTranscript]);
 
   // Khi vào Step 4: Cập nhật cấu hình và bắt đầu trận đấu nếu đang ở LOBBY
   useEffect(() => {
@@ -71,12 +77,55 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     }
   }, [isConnected, sessionState?.fsmState, startCombat]);
 
+  // TỰ ĐỘNG BẬT MICRO: Sau mỗi lần hết thời gian chuẩn bị và bước vào đối chất (COMBAT_ACTIVE)
+  const isCombatActiveAndUnfrozen =
+    (timerData?.fsmState ?? sessionState?.fsmState) === SessionFsmState.COMBAT_ACTIVE &&
+    !(timeFreezeInfo?.isFrozen || sessionState?.isTimeFrozen) &&
+    !(timerData?.isPaused || sessionState?.isPaused);
+
+  const prevActiveRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (isCombatActiveAndUnfrozen && !prevActiveRef.current) {
+      startRecording();
+    }
+    prevActiveRef.current = isCombatActiveAndUnfrozen;
+  }, [isCombatActiveAndUnfrozen, startRecording]);
+
   // Gửi transcript tạm thời lên server khi có phát biểu
   useEffect(() => {
     if (interimTranscript) {
       submitTranscript(interimTranscript, false);
     }
   }, [interimTranscript, submitTranscript]);
+
+  // KHI HẾT GIỜ (turnRemainingSeconds === 0): Lập tức ngắt micro và gửi ngay lời nói phản biện hiện tại đi
+  useEffect(() => {
+    const remaining = timerData?.turnRemainingSeconds ?? sessionState?.turnRemainingSeconds;
+    const currentState = timerData?.fsmState ?? sessionState?.fsmState;
+
+    if (currentState === SessionFsmState.COMBAT_ACTIVE && remaining === 0) {
+      const pendingText = transcript.trim() || interimTranscript.trim();
+      if (pendingText) {
+        submitDefense(pendingText);
+      }
+      if (isRecording) {
+        stopRecording();
+      }
+      resetTranscript();
+    }
+  }, [
+    timerData?.turnRemainingSeconds,
+    sessionState?.turnRemainingSeconds,
+    timerData?.fsmState,
+    sessionState?.fsmState,
+    transcript,
+    interimTranscript,
+    isRecording,
+    submitDefense,
+    stopRecording,
+    resetTranscript,
+  ]);
 
   const handleToggleRecord = () => {
     if (isRecording) {
@@ -94,6 +143,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     if (isRecording) {
       stopRecording();
     }
+    resetTranscript();
   };
 
   return (
@@ -103,7 +153,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
         <div className="flex items-center gap-3">
           <span className="bg-rose-600 text-white font-mono text-xs font-bold px-2 py-0.5 flex items-center gap-1.5 border border-rose-800">
             <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-            BƯỚC 04 // SÀN ĐẤU PHẢN BIỆN (COMBAT ARENA)
+            BƯỚC 04 // PHẢN BIỆN (COMBAT ARENA)
           </span>
 
         </div>
@@ -115,7 +165,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
               onClick={skipPrep}
               className="px-3 py-1 bg-amber-400 text-black border border-black font-mono text-xs font-bold hover:bg-amber-300 animate-pulse"
             >
-              BỎ QUA 7S ĐỆM →
+              VUI LÒNG CHỜ 
             </button>
           )}
 
@@ -151,6 +201,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
         onRequestNextQuestion={requestNextQuestion}
         onTogglePause={togglePause}
         onDismissCoachingAlert={dismissCoachingAlert}
+        lobbyConfig={lobbyConfig}
       />
 
       {/* Thanh Điều Hướng Dưới Cùng */}

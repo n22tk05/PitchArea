@@ -6,7 +6,9 @@ import { AppModule } from './app.module';
 // Tự động nạp file .env vào process.env
 const envPaths = [
   path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), 'server/.env'),
   path.resolve(__dirname, '../.env'),
+  path.resolve(__dirname, '../../.env'),
 ];
 for (const p of envPaths) {
   if (fs.existsSync(p)) {
@@ -22,7 +24,6 @@ for (const p of envPaths) {
         }
       }
     }
-    break;
   }
 }
 

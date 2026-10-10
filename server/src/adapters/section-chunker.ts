@@ -97,7 +97,8 @@ export class SectionChunker {
       sectionsMap.set(type, []);
     });
 
-    let currentSection: BusinessSectionType = BusinessSectionType.PROBLEM_MARKET;
+    let currentSection: BusinessSectionType | null = null;
+    const preambleLines: string[] = [];
 
     for (const rawLine of lines) {
       const line = rawLine.trim();
@@ -111,14 +112,24 @@ export class SectionChunker {
         }
       }
 
-      sectionsMap.get(currentSection)!.push(rawLine);
+      if (currentSection) {
+        sectionsMap.get(currentSection)!.push(rawLine);
+      } else {
+        preambleLines.push(rawLine);
+      }
+    }
+
+    // Nếu không tìm thấy heading nào, phân bổ preamble cho PROBLEM_MARKET để dự án vẫn có nội dung tối thiểu
+    const anySectionFound = Array.from(sectionsMap.values()).some((arr) => arr.length > 0);
+    if (!anySectionFound && preambleLines.length > 0) {
+      sectionsMap.set(BusinessSectionType.PROBLEM_MARKET, preambleLines);
     }
 
     // Chuyển đổi sang mảng DocumentSection chuẩn
     return Object.values(BusinessSectionType).map((type, index) => {
       const rawContent = (sectionsMap.get(type) || []).join('\n').trim();
       const isDetected =
-        rawContent.length > 20 &&
+        rawContent.length > 30 &&
         !rawContent.includes('Chưa phát hiện nội dung rõ ràng cho mục');
 
       return {

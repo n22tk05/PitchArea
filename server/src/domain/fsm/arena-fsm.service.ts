@@ -32,15 +32,17 @@ export class ArenaFsmService {
         ? availableBossIds
         : Object.values(JuryBossId);
 
-    const defaultBoss = validBosses[0];
+    // Chọn ngẫu nhiên Giám khảo mở màn từ danh sách Giám khảo khả dụng để các phiên không bị trùng lặp
+    const randomBossIndex = Math.floor(Math.random() * validBosses.length);
+    const initialBoss = validBosses[randomBossIndex];
 
     if (!session) {
       const defaultConfig: LobbyConfig = {
         mode: ArenaMode.FULL_ARENA,
         difficulty: CombatDifficulty.NORMAL,
-        selectedBoss: defaultBoss,
+        selectedBoss: initialBoss,
         roundDurationSeconds: 30,
-        prepBufferSeconds: 7,
+        prepBufferSeconds: 3,
         enableLiveSubtitles: true,
         pedagogicalShieldFloor: 20,
       };
@@ -51,8 +53,11 @@ export class ArenaFsmService {
         config: defaultConfig,
         fsmState: SessionFsmState.LOBBY_READY,
         currentTurn: 1,
-        totalTurns: 4,
-        activeBossId: defaultBoss,
+        totalTurns: Math.max(
+          10,
+          Math.ceil(((defaultConfig.qaDurationMinutes || 3) * 60) / (defaultConfig.roundDurationSeconds || 30))
+        ),
+        activeBossId: initialBoss,
         availableBossIds: validBosses,
         candidateHp: 100,
         prepRemainingSeconds: defaultConfig.prepBufferSeconds,
@@ -107,6 +112,12 @@ export class ArenaFsmService {
     if (!session) return null;
 
     session.config = config;
+    if (config.qaDurationMinutes) {
+      session.totalTurns = Math.max(
+        10,
+        Math.ceil((config.qaDurationMinutes * 60) / (config.roundDurationSeconds || 30))
+      );
+    }
     if (config.selectedBoss) {
       if (
         !session.availableBossIds ||

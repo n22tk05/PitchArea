@@ -26,7 +26,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
   const formattedSeconds = String(currentSeconds).padStart(2, '0');
 
   // Trạng thái thanh tiến trình
-  const maxSeconds = isPrep ? 7 : 30;
+  const maxSeconds = isPrep ? 3 : 30;
   const progressPercent = Math.max(0, Math.min(100, (currentSeconds / maxSeconds) * 100));
 
   return (
@@ -37,7 +37,7 @@ export const TimerDisplay: React.FC<TimerDisplayProps> = ({
           <Timer className="w-3.5 h-3.5 text-black" />
           {isPrep && (
             <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 border border-amber-300">
-              [ 07s PREP BUFFER: ĐỆM SUY NGHĨ ]
+              [ 03s PREP BUFFER: ĐỆM SUY NGHĨ ]
             </span>
           )}
           {isCombat && (

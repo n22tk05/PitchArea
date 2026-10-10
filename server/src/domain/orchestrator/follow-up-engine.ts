@@ -64,24 +64,32 @@ export class FollowUpEngine {
    */
   public static readonly BOSS_TOPICS: Record<JuryBossId, string[]> = {
     [JuryBossId.MARKET_SHARK]: [
-      'Nỗi đau khách hàng & Cơ sở khảo sát thực tế',
-      'Chân dung khách hàng mục tiêu & Mức độ sẵn sàng chi trả',
-      'Quy mô thị trường có thể tiếp cận & Kế hoạch bán hàng',
+      'So sánh với cách làm truyền thống & Rào cản thay đổi thói quen người dùng',
+      'Điểm khác biệt cốt lõi so với các giải pháp và công cụ hiện có trên thị trường',
+      'Logic lựa chọn phân khúc khách hàng & Lý do họ chọn bạn thay vì đối thủ',
+      'Hành trình trải nghiệm thực tế từ tiếp cận đến sử dụng thành thạo',
+      'Nhu cầu cấp bách thực tế & Bằng chứng kiểm chứng sự vượt trội',
     ],
     [JuryBossId.TECH_SENTINEL]: [
-      'Kiến trúc hệ thống & Độ trễ phản hồi',
-      'Tính ổn định của MVP & Xử lý khi AI sai lệch',
-      'Khả năng mở rộng quy mô (Scalability) & Chi phí máy chủ',
+      'Logic hoạt động & Luồng xử lý dữ liệu chi tiết (Input -> Xử lý logic -> Output)',
+      'Cơ chế thuật toán cốt lõi & Điểm đột phá kỹ thuật so với công cụ thông thường',
+      'Khả năng tích hợp vào hệ thống/thiết bị sẵn có & Yêu cầu hạ tầng triển khai',
+      'Kiểm thử thực tế, an toàn bảo mật dữ liệu & Độ tin cậy hệ thống',
+      'Kiến trúc hệ thống, độ trễ phản hồi & Khả năng mở rộng khi lượng truy cập tăng',
     ],
     [JuryBossId.FINANCE_DRAGON]: [
-      'Bài toán giá bán & Chi phí sản xuất trên từng sản phẩm',
-      'Chi phí tìm kiếm khách hàng & Điểm hòa vốn',
-      'Dòng tiền thực tế & Nguồn kinh phí duy trì đội ngũ',
+      'Giá trị kinh tế cụ thể mang lại cho người dùng so với chi phí họ bỏ ra',
+      'Cơ sở xác định giá bán & Tính khả thi của mô hình doanh thu',
+      'Chi phí vận hành hệ thống hàng tháng & Khả năng tự duy trì của dự án',
+      'Kế hoạch tài chính triển khai giai đoạn đầu & Điểm hòa vốn thực tế',
+      'Định mức chi tiêu nguồn vốn & Hiệu quả sử dụng kinh phí đầu tư',
     ],
     [JuryBossId.RISK_STRATEGIST]: [
-      'Rủi ro cạnh tranh & Điểm khác biệt trước đối thủ lớn',
-      'Vũ khí độc quyền giữ chân khách hàng (Moat) & Pháp lý',
-      'Lộ trình triển khai 6-12 tháng & Cột mốc kiểm chứng',
+      'Rào cản phòng thủ: Điểm khác biệt ngăn đối thủ lớn sao chép giải pháp',
+      'So sánh thế mạnh cạnh tranh trực diện và điểm yếu chí mạng của dự án',
+      'Lộ trình triển khai 6-12 tháng & Các mốc kiểm chứng kỹ thuật quan trọng',
+      'Rủi ro pháp lý, bản quyền sở hữu trí tuệ & Đạo đức dữ liệu',
+      'Năng lực cam kết đường dài của đội ngũ & Kế hoạch ứng phó biến động thị trường',
     ],
   };
 
@@ -94,6 +102,17 @@ export class FollowUpEngine {
   }
 
   /**
+   * Lấy ngẫu nhiên một chủ đề đa dạng phù hợp chuyên môn của Giám khảo
+   */
+  public getRandomTopicForBoss(bossId: JuryBossId, excludeTopic?: string): string {
+    const topics = FollowUpEngine.BOSS_TOPICS[bossId] || ['Định hướng phát triển dự án'];
+    const candidates = topics.filter((t) => t !== excludeTopic);
+    const pool = candidates.length > 0 ? candidates : topics;
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    return pool[randomIndex];
+  }
+
+  /**
    * Quyết định bước tiếp theo: Đào sâu thêm lần 2 hay Chuyển sang Coaching Pivot (Strike 2)
    */
   public decideNextMove(
@@ -102,13 +121,17 @@ export class FollowUpEngine {
     evaluation: CandidateAnswerEvaluation,
     currentBossId: JuryBossId,
     availableBossIds?: JuryBossId[],
-    isCurrentCoachingPivot = false
+    isCurrentCoachingPivot = false,
+    mode?: string
   ): FollowUpDecision {
-    // Nếu lượt vừa qua ĐÃ là Coaching Pivot (thí sinh đã nhận hướng dẫn sư phạm),
-    // lượt tiếp theo bắt buộc phải chuyển sang câu hỏi mới và đổi Giám khảo, không được kẹt lại.
+    // Trong chế độ Hội đồng đầy đủ (FULL_ARENA):
+    // Luôn luân phiên đổi Giám khảo qua từng lượt để mô phỏng chân thực Hội đồng chấm thi
+    // (từng thầy cô lần lượt đặt câu hỏi từ các góc độ khác nhau: Thị trường -> Công nghệ -> Tài chính -> Rủi ro)
+    const nextBoss = this.rotateBoss(currentBossId, availableBossIds);
+    const nextTopic = this.rotateTopicForBoss(nextBoss, currentTopic);
+
+    // Nếu thí sinh 2 lần liên tiếp bị đuối lý ở cùng một mảng (Coaching Pivot):
     if (isCurrentCoachingPivot || currentFollowUpCount >= 2) {
-      const nextBoss = this.rotateBoss(currentBossId, availableBossIds);
-      const nextTopic = this.rotateTopicForBoss(nextBoss, currentTopic);
       this.logger.log(
         `[FollowUpEngine] Completed coaching/follow-up cycle. Rotating to new boss: ${nextBoss} with topic: "${nextTopic}"`
       );
@@ -116,61 +139,52 @@ export class FollowUpEngine {
         action: 'NEW_QUESTION',
         topic: nextTopic,
         followUpCount: 0,
-        reason: 'Đã hoàn thành vòng gợi ý sư phạm/follow-up. Chuyển sang Giám khảo và chủ đề tiếp theo.',
+        reason: 'Đã hoàn thành vòng gợi ý sư phạm. Chuyển sang Giám khảo tiếp theo trong Hội đồng.',
         suggestedBossId: nextBoss,
       };
     }
 
-    // Nếu thí sinh trả lời yếu / lảng tránh:
-    if (evaluation.isVague) {
-      if (currentFollowUpCount === 0) {
-        // Lần 1: Bới sâu thêm 1 tầng nữa (cùng Boss, cùng Topic)
-        this.logger.log(`[FollowUpEngine] Strike 1 on topic "${currentTopic}" -> FOLLOW_UP_DEEP`);
-        return {
-          action: 'FOLLOW_UP_DEEP',
-          topic: currentTopic,
-          followUpCount: 1,
-          reason: 'Thí sinh trả lời còn chung chung, thiếu số liệu định lượng.',
-          suggestedBossId: currentBossId,
-        };
-      } else if (currentFollowUpCount === 1) {
-        // Lần 2 liên tiếp bối rối ở cùng chủ đề -> Kích hoạt Coaching Pivot
-        this.logger.log(`[FollowUpEngine] Strike 2 on topic "${currentTopic}" -> COACHING_PIVOT`);
-        return {
-          action: 'COACHING_PIVOT',
-          topic: currentTopic,
-          followUpCount: 2,
-          reason: 'Thí sinh 2 lần liên tiếp gặp khó khăn ở cùng chủ đề. Chuyển sang gợi ý sư phạm.',
-          suggestedBossId: currentBossId,
-        };
+    // Nếu chỉ có đúng 1 Boss (ví dụ chế độ Solo/Quick Combat hoặc chỉ có 1 đề mục)
+    // thì mới bới sâu cùng 1 Boss
+    if (availableBossIds && availableBossIds.length === 1) {
+      if (evaluation.isVague) {
+        if (currentFollowUpCount === 0) {
+          return {
+            action: 'FOLLOW_UP_DEEP',
+            topic: currentTopic,
+            followUpCount: 1,
+            reason: 'Thí sinh trả lời còn chung chung, thiếu số liệu định lượng.',
+            suggestedBossId: currentBossId,
+          };
+        } else if (currentFollowUpCount === 1) {
+          return {
+            action: 'COACHING_PIVOT',
+            topic: currentTopic,
+            followUpCount: 2,
+            reason: 'Thí sinh 2 lần liên tiếp gặp khó khăn ở cùng chủ đề. Chuyển sang gợi ý sư phạm.',
+            suggestedBossId: currentBossId,
+          };
+        }
       }
     }
 
-    // Nếu trả lời tốt hoặc không bị bối rối, chuyển sang câu hỏi mới và đổi Giám khảo luân phiên
-    const nextBoss = this.rotateBoss(currentBossId, availableBossIds);
-    const nextTopic = this.rotateTopicForBoss(nextBoss, currentTopic);
+    // MẶC ĐỊNH HỘI ĐỒNG (FULL ARENA):
+    // Sau mỗi câu trả lời của thí sinh, Giám khảo tiếp theo sẽ tiếp quản micro để hỏi theo chuyên môn riêng!
+    this.logger.log(
+      `[FollowUpEngine] Hội đồng chuyển micro từ [${currentBossId}] sang [${nextBoss}] (Chủ đề mới: "${nextTopic}")`
+    );
+
     return {
       action: 'NEW_QUESTION',
       topic: nextTopic,
       followUpCount: 0,
-      reason: 'Thí sinh đã giải trình tương đối rõ ràng. Chuyển sang Giám khảo và chủ đề mới.',
+      reason: 'Chuyển lượt cho Giám khảo tiếp theo trong Hội đồng chất vấn.',
       suggestedBossId: nextBoss,
     };
   }
 
   private rotateTopicForBoss(bossId: JuryBossId, currentTopic?: string): string {
-    const topics = FollowUpEngine.BOSS_TOPICS[bossId] || [
-      'Định hướng phát triển dự án',
-    ];
-    if (!currentTopic) {
-      return topics[0];
-    }
-    const currentIndex = topics.indexOf(currentTopic);
-    if (currentIndex === -1) {
-      return topics[0];
-    }
-    const nextIndex = (currentIndex + 1) % topics.length;
-    return topics[nextIndex];
+    return this.getRandomTopicForBoss(bossId, currentTopic);
   }
 
   private rotateBoss(currentBossId: JuryBossId, availableBossIds?: JuryBossId[]): JuryBossId {
