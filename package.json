@@ -13,8 +13,9 @@
     "build": "npm run --workspace=@pitcharena/shared build && npm run --workspace=pitcharena-server build && npm run --workspace=pitcharena-client build",
     "dev:server": "npm run --workspace=pitcharena-server dev",
     "dev:client": "npm run --workspace=pitcharena-client dev",
-    "build:server": "npm run --workspace=pitcharena-server build",
-    "build:client": "npm run --workspace=pitcharena-client build",
+    "build:server": "npm run --workspace=@pitcharena/shared build && npm run --workspace=pitcharena-server build",
+    "start:server": "node server/dist/main",
+    "build:client": "npm run --workspace=@pitcharena/shared build && npm run --workspace=pitcharena-client build",
     "test": "npm run --workspaces --if-present test"
   },
   "keywords": [

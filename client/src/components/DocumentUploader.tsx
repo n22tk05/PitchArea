@@ -45,7 +45,9 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   onAnalysisComplete,
   onNext,
   onReset,
-  serverUrl = 'http://localhost:4000',
+  serverUrl = import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_SERVER_URL ||
+    'http://localhost:4000',
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);

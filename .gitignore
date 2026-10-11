@@ -13,6 +13,7 @@ screen
 assets
 *.md
 !README.md
+!docs/deployment.md
 node_modules
 dist
 .env
