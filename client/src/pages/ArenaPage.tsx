@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { DocumentAnalysisResult, LobbyConfig as LobbyConfigType } from '@pitcharena/shared';
+import React, { useState, useMemo } from 'react';
+import {
+  DocumentAnalysisResult,
+  LobbyConfig as LobbyConfigType,
+  ArenaSessionState,
+} from '@pitcharena/shared';
 import {
   ArrowLeft,
   FileUp,
@@ -10,6 +14,7 @@ import {
   Sparkles,
   Gavel,
 } from 'lucide-react';
+import { useArenaSocket } from '../hooks/useArenaSocket';
 import {
   Step1Upload,
   Step2Lobby,
@@ -36,6 +41,14 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
     useState<DocumentAnalysisResult | null>(null);
   const [lobbyConfig, setLobbyConfig] = useState<LobbyConfigType | null>(null);
   const [pitchTranscript, setPitchTranscript] = useState<string>('');
+  const [combatSessionState, setCombatSessionState] =
+    useState<ArenaSessionState | null>(null);
+
+  const sessionId = useMemo(() => {
+    return documentData?.documentId ? `session-${documentData.documentId}` : 'arena-session-default';
+  }, [documentData?.documentId]);
+
+  const arenaSocket = useArenaSocket(sessionId, documentData?.documentId);
 
   const steps = [
     {
@@ -157,16 +170,30 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
             documentData={documentData}
             lobbyConfig={lobbyConfig}
             pitchTranscript={pitchTranscript}
+            arenaSocket={arenaSocket}
             onBack={() => setActiveStep(3)}
-            onNext={() => setActiveStep(5)}
+            onNext={(finalSession) => {
+              if (finalSession) setCombatSessionState(finalSession);
+              setActiveStep(5);
+            }}
           />
         )}
 
         {activeStep === 5 && (
           <Step5Report
             documentData={documentData}
-            onResetToStep1={() => setActiveStep(1)}
-            onRematch={() => setActiveStep(2)}
+            reportData={arenaSocket.reportData}
+            sessionState={arenaSocket.sessionState || combatSessionState}
+            onResetToStep1={() => {
+              setDocumentData(null);
+              setCombatSessionState(null);
+              setActiveStep(1);
+            }}
+            onRematch={() => {
+              arenaSocket.requestRematch();
+              setCombatSessionState(null);
+              setActiveStep(2);
+            }}
           />
         )}
       </main>

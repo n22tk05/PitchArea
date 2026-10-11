@@ -10,6 +10,8 @@ import {
   S2CTimeFreezePayload,
   S2CCoachingAlertPayload,
   S2CVerdictAnnouncedPayload,
+  S2CReportGeneratedPayload,
+  AppendixReport,
   VerdictResult,
 } from '@pitcharena/shared';
 
@@ -18,6 +20,7 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
 export function useArenaSocket(sessionId: string, documentId?: string) {
   const [isConnected, setIsConnected] = useState(false);
   const [sessionState, setSessionState] = useState<ArenaSessionState | null>(null);
+  const [reportData, setReportData] = useState<AppendixReport | null>(null);
   const [timerData, setTimerData] = useState<S2CTimerTickPayload | null>(null);
   const [liveTranscript, setLiveTranscript] = useState<S2CLiveTranscriptPayload | null>(null);
   const [streamingQuestion, setStreamingQuestion] = useState<S2CBossStreamChunkPayload | null>(null);
@@ -63,6 +66,9 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
 
     socket.on(ArenaSocketEvents.S2C_SESSION_SYNC, (data: ArenaSessionState) => {
       setSessionState(data);
+      if (data.report) {
+        setReportData(data.report);
+      }
       if (data.activeQuestion && !data.isStreamingQuestion) {
         setStreamingQuestion({
           bossId: data.activeBossId,
@@ -97,6 +103,10 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
 
     socket.on(ArenaSocketEvents.S2C_VERDICT_ANNOUNCED, (data: S2CVerdictAnnouncedPayload) => {
       setLastVerdict(data.verdict);
+    });
+
+    socket.on(ArenaSocketEvents.S2C_REPORT_GENERATED, (data: S2CReportGeneratedPayload) => {
+      setReportData(data.report);
     });
 
     return () => {
@@ -172,9 +182,32 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
     setCoachingAlert(null);
   }, []);
 
+  const requestReport = useCallback(() => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit(ArenaSocketEvents.C2S_REQUEST_REPORT, { sessionId });
+    }
+  }, [sessionId, isConnected]);
+
+  const requestRematch = useCallback(() => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit(ArenaSocketEvents.C2S_REQUEST_REMATCH, { sessionId });
+      setReportData(null);
+      setLastVerdict(null);
+      setStreamingQuestion(null);
+      setLiveTranscript(null);
+    }
+  }, [sessionId, isConnected]);
+
+  const finishCombat = useCallback(() => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit(ArenaSocketEvents.C2S_FINISH_COMBAT, { sessionId });
+    }
+  }, [sessionId, isConnected]);
+
   return {
     isConnected,
     sessionState,
+    reportData,
     timerData,
     liveTranscript,
     streamingQuestion,
@@ -190,5 +223,8 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
     submitDefense,
     requestNextQuestion,
     dismissCoachingAlert,
+    requestReport,
+    requestRematch,
+    finishCombat,
   };
 }

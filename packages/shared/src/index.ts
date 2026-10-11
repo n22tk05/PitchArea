@@ -413,6 +413,8 @@ export interface ArenaSessionState {
     isCoachingPivot?: boolean;
     score?: number;
   }>;
+  verdictHistory?: VerdictResult[];
+  report?: AppendixReport;
 }
 
 /**
@@ -458,6 +460,9 @@ export const ArenaSocketEvents = {
   C2S_SUBMIT_TRANSCRIPT: 'c2s:submit_transcript',
   C2S_REQUEST_NEXT_QUESTION: 'c2s:request_next_question',
   C2S_SUBMIT_DEFENSE: 'c2s:submit_defense',
+  C2S_FINISH_COMBAT: 'c2s:finish_combat',
+  C2S_REQUEST_REPORT: 'c2s:request_report',
+  C2S_REQUEST_REMATCH: 'c2s:request_rematch',
 
   // Server to Client (S2C)
   S2C_SESSION_SYNC: 's2c:session_sync',
@@ -469,6 +474,7 @@ export const ArenaSocketEvents = {
   S2C_TIME_FREEZE: 's2c:time_freeze',
   S2C_COACHING_ALERT: 's2c:coaching_alert',
   S2C_VERDICT_ANNOUNCED: 's2c:verdict_announced',
+  S2C_REPORT_GENERATED: 's2c:report_generated',
   S2C_COMBAT_RESULT: 's2c:combat_result',
   S2C_ERROR: 's2c:error',
 } as const;
@@ -572,4 +578,61 @@ export interface S2CVerdictAnnouncedPayload {
   verdict: VerdictResult;
   candidateHp: number;
 }
+
+/**
+ * Mục phụ lục hành động (Actionable Appendix Item) cho từng lượt đối chất
+ */
+export interface AppendixItem {
+  turnIndex: number;
+  bossId: JuryBossId;
+  bossName: string;
+  topic: string;
+  question: string;
+  candidateAnswer: string;
+  weaknessIdentified: string;
+  fallacyType?: string;
+  slideActionProposal: string;
+  recommendedSlideTitle?: string;
+  hpImpact: number;
+  score: VerdictScore;
+  severity: 'CRITICAL' | 'WARNING' | 'GOOD';
+}
+
+/**
+ * Điểm biến thiên máu qua từng lượt
+ */
+export interface HpHistoryPoint {
+  turn: number;
+  bossId: JuryBossId;
+  hp: number;
+  hpDelta: number;
+  topic: string;
+}
+
+/**
+ * Báo cáo phụ lục chiến thuật hoàn chỉnh (Diagnostic Actionable Appendix Report)
+ */
+export interface AppendixReport {
+  sessionId: string;
+  documentId: string;
+  documentTitle?: string;
+  candidateHp: number;
+  totalTurns: number;
+  passed: boolean;
+  overallScore: number;
+  grade: 'XUẤT SẮC (PASS+)' | 'ĐẠT YÊU CẦU (PASS)' | 'CẦN HOÀN THIỆN (REVISE)' | 'RỦI RO CAO (HIGH RISK)';
+  defenseSuccessRate: number; // 0 - 100%
+  strengthsSummary: string[];
+  criticalRisksSummary: string[];
+  hpHistory: HpHistoryPoint[];
+  items: AppendixItem[];
+  generatedAt: string;
+  isRematchReady: boolean;
+}
+
+export interface S2CReportGeneratedPayload {
+  sessionId: string;
+  report: AppendixReport;
+}
+
 

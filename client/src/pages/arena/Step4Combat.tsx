@@ -3,6 +3,7 @@ import {
   DocumentAnalysisResult,
   LobbyConfig as LobbyConfigType,
   SessionFsmState,
+  ArenaSessionState,
 } from '@pitcharena/shared';
 import { ArrowLeft, ArrowRight, ShieldCheck, Wifi, WifiOff } from 'lucide-react';
 import { ArenaStage } from '../../components/ArenaStage';
@@ -14,7 +15,8 @@ interface Step4CombatProps {
   lobbyConfig?: LobbyConfigType | null;
   pitchTranscript?: string;
   onBack: () => void;
-  onNext: () => void;
+  onNext: (finalSession?: ArenaSessionState | null) => void;
+  arenaSocket?: ReturnType<typeof useArenaSocket>;
 }
 
 export const Step4Combat: React.FC<Step4CombatProps> = ({
@@ -23,13 +25,17 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
   pitchTranscript,
   onBack,
   onNext,
+  arenaSocket,
 }) => {
   // Tạo sessionId cố định theo document hoặc ngẫu nhiên
   const sessionId = useMemo(() => {
     return documentData?.documentId ? `session-${documentData.documentId}` : 'arena-session-default';
   }, [documentData?.documentId]);
 
-  // Hook kết nối WebSocket Sàn Đấu
+  // Hook kết nối WebSocket Sàn Đấu (dùng hook truyền vào hoặc tự khởi tạo)
+  const defaultSocket = useArenaSocket(sessionId, documentData?.documentId);
+  const activeSocket = arenaSocket || defaultSocket;
+
   const {
     isConnected,
     sessionState,
@@ -47,7 +53,8 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     requestNextQuestion,
     dismissCoachingAlert,
     updateConfig,
-  } = useArenaSocket(sessionId, documentData?.documentId);
+    finishCombat,
+  } = activeSocket;
 
   // Hook Audio Recorder cho Micro thí sinh
   const {
@@ -146,6 +153,24 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     resetTranscript();
   };
 
+  // Tự động chuyển sang Báo cáo khi trận đấu kết thúc (FSM EVALUATION_REPORT)
+  useEffect(() => {
+    if (sessionState?.fsmState === SessionFsmState.EVALUATION_REPORT) {
+      if (isRecording) {
+        stopRecording();
+      }
+      onNext(sessionState);
+    }
+  }, [sessionState?.fsmState, sessionState, isRecording, stopRecording, onNext]);
+
+  const handleEndCombat = () => {
+    if (isRecording) {
+      stopRecording();
+    }
+    finishCombat();
+    onNext(sessionState);
+  };
+
   return (
     <div className="flex flex-col gap-6 animate-fadeIn pb-8">
       {/* Thanh Trạng Thái Đỉnh Sàn Đấu */}
@@ -171,7 +196,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
 
           <button
             type="button"
-            onClick={onNext}
+            onClick={handleEndCombat}
             className="px-3.5 py-1 bg-black text-white font-mono text-xs font-bold hover:bg-neutral-800 flex items-center gap-1.5"
           >
             <span>KẾT THÚC ĐỐI CHẤT →</span>
@@ -217,7 +242,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
 
         <button
           type="button"
-          onClick={onNext}
+          onClick={handleEndCombat}
           className="px-5 py-2.5 bg-black text-white font-mono font-bold text-xs border-2 border-black shadow-[3px_3px_0px_#eab308] hover:bg-neutral-800 active:translate-x-0.5 active:translate-y-0.5 flex items-center gap-2"
         >
           <span>XEM BÁO CÁO PHỤ LỤC (BƯỚC 05)</span>

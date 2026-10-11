@@ -27,6 +27,7 @@ import {
   S2CTimeFreezePayload,
   S2CCoachingAlertPayload,
   S2CVerdictAnnouncedPayload,
+  S2CReportGeneratedPayload,
   getAvailableBossesForSections,
   JURY_BOSS_PROFILES,
   BOSS_TO_SECTION_MAP,
@@ -36,6 +37,9 @@ import { GeminiService } from '../adapters/llm/gemini.service';
 import { FollowUpEngine } from '../domain/orchestrator/follow-up-engine';
 import { DocumentService } from '../document/document.service';
 import { ArbiterService } from '../domain/scoring/arbiter.service';
+import { AppendixGeneratorService } from '../domain/reporting/appendix-generator.service';
+import { RematchEngine } from '../domain/orchestrator/rematch-engine';
+import { SessionPersistenceService } from '../adapters/db/session-persistence.service';
 
 @WebSocketGateway({
   cors: {
@@ -56,7 +60,10 @@ export class ArenaGateway
     private readonly geminiService: GeminiService,
     private readonly followUpEngine: FollowUpEngine,
     private readonly documentService: DocumentService,
-    private readonly arbiterService: ArbiterService
+    private readonly arbiterService: ArbiterService,
+    private readonly appendixGeneratorService: AppendixGeneratorService,
+    private readonly rematchEngine: RematchEngine,
+    private readonly sessionPersistenceService: SessionPersistenceService
   ) {}
 
   /**
@@ -326,6 +333,9 @@ export class ArenaGateway
 
       // Cập nhật máu theo phán quyết của Arbiter (có sàn tân thủ 20% và thưởng hồi máu)
       session.lastVerdict = verdict;
+      session.verdictHistory = session.verdictHistory || [];
+      session.verdictHistory.push(verdict);
+
       if (verdict.hpDelta > 0) {
         session.candidateHp = Math.min(100, session.candidateHp + verdict.hpDelta);
       } else if (verdict.hpDelta < 0) {
@@ -384,11 +394,9 @@ export class ArenaGateway
         session.isCoachingPivot = false;
       }
 
-      // Nếu đã vượt quá tổng số lượt quy định (ví dụ 3/3 lượt), kết thúc trận đấu chuyển sang Báo cáo Tổng kết
+      // Nếu đã vượt quá tổng số lượt quy định, kết thúc trận đấu chuyển sang Báo cáo Tổng kết
       if (session.currentTurn > session.totalTurns) {
-        this.fsmService.transitionState(sessionId, SessionFsmState.EVALUATION_REPORT);
-        timer.stop();
-        this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, this.sanitizeSessionForClient(session));
+        this.finishMatchAndGenerateReport(sessionId);
         return;
       }
 
@@ -449,17 +457,145 @@ export class ArenaGateway
       if (text.trim()) {
         this.latestCandidateSpeech.set(sessionId, text.trim());
       }
-
-      if (isFinal && text.trim()) {
-        session.transcriptHistory.push({
-          sender: 'CANDIDATE',
-          text,
-          timestamp: new Date().toLocaleTimeString(),
-        });
-      }
     } catch (err: any) {
       this.logger.error(`Error in handleSubmitTranscript: ${err.message}`);
     }
+  }
+
+  /**
+   * Yêu cầu xem lại hoặc tải Báo cáo Phụ lục Hành động
+   */
+  @SubscribeMessage(ArenaSocketEvents.C2S_REQUEST_REPORT)
+  handleRequestReport(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() rawPayload: unknown
+  ) {
+    try {
+      const { sessionId } = C2SSessionActionPayloadSchema.parse(rawPayload);
+      const session = this.fsmService.getSession(sessionId);
+      if (!session) return;
+
+      let report = session.report || this.sessionPersistenceService.getReport(sessionId);
+      if (!report) {
+        const doc = this.documentService.getDocument(session.documentId);
+        report = this.appendixGeneratorService.generateReport(
+          session,
+          doc?.filename || 'Đề án Khởi nghiệp Sinh viên'
+        );
+        session.report = report;
+        this.sessionPersistenceService.saveReport(sessionId, report);
+      }
+
+      const reportPayload: S2CReportGeneratedPayload = {
+        sessionId,
+        report,
+      };
+      client.emit(ArenaSocketEvents.S2C_REPORT_GENERATED, reportPayload);
+    } catch (err: any) {
+      this.logger.error(`Error in handleRequestReport: ${err.message}`);
+    }
+  }
+
+  /**
+   * Kích hoạt Vòng Tái đấu Nhanh (Quick Re-match Loop)
+   * Giữ nguyên tài liệu đã nạp, nạp bộ đệm câu hỏi cũ vào RematchEngine để không lặp lại
+   */
+  @SubscribeMessage(ArenaSocketEvents.C2S_REQUEST_REMATCH)
+  handleRequestRematch(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() rawPayload: unknown
+  ) {
+    try {
+      const { sessionId } = C2SSessionActionPayloadSchema.parse(rawPayload);
+      const session = this.fsmService.getSession(sessionId);
+      if (!session) return;
+
+      const timer = this.fsmService.getTimer(sessionId);
+      if (timer) timer.stop();
+
+      // Ghi nhận toàn bộ câu hỏi của trận trước vào RematchEngine
+      const askedQuestions = session.transcriptHistory
+        .filter((t) => t.sender === 'BOSS' && t.text.trim())
+        .map((t) => t.text.trim());
+      this.rematchEngine.recordQuestions(session.documentId, askedQuestions);
+
+      // Reset các chỉ số cho trận tái đấu mới
+      session.candidateHp = 100;
+      session.currentTurn = 1;
+      session.followUpCount = 0;
+      session.currentTopic = undefined;
+      session.isCoachingPivot = false;
+      session.lastVerdict = undefined;
+      session.verdictHistory = [];
+      session.report = undefined;
+      session.transcriptHistory = [];
+      session.prepRemainingSeconds = session.config.prepBufferSeconds;
+      session.turnRemainingSeconds = session.config.roundDurationSeconds;
+      session.isPaused = false;
+      session.isTimeFrozen = false;
+      session.isStreamingQuestion = false;
+      session.activeQuestion = undefined;
+
+      this.fsmService.transitionState(sessionId, SessionFsmState.LOBBY_READY);
+
+      this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, this.sanitizeSessionForClient(session));
+      this.logger.log(`[${sessionId}] ↺ Kích hoạt Tái đấu Nhanh (Quick Re-match) thành công!`);
+    } catch (err: any) {
+      this.logger.error(`Error in handleRequestRematch: ${err.message}`);
+    }
+  }
+
+  /**
+   * Kết thúc trận đấu chủ động từ phía client
+   */
+  @SubscribeMessage(ArenaSocketEvents.C2S_FINISH_COMBAT)
+  handleFinishCombat(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() rawPayload: unknown
+  ) {
+    try {
+      const { sessionId } = C2SSessionActionPayloadSchema.parse(rawPayload);
+      this.logger.log(`[${sessionId}] Nhận yêu cầu kết thúc trận đấu (C2S_FINISH_COMBAT)`);
+      this.finishMatchAndGenerateReport(sessionId);
+    } catch (err: any) {
+      this.logger.error(`Error in handleFinishCombat: ${err.message}`);
+    }
+  }
+
+  /**
+   * Kết thúc trận đấu, tổng hợp Báo cáo Phụ lục và lưu trữ
+   */
+  private finishMatchAndGenerateReport(sessionId: string) {
+    const session = this.fsmService.getSession(sessionId);
+    const timer = this.fsmService.getTimer(sessionId);
+    if (!session) return;
+
+    if (timer) timer.stop();
+    this.fsmService.transitionState(sessionId, SessionFsmState.EVALUATION_REPORT);
+
+    const doc = this.documentService.getDocument(session.documentId);
+    const report = this.appendixGeneratorService.generateReport(
+      session,
+      doc?.filename || 'Đề án Khởi nghiệp Sinh viên'
+    );
+    session.report = report;
+
+    // Lưu vào kho lưu trữ vĩnh viễn
+    this.sessionPersistenceService.saveSession(session);
+    this.sessionPersistenceService.saveReport(sessionId, report);
+
+    // Ghi nhận câu hỏi vào RematchEngine
+    const askedQuestions = session.transcriptHistory
+      .filter((t) => t.sender === 'BOSS' && t.text.trim())
+      .map((t) => t.text.trim());
+    this.rematchEngine.recordQuestions(session.documentId, askedQuestions);
+
+    this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, this.sanitizeSessionForClient(session));
+    this.server.to(sessionId).emit(ArenaSocketEvents.S2C_REPORT_GENERATED, {
+      sessionId,
+      report,
+    });
+    this.logger.log(`[${sessionId}] 🎉 Trận đấu kết thúc -> Đã phát S2C_REPORT_GENERATED`);
   }
 
   /**
@@ -536,10 +672,12 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
 
     let accumulatedQuestion = '';
 
-    // Thu thập danh sách các câu hỏi trước đó của Giám khảo để cấm AI đặt câu hỏi trùng lặp ý
-    const previousQuestions = session.transcriptHistory
+    // Thu thập danh sách các câu hỏi trước đó (cả các phiên trước lẫn phiên hiện tại) để cấm AI đặt câu hỏi trùng lặp ý (>= 80%)
+    const priorMatchQuestions = this.rematchEngine.getPreviousQuestions(session.documentId);
+    const currentMatchQuestions = session.transcriptHistory
       .filter((t) => t.sender === 'BOSS' && t.text.trim())
       .map((t) => t.text.trim());
+    const previousQuestions = Array.from(new Set([...priorMatchQuestions, ...currentMatchQuestions]));
 
     await this.geminiService.streamBossQuestion({
       bossId: session.activeBossId,
@@ -595,9 +733,14 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
           ? `[FOLLOW-UP LAN ${session.followUpCount}]`
           : '[CAU HOI MOI]';
 
-        this.logger.log(
-          `[LUOT ${session.currentTurn}/${session.totalTurns}] [GIAM KHAO: ${bossName}] ${turnTag} Topic: "${session.currentTopic || 'Chung'}" | Cau hoi: "${fullText}"`
-        );
+        // FR-5: Kiểm tra độ trùng lặp câu hỏi (ngưỡng >= 80% similarity) với các vòng đấu trước
+        const similarityCheck = this.rematchEngine.isQuestionTooSimilar(session.documentId, fullText, 0.8);
+        if (similarityCheck.isDuplicate) {
+          this.logger.warn(
+            `[${sessionId}] ⚠️ [FR-5 Filter] Phát hiện câu hỏi tương đồng cao (${(similarityCheck.similarity * 100).toFixed(1)}% >= 80%) so với câu hỏi cũ: "${similarityCheck.matchedQuestion?.slice(0, 60)}...". Điều hướng chủ đề tiếp theo.`
+          );
+          session.currentTopic = this.followUpEngine.getRandomTopicForBoss(session.activeBossId);
+        }
 
         // Bổ sung khoảng nghỉ 1.8s (tầm 1-2s) sau khi render câu hỏi xong để thí sinh đọc và chuẩn bị
         const readingPausePayload: S2CTimeFreezePayload = {
@@ -662,9 +805,7 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
       session.currentTopic = decision.topic;
       this.triggerBossQuestioning(sessionId);
     } else {
-      this.fsmService.transitionState(sessionId, SessionFsmState.EVALUATION_REPORT);
-      timer.stop();
-      this.server.to(sessionId).emit(ArenaSocketEvents.S2C_SESSION_SYNC, this.sanitizeSessionForClient(session));
+      this.finishMatchAndGenerateReport(sessionId);
     }
   }
 }

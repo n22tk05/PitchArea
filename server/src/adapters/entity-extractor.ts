@@ -82,7 +82,7 @@ export class EntityExtractor {
   }
 
   /**
-   * Thử bóc tách qua Groq (Llama-3.3-70b-versatile) hoặc Google Gemini
+   * Thử bóc tách qua Groq (openai/gpt-oss-120b) hoặc Google Gemini (gemini-flash-latest)
    */
   private static async attemptAiExtraction(
     candidateContext: string,
@@ -90,7 +90,7 @@ export class EntityExtractor {
   ): Promise<EntityWhitelistItem[] | null> {
     const groqKeys = GroqKeyManager.getRotatedKeys();
 
-    // 1. Thử qua Groq với model siêu tốc llama-3.3-70b-versatile
+    // 1. Thử qua Groq với model siêu tốc openai/gpt-oss-120b
     if (groqKeys.length > 0) {
       for (let i = 0; i < Math.min(2, groqKeys.length); i++) {
         const currentKey = groqKeys[i];
@@ -103,7 +103,7 @@ export class EntityExtractor {
           });
 
           const { object } = await generateObject({
-            model: groq.chat('llama-3.3-70b-versatile'),
+            model: groq.chat('openai/gpt-oss-120b'),
             schema: ExtractionResponseSchema as any,
             system: `Bạn là Chuyên gia Thẩm định Số liệu Dự án Khởi nghiệp (Pitch Deck Auditor). Trích xuất danh sách thực thể số liệu (Whitelist Entities) ngắn gọn từ văn bản tiếng Việt.`,
             prompt: `Trích xuất thực thể số liệu từ các câu sau:\n\n${candidateContext}`,
@@ -130,12 +130,12 @@ export class EntityExtractor {
       }
     }
 
-    // 2. Thử Google Gemini (gemini-3.6-flash) nếu Groq không thành công
+    // 2. Thử Google Gemini (gemini-flash-latest) nếu Groq không thành công
     if (geminiKey) {
       try {
         const googleProvider = createGoogleGenerativeAI({ apiKey: geminiKey });
         const { object } = await generateObject({
-          model: googleProvider('gemini-3.6-flash'),
+          model: googleProvider('gemini-flash-latest'),
           schema: ExtractionResponseSchema as any,
           maxRetries: 0,
           abortSignal: AbortSignal.timeout(3000),

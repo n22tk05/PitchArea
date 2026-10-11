@@ -74,30 +74,81 @@ export class GeminiService {
       );
     }
 
-    // 1. ƯU TIÊN GROQ (openai/gpt-oss-120b) với bộ xoay vòng và fallback tự động qua nhiều GROQ_API_KEY
+    // 1. ƯU TIÊN GROQ (openai/gpt-oss-120b & 20b) với bộ xoay vòng và fallback tự động qua nhiều GROQ_API_KEY
     const groqKeys = GroqKeyManager.getRotatedKeys();
+    const groqModels = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+
     if (groqKeys.length > 0) {
       for (let i = 0; i < groqKeys.length; i++) {
         const currentKey = groqKeys[i];
         const masked = GroqKeyManager.maskKey(currentKey);
-        let accumulated = '';
 
-        try {
-          this.logger.log(
-            `[GroqProvider] Kích hoạt Groq Key [${i + 1}/${groqKeys.length}] (${masked}) - Model: llama-3.3-70b-versatile stream trực tiếp...`
+        for (const modelName of groqModels) {
+          let accumulated = '';
+          try {
+            this.logger.log(
+              `[GroqProvider] Kích hoạt Groq Key [${i + 1}/${groqKeys.length}] (${masked}) - Model: ${modelName} stream trực tiếp...`
+            );
+
+            const groq = createOpenAI({
+              baseURL: 'https://api.groq.com/openai/v1',
+              apiKey: currentKey,
+            });
+
+            const result = streamText({
+              model: groq.chat(modelName),
+              prompt,
+              temperature: 0.85,
+            });
+
+            for await (const textPart of result.textStream) {
+              accumulated += textPart;
+              onChunk(textPart);
+            }
+
+            if (accumulated.trim().length > 0) {
+              onComplete(accumulated);
+              return accumulated;
+            }
+          } catch (groqErr: any) {
+            this.logger.warn(
+              `[GroqProvider] ⚠️ Groq Key (${masked}) Model (${modelName}) gặp sự cố: "${groqErr.message}".`
+            );
+            // Nếu đã stream được một phần ra client thì giữ nguyên kết quả để tránh lặp từ
+            if (accumulated.trim().length > 0) {
+              this.logger.warn(`[GroqProvider] Đã stream được một phần nội dung, giữ nguyên kết quả.`);
+              onComplete(accumulated);
+              return accumulated;
+            }
+          }
+        }
+
+        if (i + 1 < groqKeys.length) {
+          this.logger.log(`[GroqProvider] 🔄 Tự động chuyển sang Groq Key tiếp theo để tránh Rate Limit...`);
+        } else {
+          this.logger.warn(
+            `[FALLBACK] ⚠️ Tất cả ${groqKeys.length} Groq API Keys đều gặp sự cố. Chuyển sang Gemini (${geminiKey ? 'API Key hợp lệ' : 'Chưa cấu hình'}).`
           );
+        }
+      }
+    }
 
-          const groq = createOpenAI({
-            baseURL: 'https://api.groq.com/openai/v1',
-            apiKey: currentKey,
-          });
+    // 2. Dự phòng Google Gemini (gemini-flash-latest / gemini-3.5-flash) nếu không có Groq hoặc Groq lỗi
+    if (geminiKey) {
+      const geminiModels = ['gemini-flash-latest', 'gemini-3.5-flash'];
+      const googleProvider = createGoogleGenerativeAI({ apiKey: geminiKey });
 
+      for (const geminiModel of geminiModels) {
+        this.logger.log(`[GeminiService] Đang stream qua Google Gemini (${geminiModel})...`);
+        try {
           const result = streamText({
-            model: groq.chat('llama-3.3-70b-versatile'),
+            model: googleProvider(geminiModel),
             prompt,
             temperature: 0.85,
+            maxRetries: 0,
           });
 
+          let accumulated = '';
           for await (const textPart of result.textStream) {
             accumulated += textPart;
             onChunk(textPart);
@@ -107,51 +158,11 @@ export class GeminiService {
             onComplete(accumulated);
             return accumulated;
           }
-        } catch (groqErr: any) {
+        } catch (err: any) {
           this.logger.warn(
-            `[GroqProvider] ⚠️ Groq Key (${masked}) gặp sự cố: "${groqErr.message}".`
+            `[FALLBACK] ⚠️ Google Gemini (${geminiModel}) gặp sự cố: "${err.message}".`
           );
-          // Nếu đã stream được một phần ra client thì giữ nguyên kết quả để tránh lặp từ
-          if (accumulated.trim().length > 0) {
-            this.logger.warn(`[GroqProvider] Đã stream được một phần nội dung, giữ nguyên kết quả.`);
-            onComplete(accumulated);
-            return accumulated;
-          }
-          // Nếu lỗi ngay từ đầu (Rate limit 429, timeout, quota...), tiếp tục vòng lặp sang key tiếp theo!
-          if (i + 1 < groqKeys.length) {
-            this.logger.log(`[GroqProvider] 🔄 Tự động chuyển sang Groq Key tiếp theo để tránh Rate Limit...`);
-          } else {
-            this.logger.warn(
-              `[FALLBACK] ⚠️ Tất cả ${groqKeys.length} Groq API Keys đều gặp sự cố. Chuyển sang Gemini (${geminiKey ? 'API Key hợp lệ' : 'Chưa cấu hình'}).`
-            );
-          }
         }
-      }
-    }
-
-    // 2. Dự phòng Google Gemini (gemini-3.6-flash) nếu không có Groq hoặc Groq lỗi
-    if (geminiKey) {
-      this.logger.log(`[GeminiService] Dang stream qua Google Gemini API...`);
-      try {
-        const googleProvider = createGoogleGenerativeAI({ apiKey: geminiKey });
-        const result = streamText({
-          model: googleProvider('gemini-3.6-flash'),
-          prompt,
-          temperature: 0.85,
-          maxRetries: 0, // Không retry để tránh bị treo khi hết quota 8 tiếng
-        });
-
-        let accumulated = '';
-        for await (const textPart of result.textStream) {
-          accumulated += textPart;
-          onChunk(textPart);
-        }
-        onComplete(accumulated);
-        return accumulated;
-      } catch (err: any) {
-        this.logger.warn(
-          `[FALLBACK] ⚠️ Google Gemini gặp sự cố: "${err.message}". Tự động kích hoạt Fallback Bước 2: Chuyển sang Smart Offline Fallback Generator.`
-        );
       }
     }
 
