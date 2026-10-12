@@ -1,6 +1,5 @@
-// Use CommonJS require to avoid TypeScript synthetic default import mismatch with mammoth
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-import mammoth from 'mammoth';
+const mammoth: any = require('mammoth');
 
 export interface ParseDocxOptions {
   buffer: Buffer;
