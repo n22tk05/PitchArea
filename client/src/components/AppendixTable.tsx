@@ -20,6 +20,24 @@ interface AppendixTableProps {
   items: AppendixItem[];
 }
 
+/**
+ * Làm sạch lý do: loại bỏ các thông số điểm (Q=..., Hệ số: ...x), Trừ ... HP
+ */
+const cleanWeaknessText = (text?: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/\s*\(Q=\d+[^)]*\)/gi, '')
+    .replace(/\s*Hệ số:\s*[\d.]+x/gi, '')
+    .replace(/\s*Trừ\s+(?:nhẹ\s+)?\d+\s+HP\.?/gi, '')
+    .replace(/\s*Thưởng hồi phục(?:\s+\+\d+\s+HP)?!?/gi, '')
+    .replace(/\s*\[KÍCH HOẠT SÀN TÂN THỦ.*?\]/gi, '')
+    .replace(/\s*\[CẢNH BÁO NGUY CẤP.*?\]/gi, '')
+    .replace(/\s*\[COMEBACK SURGE.*?\]/gi, '')
+    .replace(/\s*\(\s*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 export const AppendixTable: React.FC<AppendixTableProps> = ({ items }) => {
   const [filterBoss, setFilterBoss] = useState<string>('ALL');
   const [filterSeverity, setFilterSeverity] = useState<string>('ALL');
@@ -222,14 +240,6 @@ export const AppendixTable: React.FC<AppendixTableProps> = ({ items }) => {
 
                     {/* Cột 1: Câu hỏi */}
                     <td className="p-3.5 border-r border-black font-sans align-top">
-                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                        <span className="font-mono font-bold text-[10px] bg-black text-white px-1.5 py-0.5">
-                          {item.bossName}
-                        </span>
-                        <span className="font-mono text-[10px] text-neutral-500 border border-neutral-300 px-1 py-0.5">
-                          {item.topic}
-                        </span>
-                      </div>
                       <p className="font-bold text-black text-xs leading-relaxed">
                         "{item.question}"
                       </p>
@@ -273,15 +283,8 @@ export const AppendixTable: React.FC<AppendixTableProps> = ({ items }) => {
                       )}
 
                       <p className="text-neutral-800 text-xs leading-relaxed">
-                        {item.weaknessIdentified}
+                        {cleanWeaknessText(item.weaknessIdentified)}
                       </p>
-
-                      {/* Điểm MAD Chamber */}
-                      <div className="mt-2.5 pt-2 border-t border-rose-200/60 flex items-center gap-3 text-[10px] font-mono text-neutral-500">
-                        <span>Trọng tâm: <strong>{item.score.directness}</strong></span>
-                        <span>Căn cứ: <strong>{item.score.factualBacking}</strong></span>
-                        <span>Cầu thị: <strong>{item.score.intellectualHonesty}</strong></span>
-                      </div>
                     </td>
 
                     {/* Cột 3: Đề xuất sửa Slide */}

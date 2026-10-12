@@ -51,18 +51,18 @@ export function calculatePenalty(input: PenaltyCalculationInput): PenaltyCalcula
     isHeal = true;
     const healBonus = Math.min(15, Math.max(5, Math.round((overallScore - 70) * 0.35)));
     hpDelta = healBonus;
-    explanation = `Phản biện xuất sắc (Q=${overallScore}). Thưởng hồi phục +${hpDelta} HP!`;
+    explanation = 'Phản biện xuất sắc, lập luận thuyết phục.';
   } else if (overallScore >= 55) {
     // AN TOÀN / TRỪ RẤT NHẸ (Đạt chuẩn tối thiểu)
     hpDelta = -Math.round(baseDamage * 0.25);
-    explanation = `Phản biện đạt yêu cầu nhưng còn chung chung (Q=${overallScore}). Trừ nhẹ ${Math.abs(hpDelta)} HP.`;
+    explanation = 'Phản biện đạt yêu cầu nhưng còn chung chung.';
   } else {
     // PHẠT NẶNG PHI ĐỐI XỨNG (Thiếu căn cứ, mâu thuẫn hoặc né tránh)
     const rawDamage = baseDamage * ((65 - Math.max(0, overallScore)) / 65);
     const calculatedDamage = Math.round(rawDamage * attitudeMultiplier * streakMultiplier);
     hpDelta = -Math.max(5, calculatedDamage);
 
-    explanation = `Luận điểm thiếu vững chắc (Q=${overallScore}, Hệ số: ${attitudeMultiplier}x). Trừ ${Math.abs(hpDelta)} HP.`;
+    explanation = 'Luận điểm thiếu vững chắc.';
   }
 
   // 3. Tính máu mới trước khi xét sàn
@@ -75,14 +75,10 @@ export function calculatePenalty(input: PenaltyCalculationInput): PenaltyCalcula
     const clampedNewHp = Math.max(currentHp > shieldFloor ? shieldFloor : currentHp, shieldFloor);
     hpDelta = clampedNewHp - currentHp;
     candidateNewHp = clampedNewHp;
-    explanation += ` [KÍCH HOẠT SÀN TÂN THỦ 20%: Chặn tử vong sớm]`;
   }
 
   // 5. Kiểm tra điều kiện Câu hỏi Phục thù Quyết định (Final Redemption Question) khi máu <= 10%
   const isRedemptionQuestion = candidateNewHp > 0 && candidateNewHp <= 10;
-  if (isRedemptionQuestion) {
-    explanation += ` [CẢNH BÁO NGUY CẤP: Kích hoạt Lượt Phục thù Quyết định!]`;
-  }
 
   return {
     hpDelta,

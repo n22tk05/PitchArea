@@ -62,13 +62,13 @@ export class ArenaController {
     md += `---\n\n`;
     md += `## I. ĐIỂM SÁNG PHÒNG THỦ\n`;
     report.strengthsSummary.forEach((s) => {
-      md += `- ✅ ${s}\n`;
+      md += `- ${s}\n`;
     });
     md += `\n`;
 
     md += `## II. RỦI RO & LỖ HỔNG TRỌNG YẾU BỊ BÓC TRẦN\n`;
     report.criticalRisksSummary.forEach((r) => {
-      md += `- ⚠️ ${r}\n`;
+      md += `- ${r}\n`;
     });
     md += `\n`;
 
@@ -78,9 +78,10 @@ export class ArenaController {
 
     report.items.forEach((item) => {
       const q = item.question.replace(/\n/g, ' ').replace(/\|/g, '\\|');
-      const w = item.weaknessIdentified.replace(/\n/g, ' ').replace(/\|/g, '\\|');
+      const cleanW = this.appendixGeneratorService.cleanReasonText(item.weaknessIdentified);
+      const w = (cleanW || item.weaknessIdentified).replace(/\n/g, ' ').replace(/\|/g, '\\|');
       const p = `${item.recommendedSlideTitle ? `**${item.recommendedSlideTitle}:** ` : ''}${item.slideActionProposal}`.replace(/\n/g, ' ').replace(/\|/g, '\\|');
-      md += `| ${item.turnIndex} | **${item.bossName}**<br/>_${item.topic}_<br/>${q} | ${item.fallacyType ? `🔴 *[${item.fallacyType}]*<br/>` : ''}${w} | ${p} |\n`;
+      md += `| ${item.turnIndex} | **${item.bossName}**<br/>_${item.topic}_<br/>${q} | ${item.fallacyType ? `*[${item.fallacyType}]*<br/>` : ''}${w} | ${p} |\n`;
     });
 
     md += `\n---\n`;

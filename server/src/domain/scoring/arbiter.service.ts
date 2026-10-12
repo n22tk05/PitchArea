@@ -106,7 +106,6 @@ export class ArbiterService {
     // Thưởng thêm máu nếu kích hoạt Comeback Surge
     if (streakResult.isComebackSurge) {
       finalHpDelta += streakResult.bonusHp;
-      finalExplanation += ` [COMEBACK SURGE: Thưởng phục hồi thêm +${streakResult.bonusHp} HP!]`;
     }
 
     const totalTimeMs = Date.now() - startTime;
