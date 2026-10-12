@@ -309,72 +309,95 @@ export class AppendixGeneratorService {
   }
 
   /**
-   * Tạo câu trả lời mẫu từ dữ kiện docx hoặc đưa ra đề xuất tìm kiếm & bổ sung cụ thể nếu docx chưa có
+   * Phân loại chặt chẽ thành đúng 2 trường hợp:
+   * TRƯỜNG HỢP 1: Trong Word ĐÃ CÓ dữ liệu -> Gợi ý câu trả lời mẫu bám sát Word để đối chất trả lời câu đó.
+   * TRƯỜNG HỢP 2: Trong Word CHƯA CÓ dữ liệu -> Đề xuất người dùng tìm kiếm, khảo sát & bổ sung thêm vào.
    */
   private generateGroundingAndSampleAnswer(
     bossId: JuryBossId,
     question: string,
     difficulty: CombatDifficulty,
-    doc?: DocumentAnalysisResult,
-    isGoodTurn = false
+    doc?: DocumentAnalysisResult
   ): {
     sampleDefenseArgument: string;
     isDocxGrounded: boolean;
+    slideActionProposal: string;
+    recommendedSlideTitle: string;
   } {
     const targetCustomer =
       doc?.foundationFacts?.targetCustomerType || 'người dùng mục tiêu';
     const evidence = this.extractDocxEvidence(bossId, doc);
 
-    // TH1: Tìm thấy câu văn / dữ kiện liên quan trực tiếp từ tệp Word đã nạp
+    // =========================================================================
+    // TRƯỜNG HỢP 1: TÀI LIỆU WORD ĐÃ CÓ DỮ LIỆU
+    // =========================================================================
     if (evidence) {
       let sampleText = '';
+      let slideTitle = '';
+
       if (bossId === JuryBossId.FINANCE_DRAGON) {
+        slideTitle = 'Slide Phụ lục F1: Bảng Dữ Liệu Chi Phí & Điểm Hòa Vốn (Từ Đề Án)';
         sampleText = `Thưa Ban giám khảo, theo số liệu tại mục ${evidence.sectionTitle}: "${evidence.sentence}". Nhóm đã hoạch định cơ cấu chi phí tối thiểu và điểm hòa vốn dựa trên nguồn lực hiện có, đảm bảo duy trì dự án ổn định qua 6 tháng đầu.`;
       } else if (bossId === JuryBossId.MARKET_SHARK) {
+        slideTitle = 'Slide Phụ lục M1: Dữ Liệu Khảo Sát & Xác Thực Nhu Cầu Người Dùng (Từ Đề Án)';
         sampleText = `Thưa Ban giám khảo, theo kết quả khảo sát tại mục ${evidence.sectionTitle}: "${evidence.sentence}". Đây là căn cứ thực nghiệm chứng minh ${targetCustomer} thực sự có nhu cầu cấp bách chứ không dừng lại ở lời ủng hộ lý thuyết.`;
       } else if (bossId === JuryBossId.TECH_SENTINEL) {
+        slideTitle = 'Slide Phụ lục T2: Sơ Đồ Kiến Trúc & Luồng Dữ Liệu Thực Tế (Từ Đề Án)';
         sampleText = `Thưa Ban giám khảo, theo thiết kế kỹ thuật tại mục ${evidence.sectionTitle}: "${evidence.sentence}". Hệ thống kết hợp cơ chế lưu tạm dữ liệu tại chỗ (Local Cache) và xử lý ngoại lệ, bảo đảm trải nghiệm không bị đứt đoạn khi mất mạng.`;
       } else {
+        slideTitle = 'Slide Phụ lục R3: Ma Trận Cạnh Tranh & Lợi Thế Khác Biệt (Từ Đề Án)';
         sampleText = `Thưa Ban giám khảo, theo chiến lược tại mục ${evidence.sectionTitle}: "${evidence.sentence}". Đây là điểm khác biệt cốt lõi tạo rào cản phòng thủ tự nhiên giúp nhóm bảo vệ tệp khách hàng trước sự cạnh tranh.`;
       }
 
       return {
-        sampleDefenseArgument: sampleText,
         isDocxGrounded: true,
+        slideActionProposal: `Trích xuất dữ liệu đã có từ mục "${evidence.sectionTitle}" đưa lên Slide phụ lục để làm luận cứ đối chất trực tiếp trước Hội đồng.`,
+        recommendedSlideTitle: slideTitle,
+        sampleDefenseArgument: sampleText,
       };
     }
 
-    // TH2: Tài liệu docx CHƯA CÓ dữ liệu này -> Đề xuất tìm kiếm, khảo sát và bổ sung cụ thể theo độ khó
+    // =========================================================================
+    // TRƯỜNG HỢP 2: TÀI LIỆU WORD CHƯA CÓ DỮ LIỆU
+    // =========================================================================
     let missingGuidance = '';
+    let missingSlideTitle = '';
+
     if (bossId === JuryBossId.FINANCE_DRAGON) {
+      missingSlideTitle = 'Slide Phụ lục F1: Kế Hoạch Dự Toán Ngân Sách (Cần Bổ Sung)';
       if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa có dự toán chi phí vận hành chi tiết 6 tháng đầu. Đề xuất bạn: Liệt kê chi phí tối thiểu gồm máy chủ (Domain/Hosting), chi phí làm mẫu, công cụ AI, và tính số lượng ${targetCustomer} cần đạt để tự bù chi phí duy trì.`;
+        missingGuidance = `Trong file Word hiện chưa có dự toán chi phí vận hành chi tiết 6 tháng đầu. Đề xuất bạn tìm kiếm/ước tính: Liệt kê chi phí tối thiểu gồm máy chủ (Domain/Hosting), chi phí làm mẫu, công cụ AI, và tính số lượng ${targetCustomer} cần đạt để tự bù chi phí duy trì rồi bổ sung vào đề án.`;
       } else {
-        missingGuidance = `Trong file Word hiện chưa có bảng tính điểm hòa vốn cụ thể. Đề xuất bạn: Phân tách rõ chi phí cố định (máy chủ, nhân sự) và chi phí biến đổi trên mỗi đơn vị dịch vụ, tính toán sản lượng hòa vốn (Break-even Volume) để bổ sung vào slide phụ lục.`;
+        missingGuidance = `Trong file Word hiện chưa có bảng tính điểm hòa vốn cụ thể. Đề xuất bạn tính toán thêm: Phân tách rõ chi phí cố định (máy chủ, nhân sự) và chi phí biến đổi trên mỗi đơn vị dịch vụ, tính toán sản lượng hòa vốn để bổ sung vào slide phụ lục tài chính.`;
       }
     } else if (bossId === JuryBossId.MARKET_SHARK) {
+      missingSlideTitle = 'Slide Phụ lục M1: Dữ Liệu Khảo Sát Người Dùng (Cần Bổ Sung)';
       if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa có bằng chứng người dùng sẵn sàng chi trả thực tế. Đề xuất bạn: Phỏng vấn sâu 10-15 ${targetCustomer} khi cho trải nghiệm bản mẫu thử nghiệm, ghi nhận trích dẫn phản hồi cụ thể và lập danh sách đăng ký chờ (Waitlist) để bổ sung vào slide.`;
+        missingGuidance = `Trong file Word hiện chưa có bằng chứng người dùng sẵn sàng chi trả thực tế. Đề xuất bạn khảo sát thêm: Phỏng vấn sâu 10-15 ${targetCustomer} khi cho trải nghiệm bản mẫu thử nghiệm, ghi nhận trích dẫn phản hồi cụ thể và lập danh sách đăng ký chờ (Waitlist) để bổ sung vào slide.`;
       } else {
-        missingGuidance = `Trong file Word hiện chưa có số liệu cam kết chi trả thương mại. Đề xuất bạn: Khảo sát đo lường mức giá chấp nhận được (Willingness to Pay) trên 20-30 người dùng mục tiêu, kết hợp dữ liệu dùng thử có thu phí danh nghĩa để bổ sung vào đề án.`;
+        missingGuidance = `Trong file Word hiện chưa có số liệu cam kết chi trả thương mại. Đề xuất bạn khảo sát thêm: Khảo sát đo lường mức giá chấp nhận được (Willingness to Pay) trên 20-30 người dùng mục tiêu, kết hợp dữ liệu dùng thử có thu phí danh nghĩa để bổ sung vào đề án.`;
       }
     } else if (bossId === JuryBossId.TECH_SENTINEL) {
+      missingSlideTitle = 'Slide Phụ lục T2: Quy Trình Xử Lý Ngoại Lệ & Dự Phòng (Cần Bổ Sung)';
       if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa nêu phương án xử lý sự cố mạng hoặc lỗi API bên ngoài. Đề xuất bạn: Bổ sung quy trình xử lý ngoại lệ với thông báo thân thiện và cơ chế lưu tạm dữ liệu trên thiết bị người dùng (LocalStorage/Cache) vào slide kỹ thuật.`;
+        missingGuidance = `Trong file Word hiện chưa nêu phương án xử lý sự cố mạng hoặc lỗi API bên ngoài. Đề xuất bạn tìm hiểu thêm: Bổ sung quy trình xử lý ngoại lệ với thông báo thân thiện và cơ chế lưu tạm dữ liệu trên thiết bị người dùng (LocalStorage/Cache) vào slide kỹ thuật.`;
       } else {
-        missingGuidance = `Trong file Word hiện chưa có sơ đồ kiến trúc dự phòng và cơ chế chịu tải. Đề xuất bạn: Vẽ sơ đồ khối thể hiện cơ chế Local Cache kết hợp hàng đợi xử lý nền (Queue/Worker) và kịch bản Circuit Breaker khi mất kết nối Cloud.`;
+        missingGuidance = `Trong file Word hiện chưa có sơ đồ kiến trúc dự phòng và cơ chế chịu tải. Đề xuất bạn thiết kế thêm: Vẽ sơ đồ khối thể hiện cơ chế Local Cache kết hợp hàng đợi xử lý nền (Queue/Worker) và kịch bản Circuit Breaker khi mất kết nối Cloud.`;
       }
     } else {
+      missingSlideTitle = 'Slide Phụ lục R3: Ma Trận Khác Biệt & Rào Cản (Cần Bổ Sung)';
       if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa làm rõ điểm khác biệt nổi trội so với các giải pháp hiện có. Đề xuất bạn: So sánh 1-2 tính năng giải quyết đúng nỗi đau nhất của ${targetCustomer} và bổ sung lộ trình phân công nhiệm vụ cụ thể của các thành viên trong 6 tháng tới.`;
+        missingGuidance = `Trong file Word hiện chưa làm rõ điểm khác biệt nổi trội so với các giải pháp hiện có. Đề xuất bạn tìm hiểu thêm: So sánh 1-2 tính năng giải quyết đúng nỗi đau nhất của ${targetCustomer} và bổ sung lộ trình phân công nhiệm vụ cụ thể của các thành viên trong 6 tháng tới.`;
       } else {
-        missingGuidance = `Trong file Word hiện chưa phân tích rào cản phòng thủ độc quyền (Moat). Đề xuất bạn: Lập ma trận chi phí chuyển đổi (Switching Cost) và chiến lược bảo vệ tài sản dữ liệu/nghiệp vụ để bổ sung vào slide rủi ro cạnh tranh.`;
+        missingGuidance = `Trong file Word hiện chưa phân tích rào cản phòng thủ độc quyền (Moat). Đề xuất bạn phân tích thêm: Lập ma trận chi phí chuyển đổi (Switching Cost) và chiến lược bảo vệ tài sản dữ liệu/nghiệp vụ để bổ sung vào slide rủi ro cạnh tranh.`;
       }
     }
 
     return {
-      sampleDefenseArgument: missingGuidance,
       isDocxGrounded: false,
+      slideActionProposal: `Tài liệu Word hiện chưa có dữ liệu này. Cần tìm kiếm/khảo sát thêm số liệu để bổ sung một Slide phụ lục mới giải tỏa thắc mắc của Ban giám khảo.`,
+      recommendedSlideTitle: missingSlideTitle,
+      sampleDefenseArgument: missingGuidance,
     };
   }
 
@@ -398,200 +421,39 @@ export class AppendixGeneratorService {
     isDocxGrounded: boolean;
   } {
     const isGoodTurn = (verdict?.hpDelta ?? 0) >= 0;
-    const targetCustomer =
-      doc?.foundationFacts?.targetCustomerType || 'người dùng mục tiêu';
 
-    // Tạo câu trả lời mẫu hoặc hướng dẫn bổ sung
-    const { sampleDefenseArgument, isDocxGrounded } =
-      this.generateGroundingAndSampleAnswer(bossId, question, difficulty, doc, isGoodTurn);
+    const topicByBoss: Record<JuryBossId, string> = {
+      [JuryBossId.FINANCE_DRAGON]: 'Tài chính & Dòng tiền Vận hành',
+      [JuryBossId.TECH_SENTINEL]: 'Kiến trúc Kỹ thuật & Dự phòng',
+      [JuryBossId.MARKET_SHARK]: 'Xác thực Nhu cầu & Khách hàng Mục tiêu',
+      [JuryBossId.RISK_STRATEGIST]: 'Chiến lược Cạnh tranh & Rào cản Phòng thủ',
+    };
 
-    // 1. Nếu phản biện tốt (không bị trừ máu)
-    if (isGoodTurn) {
-      return {
-        fallbackTopic: 'Bảo vệ Luận điểm Thành công',
-        weakness: 'Luận điểm bảo vệ tốt, có cơ sở lập luận và số liệu thuyết phục.',
-        fallacy: undefined,
-        proposal:
-          difficulty === CombatDifficulty.EASY
-            ? `Bổ sung thêm hình ảnh trải nghiệm và trích dẫn trực tiếp từ ${targetCustomer} vào slide để minh chứng rõ nét hơn trước Hội đồng.`
-            : difficulty === CombatDifficulty.NORMAL
-            ? `Đưa số liệu kiểm chứng và trích dẫn phản hồi thực tế từ đợt thử nghiệm vào slide để tiếp tục củng cố độ tin cậy.`
-            : `Đưa các chỉ số giữ chân và cam kết từ các khách hàng/đối tác tiên phong vào slide để gia tăng sức nặng trước Nhà đầu tư.`,
-        slideTitle:
-          difficulty === CombatDifficulty.EASY
-            ? 'Slide Phụ lục: Minh Chứng Trải Nghiệm Thực Tế Của Người Dùng'
-            : 'Slide Phụ lục: Dữ Liệu Kiểm Chứng & Đánh Giá Người Dùng',
-        sampleDefenseArgument,
-        isDocxGrounded,
-      };
-    }
+    const fallacyByBoss: Record<JuryBossId, string> = {
+      [JuryBossId.FINANCE_DRAGON]: 'Ảo tưởng dòng tiền ngoại sinh',
+      [JuryBossId.TECH_SENTINEL]: 'Thiếu phương án dự phòng trải nghiệm người dùng',
+      [JuryBossId.MARKET_SHARK]: 'Nhầm lẫn giữa khảo sát ý kiến và hành vi chi trả thực tế',
+      [JuryBossId.RISK_STRATEGIST]: 'Đánh giá thấp rào cản triển khai thực tế',
+    };
 
-    // 2. Nếu bị trừ máu - Chẩn đoán theo từng Boss và Cấp độ khó (Easy, Normal, Hardcore)
-    if (bossId === JuryBossId.FINANCE_DRAGON) {
-      if (difficulty === CombatDifficulty.EASY) {
-        return {
-          fallbackTopic: 'Dự toán Ngân sách & Điểm Thu phí Ban đầu',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Kế hoạch tài chính chưa dự trù đủ chi phí duy trì cơ bản cho 6 tháng đầu.',
-          fallacy: 'Kỳ vọng ngân sách quá lạc quan',
-          proposal:
-            `Bổ sung bảng dự toán ngân sách tối thiểu (chi phí máy chủ, công cụ phát triển, vận hành hạt giống) cho 6 tháng đầu; xác định số lượng ${targetCustomer} sử dụng để bắt đầu bù đắp chi phí duy trì cơ bản.`,
-          slideTitle: 'Slide Phụ lục F1: Bảng Dự Toán Ngân Sách Tối Thiểu 6 Tháng & Điểm Bắt Đầu Thu Phí',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      } else if (difficulty === CombatDifficulty.NORMAL) {
-        return {
-          fallbackTopic: 'Tài chính & Unit Economics',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Chưa chứng minh được điểm hòa vốn thực tế và khả năng bù đắp chi phí vận hành.',
-          fallacy: 'Ngụy biện kỳ vọng doanh thu tuyến tính',
-          proposal:
-            'Bổ sung bảng phân kỳ dòng tiền 6 tháng đầu; tách bạch rõ chi phí cố định (máy chủ, vận hành) và chi phí biến đổi trên mỗi đơn vị dịch vụ; xác định số lượng người dùng cần đạt để hòa vốn.',
-          slideTitle: 'Slide Phụ lục F1: Bảng Tính Điểm Hòa Vốn & Dòng Tiền 6 Tháng',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      } else {
-        return {
-          fallbackTopic: 'Dòng tiền & Kế hoạch Sinh tồn Tự lực',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Phụ thuộc vào nguồn tài trợ chưa cam kết, chưa có kịch bản sống sót (Survival Runway) tự lực.',
-          fallacy: 'Ảo tưởng dòng tiền ngoại sinh & thiếu kiểm soát Burn Rate',
-          proposal:
-            'Bổ sung bảng phân bổ chi phí tối thiểu theo tháng (Bootstrapping Burn Rate) và mô hình Unit Economics khắt khe (CAC, LTV, Payback Period) bảo đảm dự án duy trì 6-12 tháng mà không phụ thuộc gọi vốn.',
-          slideTitle: 'Slide Phụ lục F1: Kế Hoạch Sinh Tồn Tự Lực (Bootstrapping Runway)',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      }
-    } else if (bossId === JuryBossId.TECH_SENTINEL) {
-      if (difficulty === CombatDifficulty.EASY) {
-        return {
-          fallbackTopic: 'Xử lý Ngoại lệ & Trải nghiệm Người dùng',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Chưa có kịch bản xử lý ngoại lệ thân thiện khi mạng chập chờn hoặc API bên ngoài ngắt kết nối.',
-          fallacy: 'Thiếu tư duy xử lý ngoại lệ cơ bản',
-          proposal:
-            'Bổ sung lưu đồ xử lý ngoại lệ: hiển thị thông báo hướng dẫn người dùng thân thiện khi mất kết nối mạng và lưu tạm dữ liệu trên trình duyệt/thiết bị để tránh mất dữ liệu người dùng.',
-          slideTitle: 'Slide Phụ lục T2: Quy Trình Xử Lý Ngoại Lệ & Trải Nghiệm Ngoại Tuyến (Offline)',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      } else if (difficulty === CombatDifficulty.NORMAL) {
-        return {
-          fallbackTopic: 'Kiến trúc Kỹ thuật & Dự phòng',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Thiếu phương án fallback tại chỗ khi API bên thứ ba gặp sự cố hoặc gián đoạn mạng.',
-          fallacy: 'Ảo tưởng độ sẵn sàng tuyệt đối (100% Uptime Assumption)',
-          proposal:
-            'Bổ sung sơ đồ khối kiến trúc dự phòng: áp dụng cơ chế Cache cục bộ kết hợp bộ đệm hàng đợi (Queue) để giảm tải và bảo vệ trải nghiệm người dùng khi mất kết nối Cloud.',
-          slideTitle: 'Slide Phụ lục T2: Kiến Trúc Dự Phòng & Cơ Chế Giảm Tải Độ Trễ',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      } else {
-        return {
-          fallbackTopic: 'Kiến trúc Dự phòng Đa tầng & Chịu tải',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Chưa có phương án xử lý Offline cục bộ, gây đứt gãy trải nghiệm người dùng nghiêm trọng.',
-          fallacy: 'Thiếu tư duy phòng thủ phần mềm (Defensive Design Gap)',
-          proposal:
-            'Thiết kế cơ chế lưu trữ đệm tại thiết bị đầu cuối kết hợp Circuit Breaker tự ngắt và cơ chế tự động đồng bộ khi khôi phục kết nối, bảo đảm SLA 99.9% khi mở rộng quy mô.',
-          slideTitle: 'Slide Phụ lục T2: Sơ Đồ Khối Cơ Chế Dự Phòng Offline & Tái Kết Nối Đa Tầng',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      }
-    } else if (bossId === JuryBossId.MARKET_SHARK) {
-      if (difficulty === CombatDifficulty.EASY) {
-        return {
-          fallbackTopic: 'Xác thực Nhu cầu & Phỏng vấn Người dùng',
-          weakness:
-            verdict?.prosecutorArgument ||
-            `Khảo sát ý kiến chưa thể hiện được cam kết chi trả hoặc nhu cầu cấp bách thực tế của ${targetCustomer}.`,
-          fallacy: 'Nhầm lẫn giữa khảo sát ý kiến và hành vi chi trả thực tế',
-          proposal:
-            `Bổ sung kết quả phỏng vấn sâu 10-15 ${targetCustomer} khi trải nghiệm bản mẫu thử nghiệm; đưa vào trích dẫn trực tiếp và danh sách đăng ký chờ (Waitlist) để chứng minh nhu cầu thực tế thay vì chỉ dùng biểu đồ khảo sát lý thuyết.`,
-          slideTitle: 'Slide Phụ lục M1: Phỏng Vấn Sâu Người Dùng & Dữ Liệu Dùng Thử',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      } else if (difficulty === CombatDifficulty.NORMAL) {
-        return {
-          fallbackTopic: 'Khách hàng & Đo lường Mức sẵn sàng Chi trả',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Số liệu khảo sát ý kiến chưa thể hiện được mức độ sẵn sàng chi trả (Willingness to Pay) cụ thể.',
-          fallacy: 'Ngụy biện nhầm lẫn giữa "thích sản phẩm" và "sẵn sàng chi tiền"',
-          proposal:
-            `Bổ sung khảo sát đo lường mức độ sẵn sàng chi trả trên nhóm 20-30 người dùng mục tiêu (${targetCustomer}), kết hợp kết quả thử nghiệm pilot có thu phí danh nghĩa để chứng minh nhu cầu chuyển đổi.`,
-          slideTitle: 'Slide Phụ lục M1: Đo Lường Mức Độ Sẵn Sàng Chi Trả & Dữ Liệu Dùng Thử',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      } else {
-        return {
-          fallbackTopic: 'Khách hàng & Cam kết Trả phí Hạt giống',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Chưa có minh chứng đơn đặt trước ràng buộc pháp lý hoặc thỏa thuận thương mại đã ký kết.',
-          fallacy: 'Ảo tưởng chuyển đổi thương mại không có bằng chứng cam kết pháp lý',
-          proposal:
-            'Đưa vào minh chứng đơn đặt trước (Letter of Intent / Pre-orders) từ 5-10 đối tác thân thiết hoặc hợp đồng dùng thử có cam kết thanh toán thay vì chỉ dùng biểu đồ khảo sát lý thuyết.',
-          slideTitle: 'Slide Phụ lục M1: Bằng Chứng Nhu Cầu & Cam Kết Trả Phí Hạt Giống (LOI / Pre-orders)',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      }
-    } else {
-      if (difficulty === CombatDifficulty.EASY) {
-        return {
-          fallbackTopic: 'Lợi thế Khác biệt & Cam kết Đội ngũ',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Chưa làm rõ 1-2 điểm khác biệt nổi trội nhất và cam kết thời gian vận hành của các thành viên.',
-          fallacy: 'Đánh giá thấp thách thức triển khai thực tế',
-          proposal:
-            `Bổ sung bảng phân tích 1-2 điểm khác biệt cốt lõi giải quyết đúng nỗi đau của ${targetCustomer} so với các giải pháp hiện tại, kèm phân công trách nhiệm và mốc thời gian rõ ràng của các thành viên trong nhóm.`,
-          slideTitle: 'Slide Phụ lục R3: Ma Trận Khác Biệt Cốt Lõi & Cam Kết Thực Hiện',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      } else if (difficulty === CombatDifficulty.NORMAL) {
-        return {
-          fallbackTopic: 'Chiến lược Cạnh tranh & Rào cản Chuyển đổi',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Chưa làm rõ rào cản chuyển đổi (Switching Cost) khi đối thủ sao chép tính năng.',
-          fallacy: 'Ngụy biện lợi thế người đi đầu (First-mover Fallacy)',
-          proposal:
-            'Làm nổi bật lợi thế tích lũy dữ liệu người dùng, tính năng đặc thù bản địa và rào cản chi phí chuyển đổi khiến khách hàng khó từ bỏ giải pháp của nhóm.',
-          slideTitle: 'Slide Phụ lục R3: Phân Tích Lợi Thế Cạnh Tranh & Rào Cản Giữ Chân',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      } else {
-        return {
-          fallbackTopic: 'Chiến lược Phòng thủ Độc quyền & Pháp lý',
-          weakness:
-            verdict?.prosecutorArgument ||
-            'Chưa làm rõ rào cản bảo vệ độc quyền (IP/Moat) khi các ông lớn công nghệ (Big Tech) tham gia thị trường.',
-          fallacy: 'Ảo tưởng lợi thế cạnh tranh bền vững không có rào cản bảo hộ',
-          proposal:
-            'Làm nổi bật thỏa thuận độc quyền liên kết dữ liệu bản địa, đăng ký sở hữu trí tuệ hoặc chuẩn tích hợp sâu vào quy trình nghiệp vụ khách hàng hiện hữu để phòng thủ trước Big Tech.',
-          slideTitle: 'Slide Phụ lục R3: Ma Trận Phòng Thủ Độc Quyền & Rào Cản Chuyển Đổi Cao',
-          sampleDefenseArgument,
-          isDocxGrounded,
-        };
-      }
-    }
+    const weakness = isGoodTurn
+      ? 'Luận điểm bảo vệ tốt, có cơ sở lập luận và số liệu thuyết phục.'
+      : (verdict?.prosecutorArgument || 'Luận điểm chưa đủ căn cứ thuyết phục.');
+
+    const fallacy = isGoodTurn ? undefined : fallacyByBoss[bossId];
+
+    // Tạo câu trả lời mẫu hoặc đề xuất tìm kiếm bổ sung - CHỈ RƠI VÀO 2 TRƯỜNG HỢP NÀY
+    const grounding = this.generateGroundingAndSampleAnswer(bossId, question, difficulty, doc);
+
+    return {
+      fallbackTopic: topicByBoss[bossId] || 'Đối chất chuyên môn',
+      weakness,
+      fallacy,
+      proposal: grounding.slideActionProposal,
+      slideTitle: grounding.recommendedSlideTitle,
+      sampleDefenseArgument: grounding.sampleDefenseArgument,
+      isDocxGrounded: grounding.isDocxGrounded,
+    };
   }
 
   private extractStrengths(items: AppendixItem[]): string[] {
