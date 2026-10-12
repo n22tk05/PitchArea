@@ -80,7 +80,14 @@ export class ArenaController {
       const q = item.question.replace(/\n/g, ' ').replace(/\|/g, '\\|');
       const cleanW = this.appendixGeneratorService.cleanReasonText(item.weaknessIdentified);
       const w = (cleanW || item.weaknessIdentified).replace(/\n/g, ' ').replace(/\|/g, '\\|');
-      const p = `${item.recommendedSlideTitle ? `**${item.recommendedSlideTitle}:** ` : ''}${item.slideActionProposal}`.replace(/\n/g, ' ').replace(/\|/g, '\\|');
+      let p = `${item.recommendedSlideTitle ? `**${item.recommendedSlideTitle}:** ` : ''}${item.slideActionProposal}`;
+      if (item.sampleDefenseArgument) {
+        const header = item.isDocxGrounded
+          ? '<br/><br/>💡 **Câu trả lời mẫu (từ tài liệu):** '
+          : '<br/><br/>⚠️ **Tài liệu chưa có — Đề xuất bổ sung:** ';
+        p += `${header}_"${item.sampleDefenseArgument.replace(/\n/g, ' ')}"_`;
+      }
+      p = p.replace(/\n/g, ' ').replace(/\|/g, '\\|');
       md += `| ${item.turnIndex} | **${item.bossName}**<br/>_${item.topic}_<br/>${q} | ${item.fallacyType ? `*[${item.fallacyType}]*<br/>` : ''}${w} | ${p} |\n`;
     });
 

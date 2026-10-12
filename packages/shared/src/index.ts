@@ -593,6 +593,8 @@ export interface AppendixItem {
   fallacyType?: string;
   slideActionProposal: string;
   recommendedSlideTitle?: string;
+  sampleDefenseArgument?: string;
+  isDocxGrounded?: boolean;
   hpImpact: number;
   score: VerdictScore;
   severity: 'CRITICAL' | 'WARNING' | 'GOOD';

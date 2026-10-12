@@ -13,6 +13,8 @@ import {
   Cpu,
   Flame,
   ShieldAlert,
+  Sparkles,
+  FileQuestion,
 } from 'lucide-react';
 import { RetroSelect, RetroOption } from './RetroSelect';
 
@@ -287,7 +289,7 @@ export const AppendixTable: React.FC<AppendixTableProps> = ({ items }) => {
                       </p>
                     </td>
 
-                    {/* Cột 3: Đề xuất sửa Slide */}
+                    {/* Cột 3: Đề xuất sửa Slide & Luận cứ */}
                     <td className="p-3.5 align-top bg-emerald-50/30">
                       {item.recommendedSlideTitle && (
                         <div className="mb-2 flex items-center gap-1.5 text-emerald-800 font-mono text-[11px] font-bold">
@@ -299,6 +301,34 @@ export const AppendixTable: React.FC<AppendixTableProps> = ({ items }) => {
                       <p className="text-neutral-800 text-xs leading-relaxed">
                         {item.slideActionProposal}
                       </p>
+
+                      {/* Khung gợi ý câu trả lời mẫu hoặc đề xuất tìm kiếm & bổ sung */}
+                      {item.sampleDefenseArgument && (
+                        <div
+                          className={`mt-2.5 p-2.5 border-2 ${
+                            item.isDocxGrounded
+                              ? 'bg-blue-50/90 border-blue-600 text-blue-950'
+                              : 'bg-amber-50/90 border-amber-600 text-amber-950'
+                          } shadow-[2px_2px_0px_#000] text-xs font-sans`}
+                        >
+                          <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase mb-1">
+                            {item.isDocxGrounded ? (
+                              <>
+                                <Sparkles className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+                                <span className="text-blue-800">CÂU TRẢ LỜI MẪU (GỢI Ý TỪ TÀI LIỆU CỦA BẠN):</span>
+                              </>
+                            ) : (
+                              <>
+                                <FileQuestion className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                                <span className="text-amber-800">TÀI LIỆU CHƯA CÓ DỮ LIỆU — ĐỀ XUẤT TÌM KIẾM/BỔ SUNG:</span>
+                              </>
+                            )}
+                          </div>
+                          <p className="leading-relaxed italic text-[11px]">
+                            "{item.sampleDefenseArgument}"
+                          </p>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
