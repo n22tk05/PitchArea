@@ -54,13 +54,40 @@ export class RAGEngineService {
     const matchedNumbers: string[] = [];
     const matchedSections: string[] = [];
     const evidenceSnippets: string[] = [];
-    let overlapTokenCount = 0;
+    const matchedPhrases: string[] = [];
 
-    // Tách từ khóa của thí sinh (độ dài >= 3)
-    const speechTokens = speechLower
+    // Danh sách từ dừng tiếng Việt mở rộng - loại bỏ các từ đệm và đại từ phổ biến
+    const VIETNAMESE_STOP_WORDS = new Set([
+      'rồi', 'thì', 'để', 'từ', 'mà', 'nó', 'tới', 'với', 'của', 'có', 'đúng',
+      'như', 'sau', 'đầu', 'tiên', 'khi', 'chúng', 'ta', 'một', 'nước', 'được',
+      'cái', 'ví_dụ', 'ví', 'dụ', 'sẽ', 'vào', 'và', 'là', 'trong', 'những',
+      'người', 'không', 'nhưng', 'các', 'cho', 'này', 'đó', 'lại', 'ra', 'qua',
+      'bị', 'do', 'ở', 'lên', 'xuống', 'về', 'hay', 'hoặc', 'nếu', 'vì', 'bởi',
+      'rất', 'quá', 'lắm', 'luôn', 'ngay', 'đang', 'đã', 'hãy', 'nên', 'cần',
+      'phải', 'mình', 'em', 'nhóm', 'thực', 'hiện', 'tại', 'thế', 'vậy', 'kia'
+    ]);
+
+    // Trích xuất các cụm từ ghép 2 từ liền kề (Bigrams) có ý nghĩa chuyên môn
+    const rawWords = speechLower
       .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, ' ')
       .split(/\s+/)
-      .filter((t) => t.length >= 3 && !['nhưng', 'chúng', 'trong', 'được', 'người', 'những', 'không'].includes(t));
+      .filter((w) => w.length > 0);
+
+    const compoundPhrases: string[] = [];
+    for (let i = 0; i < rawWords.length - 1; i++) {
+      const w1 = rawWords[i];
+      const w2 = rawWords[i + 1];
+      if (!VIETNAMESE_STOP_WORDS.has(w1) && !VIETNAMESE_STOP_WORDS.has(w2) && w1.length >= 2 && w2.length >= 2) {
+        compoundPhrases.push(`${w1} ${w2}`);
+      }
+    }
+
+    // Lọc các từ đơn có nghĩa kỹ thuật/nghiệp vụ (không nằm trong stop words và độ dài >= 3)
+    const substantiveSingleTokens = rawWords.filter(
+      (w) => w.length >= 3 && !VIETNAMESE_STOP_WORDS.has(w)
+    );
+
+    let overlapTokenCount = 0;
 
     for (const sec of primarySections) {
       const secContentLower = sec.content.toLowerCase();
@@ -75,17 +102,23 @@ export class RAGEngineService {
         }
       }
 
-      // Đếm từ khóa trùng khớp
-      for (const token of speechTokens) {
+      // So khớp cụm từ ghép có nghĩa
+      for (const phrase of compoundPhrases) {
+        if (secContentLower.includes(phrase) && !matchedPhrases.includes(phrase)) {
+          matchedPhrases.push(phrase);
+          hasMatchInSection = true;
+        }
+      }
+
+      // Đếm từ đơn thực chất
+      for (const token of substantiveSingleTokens) {
         if (secContentLower.includes(token)) {
           overlapTokenCount++;
-          hasMatchInSection = true;
         }
       }
 
       if (hasMatchInSection) {
         matchedSections.push(sec.title || sec.type);
-        // Lấy một đoạn trích ngắn làm bằng chứng
         evidenceSnippets.push(sec.content.slice(0, 150) + '...');
       }
     }
@@ -112,11 +145,26 @@ export class RAGEngineService {
     }
 
     // 5. Tính toán điểm liên quan căn cứ (Relevance / Factual Backing Score)
-    const numberBonus = matchedNumbers.length * 20;
-    const tokenScore = Math.min(60, overlapTokenCount * 5);
-    const relevanceScore = Math.min(100, Math.max(30, tokenScore + numberBonus));
+    // - Có số liệu xác thực: thưởng lớn (25đ / số)
+    // - Khớp cụm từ ghép chuyên ngành: (10đ / cụm)
+    // - Chỉ khớp từ đơn rời rạc không có số liệu: KHÔNG thể tự động đạt điểm cao
+    const numberScore = matchedNumbers.length * 25;
+    const phraseScore = Math.min(40, matchedPhrases.length * 10);
+    const singleTokenBonus = Math.min(15, overlapTokenCount * 2);
 
-    const hasFactualSupport = matchedNumbers.length > 0 || overlapTokenCount >= 4;
+    let relevanceScore = 20; // Mặc định thấp nếu không có căn cứ
+    if (matchedNumbers.length > 0) {
+      relevanceScore = Math.min(100, Math.max(50, 40 + numberScore + phraseScore));
+    } else if (matchedPhrases.length >= 2) {
+      relevanceScore = Math.min(65, Math.max(30, 25 + phraseScore + singleTokenBonus));
+    } else {
+      relevanceScore = Math.min(35, 20 + singleTokenBonus);
+    }
+
+    // Chỉ công nhận có căn cứ tài liệu khi:
+    // (a) Có số liệu khớp thực tế, HOẶC
+    // (b) Khớp ít nhất 3 cụm từ ghép chuyên môn cụ thể của khối đề mục
+    const hasFactualSupport = matchedNumbers.length > 0 || matchedPhrases.length >= 3;
 
     return {
       hasFactualSupport,

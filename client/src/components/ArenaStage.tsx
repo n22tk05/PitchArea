@@ -124,12 +124,16 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
     prevHpRef.current = hp;
   }, [hp]);
 
-  // Kiểm tra phán quyết gần nhất để duy trì hiệu ứng xanh khi trả lời đúng
+  // Kiểm tra phán quyết gần nhất để duy trì hiệu ứng xanh khi phản biện thực sự xuất sắc (được hồi máu)
   const effectiveVerdict = lastVerdict || sessionState?.lastVerdict;
   const isAnswerCorrect = useMemo(() => {
     if (!effectiveVerdict) return false;
-    // Điểm chất lượng tổng hợp Q >= 60 hoặc có điểm cộng máu / giữ máu không bị trừ
-    return effectiveVerdict.score.overallScore >= 60 || effectiveVerdict.hpDelta >= 0;
+    // Điểm chất lượng tổng hợp Q >= 65 VÀ được thưởng hồi máu thực sự (hpDelta > 0), không phải do sàn tân thủ giữ máu
+    return (
+      effectiveVerdict.score.overallScore >= 65 &&
+      effectiveVerdict.hpDelta > 0 &&
+      !effectiveVerdict.isShieldProtected
+    );
   }, [effectiveVerdict]);
 
   // Thông tin chuỗi phản biện (Streak)

@@ -64,8 +64,10 @@ export function calculatePenalty(input: PenaltyCalculationInput): PenaltyCalcula
 
     if (overallScore <= 25) {
       explanation = 'Thí sinh không phản hồi hoặc né tránh câu hỏi chất vấn.';
+    } else if (overallScore <= 40) {
+      explanation = 'Câu trả lời bị ngắt giữa chừng, diễn đạt lặp từ vòng vo hoặc thiếu hẳn căn cứ số liệu.';
     } else {
-      explanation = 'Luận điểm thiếu vững chắc.';
+      explanation = 'Luận điểm thiếu vững chắc, chưa đủ cơ sở định lượng.';
     }
   }
 
