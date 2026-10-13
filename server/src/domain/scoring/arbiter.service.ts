@@ -78,8 +78,12 @@ export class ArbiterService {
 
     // 5. Xác định hệ số thái độ (Attitude Multiplier)
     let attitudeMultiplier = 1.0;
+    const isVerbose = Boolean(chamberResult.prosecutor.isVerbose);
+
     if (chamberResult.prosecutor.evasionDetected) {
       attitudeMultiplier = 1.4; // Phạt tăng thêm 40% nếu cãi cùn hoặc né tránh
+    } else if (isVerbose) {
+      attitudeMultiplier = 0.95; // Không phạt hệ số né tránh ác ý nếu thí sinh nói dài quá 30s
     } else if (intellectualHonesty >= 80) {
       attitudeMultiplier = 0.5; // Giảm 50% phạt nếu thừa nhận thiếu sót một cách trung thực
     }
@@ -103,6 +107,14 @@ export class ArbiterService {
     let finalHpDelta = penaltyResult.hpDelta;
     let finalExplanation = penaltyResult.explanation;
 
+    // Góp ý xây dựng nếu thí sinh trả lời quá dài trong 30s nhưng không cố tình né tránh
+    if (isVerbose && !chamberResult.prosecutor.evasionDetected) {
+      finalExplanation =
+        overallScore >= 55
+          ? 'Thí sinh có nội dung chuyên môn nhưng câu trả lời quá dài trong thời gian 30s (chưa kịp kết luận).'
+          : 'Câu trả lời quá dài trong giới hạn 30s, chưa đủ cô đọng và thiếu luận điểm chốt.';
+    }
+
     // Thưởng thêm máu nếu kích hoạt Comeback Surge
     if (streakResult.isComebackSurge) {
       finalHpDelta += streakResult.bonusHp;
@@ -112,7 +124,7 @@ export class ArbiterService {
     this.logger.log(`\n👑 [HỘI ĐỒNG TRỌNG TÀI - PHÁN QUYẾT CHÍNH THỨC] (Lượt ${session.currentTurn}) [${totalTimeMs}ms]`);
     this.logger.log(`💬 LÝ DO PHÁN QUYẾT: "${finalExplanation}"`);
     this.logger.log(
-      `🎯 ĐIỂM TỔNG HỢP Q: ${overallScore}/100 | Trọng tâm D: ${directness} | Căn cứ F: ${factualBacking} | Trung thực H: ${intellectualHonesty}`
+      `🎯 ĐIỂM TỔNG HỢP Q: ${overallScore}/100 | Trọng tâm D: ${directness} | Căn cứ F: ${factualBacking} | Trung thực H: ${intellectualHonesty} | Quá dài (Verbose): ${isVerbose ? 'CÓ' : 'KHÔNG'}`
     );
     this.logger.log(
       `🩸 BIẾN ĐỘNG HP: ${finalHpDelta > 0 ? '+' : ''}${finalHpDelta} HP | Sàn tân thủ: ${penaltyResult.isShieldProtected ? 'KÍCH HOẠT BẢO VỆ (20%)' : 'Bình thường'}\n`
@@ -130,6 +142,7 @@ export class ArbiterService {
       streakCount: streakResult.streak.count,
       isShieldProtected: penaltyResult.isShieldProtected,
       isRedemptionQuestion: penaltyResult.isRedemptionQuestion,
+      isVerbose,
       prosecutorArgument: chamberResult.prosecutor.critique,
       defenderArgument: chamberResult.defender.defenseArgument,
     };

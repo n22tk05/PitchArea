@@ -460,17 +460,27 @@ export class AppendixGeneratorService {
       answerLower.includes('bỏ qua') ||
       answerLower.includes('kết thúc đối chất');
 
-    const weakness = isNoResponse
-      ? 'Thí sinh không phản hồi hoặc né tránh câu hỏi chất vấn của Giám khảo.'
-      : isGoodTurn
-      ? 'Luận điểm bảo vệ tốt, có cơ sở lập luận và số liệu thuyết phục.'
-      : (this.cleanReasonText(verdict?.reason) || verdict?.prosecutorArgument || 'Luận điểm chưa đủ căn cứ thuyết phục.');
+    const isVerbose = verdict?.isVerbose || false;
 
-    const fallacy = isNoResponse
-      ? 'Né tránh chất vấn / Bỏ qua câu hỏi'
-      : isGoodTurn
-      ? undefined
-      : fallacyByBoss[bossId];
+    let weakness = '';
+    let fallacy: string | undefined = undefined;
+
+    if (isNoResponse) {
+      weakness = 'Thí sinh không phản hồi hoặc né tránh câu hỏi chất vấn của Giám khảo.';
+      fallacy = 'Né tránh chất vấn / Bỏ qua câu hỏi';
+    } else if (isVerbose) {
+      weakness = 'Thí sinh trả lời quá dài trong giới hạn 30s, chưa kịp hoàn thành kết luận trọng tâm.';
+      fallacy = 'Chưa quản lý tốt thời gian (Quá dài trong 30s)';
+    } else if (isGoodTurn) {
+      weakness = 'Luận điểm bảo vệ tốt, có cơ sở lập luận và số liệu thuyết phục.';
+      fallacy = undefined;
+    } else {
+      weakness =
+        this.cleanReasonText(verdict?.reason) ||
+        verdict?.prosecutorArgument ||
+        'Luận điểm chưa đủ căn cứ thuyết phục.';
+      fallacy = fallacyByBoss[bossId];
+    }
 
     // Tạo câu trả lời mẫu hoặc đề xuất tìm kiếm bổ sung - CHỈ RƠI VÀO 2 TRƯỜNG HỢP NÀY
     const grounding = this.generateGroundingAndSampleAnswer(bossId, question, difficulty, doc);

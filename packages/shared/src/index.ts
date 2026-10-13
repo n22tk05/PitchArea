@@ -442,6 +442,7 @@ export interface VerdictResult {
   streakCount: number;         // Chuỗi thắng/thua hiện tại
   isShieldProtected: boolean;  // Có được sàn tân thủ 20% bảo vệ không
   isRedemptionQuestion?: boolean; // Kích hoạt khi máu <= 10%
+  isVerbose?: boolean;         // Thí sinh nói có nội dung nhưng hết 30s chưa dứt câu (quá dài, không phải né tránh)
   prosecutorArgument?: string; // Góc nhìn công tố viên (bắt bẻ)
   defenderArgument?: string;   // Góc nhìn bào chữa (suy đoán vô tội)
 }

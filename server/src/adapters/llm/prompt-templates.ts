@@ -262,3 +262,87 @@ Dựa trên tiêu chuẩn thẩm định của Hội đồng và nội dung tài
 Độ dài: Tối đa 40 từ (1 đến 2 câu ngắn).`;
 }
 
+/**
+ * Prompt cho CÔNG TỐ VIÊN (Prosecutor) trong phòng phán xét kín MAD
+ */
+export function buildProsecutorPrompt(
+  question: string,
+  candidateSpeech: string,
+  ragContext: string,
+  preset?: EvaluationPreset
+): string {
+  return `Bạn là CÔNG TỐ VIÊN (Prosecutor) trong Hội đồng phán xét kín MAD (Multi-Agent Deliberation) của cuộc thi Khởi nghiệp Sinh viên.
+Nhiệm vụ của bạn là đánh giá khắt khe, khách quan và công tâm câu trả lời của thí sinh đối với câu hỏi chất vấn của Giám khảo.
+
+CÂU HỎI CHẤT VẤN CỦA GIÁM KHẢO:
+"${question}"
+
+BỐI CẢNH DỰ ÁN TỪ ĐỀ ÁN:
+${ragContext}
+
+PHÁT NGÔN ĐỐI CHẤT CỦA THÍ SINH:
+"${candidateSpeech}"
+
+TIÊU CHÍ PHÂN LOẠI (BẮT BUỘC PHẢI PHÂN BIỆT RẠCH RÒI):
+1. Trạng thái phản biện:
+   - DIRECT (Trúng trọng tâm): Trả lời thẳng vào bản chất câu hỏi, mạch lạc, dứt khoát. (isVerbose = false, isEvasion = false).
+   - VERBOSE (Quá dài / Chưa kịp kết luận): Thí sinh có nội dung chuyên môn thực chất, nỗ lực giải trình, nhưng do nói quá dài/tham chi tiết nên khi hết 30s chưa kịp kết luận trọn vẹn. TUYỆT ĐỐI KHÔNG coi trường hợp này là né tránh! (isVerbose = true, isEvasion = false).
+   - EVASION (Né tránh / Vòng vo / Câu giờ): Không trả lời câu hỏi, nói đạo lý chung chung, cãi cùn hoặc nói chuyện không liên quan để câu giờ. (isVerbose = false, isEvasion = true).
+
+2. Chấm điểm Trực diện & Trọng tâm (directnessScore từ 0 đến 100):
+   - 80-100: Rất sắc bén, dứt khoát, trực diện.
+   - 60-79: Đúng trọng tâm nhưng diễn đạt còn hơi dài.
+   - 40-59: Quá dài, bị ngắt dở dang nhưng có ý tưởng và nội dung kỹ thuật/nghiệp vụ.
+   - 10-39: Hoàn toàn lạc đề, né tránh hoặc cãi cùn.
+
+YÊU CẦU ĐẦU RA:
+Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ không có giải thích thêm:
+{
+  "directnessScore": number,
+  "isVerbose": boolean,
+  "isEvasion": boolean,
+  "critique": "1-2 câu tiếng Việt đanh thép đánh giá trọng tâm hoặc kỹ năng quản lý thời gian"
+}`;
+}
+
+/**
+ * Prompt cho NGƯỜI BÀO CHỮA (Defender) trong phòng phán xét kín MAD
+ */
+export function buildDefenderPrompt(
+  question: string,
+  candidateSpeech: string,
+  ragContext: string,
+  preset?: EvaluationPreset
+): string {
+  return `Bạn là NGƯỜI BÀO CHỮA (Defender) trong Hội đồng phán xét kín MAD (Multi-Agent Deliberation) của cuộc thi Khởi nghiệp Sinh viên.
+Nhiệm vụ của bạn là tìm kiếm mọi căn cứ hợp lý, ý tưởng sáng tạo, số liệu hoặc nỗ lực giải trình để bảo vệ thí sinh với tinh thần "suy đoán vô tội" (In Dubio Pro Reo).
+
+CÂU HỎI CHẤT VẤN CỦA GIÁM KHẢO:
+"${question}"
+
+BỐI CẢNH DỰ ÁN TỪ ĐỀ ÁN:
+${ragContext}
+
+PHÁT NGÔN ĐỐI CHẤT CỦA THÍ SINH:
+"${candidateSpeech}"
+
+TIÊU CHÍ BÀO CHỮA (BẮT BUỘC):
+1. Căn cứ tài liệu & Giá trị thực tế (factualScore từ 0 đến 100):
+   - Nếu thí sinh nêu được công nghệ, mô hình, số liệu hoặc quy trình phù hợp đề án: Cho điểm cao (70-100).
+   - Nếu thí sinh nói đúng hướng chuyên môn nhưng bị hết giờ chưa dứt điểm: Vẫn ghi nhận giá trị phần đã trình bày (50-70).
+   - Nếu không có cơ sở hoặc nói nhảm: Điểm thấp (15-35).
+2. Trung thực & Cầu thị (honestyScore từ 0 đến 100):
+   - Thí sinh có nghiêm túc giải trình, cầu thị không?
+   - Nếu nói nhiệt huyết nhưng bị quá thời gian: Vẫn ghi nhận tinh thần trách nhiệm (65-85).
+   - Nếu cãi cùn, nói dối: Điểm thấp (20-40).
+
+YÊU CẦU ĐẦU RA:
+Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ không có giải thích thêm:
+{
+  "factualScore": number,
+  "honestyScore": number,
+  "mitigatingFactors": ["điểm sáng 1", "điểm sáng 2"],
+  "defenseArgument": "1-2 câu tiếng Việt bào chữa ghi nhận điểm sáng và nỗ lực của thí sinh"
+}`;
+}
+

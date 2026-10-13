@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { streamText } from 'ai';
+import { streamText, generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { JuryBossId, EvaluationPreset } from '@pitcharena/shared';
@@ -276,5 +276,77 @@ export class GeminiService {
 
     if (onComplete) onComplete(current);
     return current;
+  }
+
+  /**
+   * Sinh hoàn tất siêu tốc (Fast Completion) không qua stream phục vụ thẩm định MAD Chamber kín
+   */
+  public async generateFastCompletion(
+    prompt: string,
+    maxTokens = 600
+  ): Promise<string> {
+    const groqKeys = GroqKeyManager.getRotatedKeys();
+    const groqModels = [
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b',
+      'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant',
+    ];
+
+    // 1. Thử qua Groq
+    if (groqKeys.length > 0) {
+      for (const currentKey of groqKeys) {
+        for (const modelName of groqModels) {
+          try {
+            const groq = createOpenAI({
+              baseURL: 'https://api.groq.com/openai/v1',
+              apiKey: currentKey,
+            });
+
+            const result = await generateText({
+              model: groq.chat(modelName),
+              prompt,
+              temperature: 0.3, // Nhiệt độ thấp cho phán quyết ổn định & chính xác
+            });
+
+            if (result.text && result.text.trim().length > 0) {
+              return result.text.trim();
+            }
+          } catch (groqErr: any) {
+            this.logger.debug(
+              `[generateFastCompletion] Groq model ${modelName} lỗi: ${groqErr.message}`
+            );
+          }
+        }
+      }
+    }
+
+    // 2. Thử qua Google Gemini
+    const geminiKey =
+      process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (geminiKey) {
+      const geminiModels = ['gemini-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      const googleProvider = createGoogleGenerativeAI({ apiKey: geminiKey });
+
+      for (const geminiModel of geminiModels) {
+        try {
+          const result = await generateText({
+            model: googleProvider(geminiModel),
+            prompt,
+            temperature: 0.3,
+          });
+
+          if (result.text && result.text.trim().length > 0) {
+            return result.text.trim();
+          }
+        } catch (geminiErr: any) {
+          this.logger.debug(
+            `[generateFastCompletion] Gemini model ${geminiModel} lỗi: ${geminiErr.message}`
+          );
+        }
+      }
+    }
+
+    throw new Error('Tất cả AI LLM providers đều không khả dụng cho Fast Completion.');
   }
 }
