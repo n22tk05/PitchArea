@@ -136,15 +136,19 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
     );
   }, [effectiveVerdict]);
 
-  // Thông tin chuỗi phản biện (Streak)
+  // Thông tin chuỗi phản biện (Streak) - Đồng bộ chặt chẽ với Server Session
   const streakInfo = useMemo(() => {
-    if (sessionState?.streak && sessionState.streak.count > 0) {
+    if (sessionState?.streak) {
       return sessionState.streak;
     }
     if (effectiveVerdict?.streakCount !== undefined) {
       return {
         count: effectiveVerdict.streakCount,
-        type: (effectiveVerdict.score.overallScore >= 60 ? 'WIN' : 'LOSE') as 'WIN' | 'LOSE' | 'NEUTRAL',
+        type: (effectiveVerdict.score.overallScore >= 70
+          ? 'WIN'
+          : effectiveVerdict.score.overallScore < 50
+          ? 'LOSE'
+          : 'NEUTRAL') as 'WIN' | 'LOSE' | 'NEUTRAL',
       };
     }
     return { count: 0, type: 'NEUTRAL' as const };
@@ -209,6 +213,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
 
   const handleDefenseSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isFrozen || isPaused) return;
     const text = manualDefenseText.trim() || interimTranscript.trim();
     if (text) {
       onSubmitDefense(text);
@@ -459,7 +464,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
 
             <button
               type="submit"
-              disabled={!manualDefenseText.trim() && !interimTranscript.trim()}
+              disabled={isFrozen || isPaused || (!manualDefenseText.trim() && !interimTranscript.trim())}
               className="px-5 py-2 bg-amber-400 text-black border-2 border-black font-bold text-xs hover:bg-amber-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-[2px_2px_0px_#fff]"
             >
               <span>NỘP BÀI PHẢN BIỆN (SUBMIT)</span>

@@ -324,9 +324,9 @@ export const AppendixTable: React.FC<AppendixTableProps> = ({ items }) => {
                               </>
                             )}
                           </div>
-                          <p className="leading-relaxed italic text-[11px]">
-                            "{item.sampleDefenseArgument}"
-                          </p>
+                          <div className="leading-relaxed text-[11px] whitespace-pre-line text-neutral-900 font-sans">
+                            {item.sampleDefenseArgument}
+                          </div>
                         </div>
                       )}
                     </td>

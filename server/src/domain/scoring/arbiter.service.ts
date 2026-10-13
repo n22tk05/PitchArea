@@ -33,6 +33,13 @@ export class ArbiterService {
   }
 
   /**
+   * Xóa / Đặt lại trạng thái chuỗi khi bắt đầu trận mới hoặc tái đấu
+   */
+  public resetStreak(sessionId: string): void {
+    this.streakEngines.delete(sessionId);
+  }
+
+  /**
    * Phán xử toàn diện phát ngôn phản biện của thí sinh
    */
   public async evaluateDefense(

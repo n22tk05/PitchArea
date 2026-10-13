@@ -54,6 +54,7 @@ export class ArenaGateway
 
   private readonly logger = new Logger(ArenaGateway.name);
   private readonly latestCandidateSpeech = new Map<string, string>();
+  private readonly processingTurnLocks = new Set<string>();
 
   constructor(
     private readonly fsmService: ArenaFsmService,
@@ -191,6 +192,17 @@ export class ArenaGateway
 
       const timer = this.fsmService.getTimer(sessionId);
       if (timer) {
+        // Reset sạch chuỗi Streak khi bước vào trận đấu mới
+        this.arbiterService.resetStreak(sessionId);
+        session.streak = { count: 0, type: 'NEUTRAL' };
+
+        // Xóa sạch các khóa lượt cũ của session này
+        for (const key of this.processingTurnLocks) {
+          if (key.startsWith(`${sessionId}_`)) {
+            this.processingTurnLocks.delete(key);
+          }
+        }
+
         timer.setDurations(session.config.prepBufferSeconds, session.config.roundDurationSeconds);
         this.fsmService.transitionState(sessionId, SessionFsmState.PREP_BUFFER);
         session.prepRemainingSeconds = session.config.prepBufferSeconds;
@@ -276,6 +288,19 @@ export class ArenaGateway
       const session = this.fsmService.getSession(sessionId);
       const timer = this.fsmService.getTimer(sessionId);
       if (!session || !timer) return;
+
+      // Khóa chống nộp trùng lặp cho cùng một lượt (Race condition giữa Submit và Timeout)
+      const turnLockKey = `${sessionId}_${session.currentTurn}`;
+      if (
+        this.processingTurnLocks.has(turnLockKey) ||
+        session.fsmState === SessionFsmState.TIME_FREEZE
+      ) {
+        this.logger.warn(
+          `[${sessionId}] Lượt ${session.currentTurn} đang được xử lý phán quyết hoặc đang ở TIME_FREEZE. Bỏ qua yêu cầu nộp trùng.`
+        );
+        return;
+      }
+      this.processingTurnLocks.add(turnLockKey);
 
       // Xóa lời nói tạm sau khi đã tiếp nhận xử lý
       this.latestCandidateSpeech.delete(sessionId);
@@ -540,6 +565,16 @@ export class ArenaGateway
       this.rematchEngine.recordQuestions(session.documentId, askedQuestions);
 
       // Reset các chỉ số cho trận tái đấu mới
+      this.arbiterService.resetStreak(sessionId);
+      session.streak = { count: 0, type: 'NEUTRAL' };
+
+      // Xóa sạch các khóa lượt cũ của session này
+      for (const key of this.processingTurnLocks) {
+        if (key.startsWith(`${sessionId}_`)) {
+          this.processingTurnLocks.delete(key);
+        }
+      }
+
       session.candidateHp = 100;
       session.currentTurn = 1;
       session.followUpCount = 0;

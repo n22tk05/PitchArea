@@ -106,16 +106,12 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     }
   }, [interimTranscript, submitTranscript]);
 
-  // KHI HẾT GIỜ (turnRemainingSeconds === 0): Lập tức ngắt micro và gửi ngay lời nói phản biện hiện tại đi
+  // KHI HẾT GIỜ (turnRemainingSeconds === 0): Lập tức ngắt micro, server timer sẽ tự động tiếp nhận bản ghi và phán quyết
   useEffect(() => {
     const remaining = timerData?.turnRemainingSeconds ?? sessionState?.turnRemainingSeconds;
     const currentState = timerData?.fsmState ?? sessionState?.fsmState;
 
     if (currentState === SessionFsmState.COMBAT_ACTIVE && remaining === 0) {
-      const pendingText = transcript.trim() || interimTranscript.trim();
-      if (pendingText) {
-        submitDefense(pendingText);
-      }
       if (isRecording) {
         stopRecording();
       }
@@ -126,10 +122,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     sessionState?.turnRemainingSeconds,
     timerData?.fsmState,
     sessionState?.fsmState,
-    transcript,
-    interimTranscript,
     isRecording,
-    submitDefense,
     stopRecording,
     resetTranscript,
   ]);

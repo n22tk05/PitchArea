@@ -325,9 +325,30 @@ export class AppendixGeneratorService {
   }
 
   /**
+   * Rút gọn và tinh chỉnh dẫn chứng từ tài liệu để câu trả lời mẫu ngắn gọn, súc tích
+   */
+  private cleanAndCompactEvidence(sentence: string): string {
+    if (!sentence) return '';
+    let clean = sentence.replace(/\\/g, '').replace(/["“”]/g, '').trim();
+    // Nếu có dạng "Tiêu đề: Nội dung" -> lấy phần nội dung hoặc tiêu đề súc tích
+    if (clean.includes(':')) {
+      const parts = clean.split(':');
+      if (parts[1] && parts[1].trim().length >= 15) {
+        clean = parts[1].trim();
+      }
+    }
+    // Rút ngắn tối đa 85 ký tự để người nói diễn đạt tự nhiên trong 5-10s
+    if (clean.length > 85) {
+      const words = clean.split(/\s+/);
+      clean = words.slice(0, 12).join(' ') + '...';
+    }
+    return clean;
+  }
+
+  /**
    * Phân loại chặt chẽ thành đúng 2 trường hợp:
-   * TRƯỜNG HỢP 1: Trong Word ĐÃ CÓ dữ liệu -> Gợi ý câu trả lời mẫu bám sát Word để đối chất trả lời câu đó.
-   * TRƯỜNG HỢP 2: Trong Word CHƯA CÓ dữ liệu -> Đề xuất người dùng tìm kiếm, khảo sát & bổ sung thêm vào.
+   * TRƯỜNG HỢP 1: Trong Word ĐÃ CÓ dữ liệu -> Gợi ý câu trả lời mẫu bám sát Word để đối chất trả lời câu đó (ngắn gọn, đúng trọng tâm).
+   * TRƯỜNG HỢP 2: Trong Word CHƯA CÓ dữ liệu -> Đề xuất tìm kiếm, khảo sát & câu trả lời cầu thị tránh bị trừ điểm.
    */
   private generateGroundingAndSampleAnswer(
     bossId: JuryBossId,
@@ -348,21 +369,22 @@ export class AppendixGeneratorService {
     // TRƯỜNG HỢP 1: TÀI LIỆU WORD ĐÃ CÓ DỮ LIỆU
     // =========================================================================
     if (evidence) {
+      const compactEvidence = this.cleanAndCompactEvidence(evidence.sentence);
       let sampleText = '';
       let slideTitle = '';
 
       if (bossId === JuryBossId.FINANCE_DRAGON) {
         slideTitle = 'Slide Phụ lục F1: Bảng Dữ Liệu Chi Phí & Điểm Hòa Vốn (Từ Đề Án)';
-        sampleText = `Thưa Ban giám khảo, theo số liệu tại mục ${evidence.sectionTitle}: "${evidence.sentence}". Nhóm đã hoạch định cơ cấu chi phí tối thiểu và điểm hòa vốn dựa trên nguồn lực hiện có, đảm bảo duy trì dự án ổn định qua 6 tháng đầu.`;
+        sampleText = `Thưa Ban giám khảo, về bài toán tài chính, theo đề án tại mục ${evidence.sectionTitle}: "${compactEvidence}". Nhóm đã hoạch định cơ cấu chi phí tối thiểu và điểm hòa vốn để dự án duy trì an toàn qua 6 tháng đầu.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN & ĐÚNG TRỌNG TÂM (15s):\n• 0 - 5s: Nêu thẳng con số chi phí tối thiểu/tháng hoặc sản lượng hòa vốn dự kiến.\n• 5 - 15s: Dẫn chứng số liệu từ đề án, khẳng định dự án có đủ dòng tiền duy trì.`;
       } else if (bossId === JuryBossId.MARKET_SHARK) {
         slideTitle = 'Slide Phụ lục M1: Dữ Liệu Khảo Sát & Xác Thực Nhu Cầu Người Dùng (Từ Đề Án)';
-        sampleText = `Thưa Ban giám khảo, theo kết quả khảo sát tại mục ${evidence.sectionTitle}: "${evidence.sentence}". Đây là căn cứ thực nghiệm chứng minh ${targetCustomer} thực sự có nhu cầu cấp bách chứ không dừng lại ở lời ủng hộ lý thuyết.`;
+        sampleText = `Thưa Ban giám khảo, về nhu cầu khách hàng, theo đề án tại mục ${evidence.sectionTitle}: "${compactEvidence}". Đây là bằng chứng thực nghiệm chứng minh ${targetCustomer} thực sự có nhu cầu cấp bách và sẵn sàng đón nhận giải pháp.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN & ĐÚNG TRỌNG TÂM (15s):\n• 0 - 5s: Nêu ngay số liệu khảo sát (số lượng người hoặc tỷ lệ % sẵn sàng sử dụng/chi trả).\n• 5 - 15s: Khẳng định nỗi đau thực tế của khách hàng, tránh nói cảm tính chung chung.`;
       } else if (bossId === JuryBossId.TECH_SENTINEL) {
         slideTitle = 'Slide Phụ lục T2: Sơ Đồ Kiến Trúc & Luồng Dữ Liệu Thực Tế (Từ Đề Án)';
-        sampleText = `Thưa Ban giám khảo, theo thiết kế kỹ thuật tại mục ${evidence.sectionTitle}: "${evidence.sentence}". Hệ thống kết hợp cơ chế lưu tạm dữ liệu tại chỗ (Local Cache) và xử lý ngoại lệ, bảo đảm trải nghiệm không bị đứt đoạn khi mất mạng.`;
+        sampleText = `Thưa Ban giám khảo, về kiến trúc kỹ thuật, theo đề án tại mục ${evidence.sectionTitle}: "${compactEvidence}". Hệ thống kết hợp cơ chế lưu tạm dữ liệu tại chỗ (Local Cache) và xử lý ngoại lệ, bảo đảm trải nghiệm không bị đứt đoạn khi mất mạng.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN & ĐÚNG TRỌNG TÂM (15s):\n• 0 - 5s: Trả lời trực diện công nghệ/giải pháp dự phòng (Local Cache / Offline Mode).\n• 5 - 15s: Nêu cơ chế hoạt động thực tế, chốt phương án bảo vệ trải nghiệm người dùng.`;
       } else {
         slideTitle = 'Slide Phụ lục R3: Ma Trận Cạnh Tranh & Lợi Thế Khác Biệt (Từ Đề Án)';
-        sampleText = `Thưa Ban giám khảo, theo chiến lược tại mục ${evidence.sectionTitle}: "${evidence.sentence}". Đây là điểm khác biệt cốt lõi tạo rào cản phòng thủ tự nhiên giúp nhóm bảo vệ tệp khách hàng trước sự cạnh tranh.`;
+        sampleText = `Thưa Ban giám khảo, về rào cản phòng thủ, theo đề án tại mục ${evidence.sectionTitle}: "${compactEvidence}". Đây là điểm khác biệt cốt lõi giúp nhóm bảo vệ tệp khách hàng trước sự cạnh tranh của các giải pháp hiện có.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN & ĐÚNG TRỌNG TÂM (15s):\n• 0 - 5s: Nêu duy nhất 1 điểm khác biệt vượt trội nhất của giải pháp.\n• 5 - 15s: Nêu lý do đối thủ khó sao chép ngay hoặc chi phí chuyển đổi của người dùng.`;
       }
 
       return {
@@ -382,30 +404,30 @@ export class AppendixGeneratorService {
     if (bossId === JuryBossId.FINANCE_DRAGON) {
       missingSlideTitle = 'Slide Phụ lục F1: Kế Hoạch Dự Toán Ngân Sách (Cần Bổ Sung)';
       if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa có dự toán chi phí vận hành chi tiết 6 tháng đầu. Đề xuất bạn tìm kiếm/ước tính: Liệt kê chi phí tối thiểu gồm máy chủ (Domain/Hosting), chi phí làm mẫu, công cụ AI, và tính số lượng ${targetCustomer} cần đạt để tự bù chi phí duy trì rồi bổ sung vào đề án.`;
+        missingGuidance = `Trong file Word hiện chưa có dự toán chi phí vận hành chi tiết 6 tháng đầu. Đề xuất bạn tìm kiếm/ước tính: Liệt kê chi phí tối thiểu gồm máy chủ (Domain/Hosting), chi phí làm mẫu, công cụ AI, và tính số lượng ${targetCustomer} cần đạt để tự bù chi phí duy trì rồi bổ sung vào đề án.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, hiện tại đề án đang ở giai đoạn thử nghiệm nên nhóm đang tạm ước tính chi phí tối thiểu theo quy mô sinh viên. Nhóm xin tiếp thu góp ý của thầy/cô và sẽ lập bảng dự toán chi tiết bổ sung trong 2 tuần tới."`;
       } else {
-        missingGuidance = `Trong file Word hiện chưa có bảng tính điểm hòa vốn cụ thể. Đề xuất bạn tính toán thêm: Phân tách rõ chi phí cố định (máy chủ, nhân sự) và chi phí biến đổi trên mỗi đơn vị dịch vụ, tính toán sản lượng hòa vốn để bổ sung vào slide phụ lục tài chính.`;
+        missingGuidance = `Trong file Word hiện chưa có bảng tính điểm hòa vốn cụ thể. Đề xuất bạn tính toán thêm: Phân tách rõ chi phí cố định (máy chủ, nhân sự) và chi phí biến đổi trên mỗi đơn vị dịch vụ, tính toán sản lượng hòa vốn để bổ sung vào slide phụ lục tài chính.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, điểm hòa vốn hiện đang được nhóm mô hình hóa dựa trên đơn giá dự kiến. Nhóm xin ghi nhận và sẽ chuẩn hóa bảng phân tích độ nhạy chi phí để cập nhật vào báo cáo."`;
       }
     } else if (bossId === JuryBossId.MARKET_SHARK) {
       missingSlideTitle = 'Slide Phụ lục M1: Dữ Liệu Khảo Sát Người Dùng (Cần Bổ Sung)';
       if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa có bằng chứng người dùng sẵn sàng chi trả thực tế. Đề xuất bạn khảo sát thêm: Phỏng vấn sâu 10-15 ${targetCustomer} khi cho trải nghiệm bản mẫu thử nghiệm, ghi nhận trích dẫn phản hồi cụ thể và lập danh sách đăng ký chờ (Waitlist) để bổ sung vào slide.`;
+        missingGuidance = `Trong file Word hiện chưa có bằng chứng người dùng sẵn sàng chi trả thực tế. Đề xuất bạn khảo sát thêm: Phỏng vấn sâu 10-15 ${targetCustomer} khi cho trải nghiệm bản mẫu thử nghiệm, ghi nhận trích dẫn phản hồi cụ thể và lập danh sách đăng ký chờ (Waitlist) để bổ sung vào slide.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, hiện nhóm mới ghi nhận phản hồi định tính qua phỏng vấn thử nghiệm. Nhóm xin tiếp thu và sẽ triển khai đo lường mức độ sẵn sàng chi trả trên 20 khách hàng hạt giống ngay trong tháng này."`;
       } else {
-        missingGuidance = `Trong file Word hiện chưa có số liệu cam kết chi trả thương mại. Đề xuất bạn khảo sát thêm: Khảo sát đo lường mức giá chấp nhận được (Willingness to Pay) trên 20-30 người dùng mục tiêu, kết hợp dữ liệu dùng thử có thu phí danh nghĩa để bổ sung vào đề án.`;
+        missingGuidance = `Trong file Word hiện chưa có số liệu cam kết chi trả thương mại. Đề xuất bạn khảo sát thêm: Khảo sát đo lường mức giá chấp nhận được (Willingness to Pay) trên 20-30 người dùng mục tiêu, kết hợp dữ liệu dùng thử có thu phí danh nghĩa để bổ sung vào đề án.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, các chỉ số chuyển đổi hiện tại dựa trên đợt khảo sát nhu cầu ban đầu. Nhóm xin tiếp thu và sẽ chạy thử nghiệm thu phí danh nghĩa để kiểm chứng tỷ lệ trả tiền thực tế."`;
       }
     } else if (bossId === JuryBossId.TECH_SENTINEL) {
       missingSlideTitle = 'Slide Phụ lục T2: Quy Trình Xử Lý Ngoại Lệ & Dự Phòng (Cần Bổ Sung)';
       if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa nêu phương án xử lý sự cố mạng hoặc lỗi API bên ngoài. Đề xuất bạn tìm hiểu thêm: Bổ sung quy trình xử lý ngoại lệ với thông báo thân thiện và cơ chế lưu tạm dữ liệu trên thiết bị người dùng (LocalStorage/Cache) vào slide kỹ thuật.`;
+        missingGuidance = `Trong file Word hiện chưa nêu phương án xử lý sự cố mạng hoặc lỗi API bên ngoài. Đề xuất bạn tìm hiểu thêm: Bổ sung quy trình xử lý ngoại lệ với thông báo thân thiện và cơ chế lưu tạm dữ liệu trên thiết bị người dùng (LocalStorage/Cache) vào slide kỹ thuật.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, giải pháp hiện tại đang ưu tiên luồng xử lý chính. Nhóm xin tiếp thu và sẽ bổ sung cơ chế lưu tạm dữ liệu tại chỗ (Local Cache) để bảo đảm trải nghiệm không bị đứt đoạn khi mất mạng."`;
       } else {
-        missingGuidance = `Trong file Word hiện chưa có sơ đồ kiến trúc dự phòng và cơ chế chịu tải. Đề xuất bạn thiết kế thêm: Vẽ sơ đồ khối thể hiện cơ chế Local Cache kết hợp hàng đợi xử lý nền (Queue/Worker) và kịch bản Circuit Breaker khi mất kết nối Cloud.`;
+        missingGuidance = `Trong file Word hiện chưa có sơ đồ kiến trúc dự phòng và cơ chế chịu tải. Đề xuất bạn thiết kế thêm: Vẽ sơ đồ khối thể hiện cơ chế Local Cache kết hợp hàng đợi xử lý nền (Queue/Worker) và kịch bản Circuit Breaker khi mất kết nối Cloud.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, kiến trúc mở rộng và cơ chế chịu tải đang được nhóm hoàn thiện thiết kế. Nhóm xin tiếp thu và sẽ bổ sung sơ đồ dự phòng Circuit Breaker vào slide phụ lục kỹ thuật."`;
       }
     } else {
       missingSlideTitle = 'Slide Phụ lục R3: Ma Trận Khác Biệt & Rào Cản (Cần Bổ Sung)';
       if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa làm rõ điểm khác biệt nổi trội so với các giải pháp hiện có. Đề xuất bạn tìm hiểu thêm: So sánh 1-2 tính năng giải quyết đúng nỗi đau nhất của ${targetCustomer} và bổ sung lộ trình phân công nhiệm vụ cụ thể của các thành viên trong 6 tháng tới.`;
+        missingGuidance = `Trong file Word hiện chưa làm rõ điểm khác biệt nổi trội so với các giải pháp hiện có. Đề xuất bạn tìm hiểu thêm: So sánh 1-2 tính năng giải quyết đúng nỗi đau nhất của ${targetCustomer} và bổ sung lộ trình phân công nhiệm vụ cụ thể của các thành viên trong 6 tháng tới.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, điểm khác biệt hiện tại của nhóm tập trung vào trải nghiệm đơn giản hóa cho người dùng. Nhóm xin tiếp thu và sẽ lập bảng so sánh ma trận tính năng chi tiết với các đối thủ trên thị trường."`;
       } else {
-        missingGuidance = `Trong file Word hiện chưa phân tích rào cản phòng thủ độc quyền (Moat). Đề xuất bạn phân tích thêm: Lập ma trận chi phí chuyển đổi (Switching Cost) và chiến lược bảo vệ tài sản dữ liệu/nghiệp vụ để bổ sung vào slide rủi ro cạnh tranh.`;
+        missingGuidance = `Trong file Word hiện chưa phân tích rào cản phòng thủ độc quyền (Moat). Đề xuất bạn phân tích thêm: Lập ma trận chi phí chuyển đổi (Switching Cost) và chiến lược bảo vệ tài sản dữ liệu/nghiệp vụ để bổ sung vào slide rủi ro cạnh tranh.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, rào cản phòng thủ hiện tại của nhóm bám vào lợi thế am hiểu người dùng ngách. Nhóm xin tiếp thu và sẽ xây dựng chiến lược tăng chi phí chuyển đổi để củng cố rào cản cạnh tranh dài hạn."`;
       }
     }
 

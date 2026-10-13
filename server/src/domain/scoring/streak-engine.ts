@@ -26,6 +26,10 @@ export class StreakEngine {
     return { ...this.streak };
   }
 
+  public reset(): void {
+    this.streak = { type: 'NEUTRAL', count: 0 };
+  }
+
   /**
    * Cập nhật chuỗi sau khi có điểm chất lượng Q
    */
