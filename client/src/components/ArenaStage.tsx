@@ -31,6 +31,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  SkipForward,
 } from 'lucide-react';
 
 interface ArenaStageProps {
@@ -440,7 +441,18 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
           </div>
 
           {/* Thanh Nút Hành Động */}
-          <div className="flex items-center justify-end pt-1">
+          <div className="flex items-center justify-between pt-1 gap-2">
+            <button
+              type="button"
+              onClick={onRequestNextQuestion}
+              disabled={isFrozen || isPaused}
+              className="px-3 py-2 bg-neutral-800 hover:bg-rose-950 border border-neutral-600 hover:border-rose-500 text-neutral-300 hover:text-rose-300 font-bold text-xs flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed shadow-[2px_2px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
+              title="Bỏ qua câu hỏi này và chấp nhận bị phán quyết trừ điểm máu (HP)"
+            >
+              <SkipForward className="w-3.5 h-3.5 text-rose-400" />
+              <span>BỎ QUA CÂU NÀY (-HP)</span>
+            </button>
+
             <button
               type="submit"
               disabled={!manualDefenseText.trim() && !interimTranscript.trim()}

@@ -82,7 +82,23 @@ export class AppendixGeneratorService {
       const bossId = verdict?.bossId || bossQ?.bossId || session.activeBossId;
       const questionText = bossQ?.text || this.cleanReasonText(verdict?.reason) || `Câu hỏi đối chất lượt ${turnIndex}`;
       const answerText = candidateAns?.text || 'Thí sinh không phản hồi hoặc phản hồi quá ngắn.';
-      const hpDelta = verdict ? verdict.hpDelta : 0;
+      let hpDelta = verdict ? verdict.hpDelta : 0;
+
+      // Đảm bảo nếu lượt này thí sinh không phản hồi hoặc bị bỏ qua thì luôn có mức phạt âm
+      const isUnanswered =
+        answerText.includes('không phản hồi') ||
+        answerText.includes('quá ngắn') ||
+        answerText.includes('bỏ qua') ||
+        answerText.includes('Kết thúc đối chất sớm');
+
+      if (isUnanswered && hpDelta >= 0) {
+        hpDelta =
+          difficulty === CombatDifficulty.EASY
+            ? -15
+            : difficulty === CombatDifficulty.NORMAL
+            ? -20
+            : -25;
+      }
 
       runningHp = Math.max(0, Math.min(100, runningHp + hpDelta));
 
@@ -436,11 +452,25 @@ export class AppendixGeneratorService {
       [JuryBossId.RISK_STRATEGIST]: 'Đánh giá thấp rào cản triển khai thực tế',
     };
 
-    const weakness = isGoodTurn
-      ? 'Luận điểm bảo vệ tốt, có cơ sở lập luận và số liệu thuyết phục.'
-      : (verdict?.prosecutorArgument || 'Luận điểm chưa đủ căn cứ thuyết phục.');
+    const answerLower = (answer || '').toLowerCase();
+    const isNoResponse =
+      !answer ||
+      answerLower.includes('không phản hồi') ||
+      answerLower.includes('quá ngắn') ||
+      answerLower.includes('bỏ qua') ||
+      answerLower.includes('kết thúc đối chất');
 
-    const fallacy = isGoodTurn ? undefined : fallacyByBoss[bossId];
+    const weakness = isNoResponse
+      ? 'Thí sinh không phản hồi hoặc né tránh câu hỏi chất vấn của Giám khảo.'
+      : isGoodTurn
+      ? 'Luận điểm bảo vệ tốt, có cơ sở lập luận và số liệu thuyết phục.'
+      : (this.cleanReasonText(verdict?.reason) || verdict?.prosecutorArgument || 'Luận điểm chưa đủ căn cứ thuyết phục.');
+
+    const fallacy = isNoResponse
+      ? 'Né tránh chất vấn / Bỏ qua câu hỏi'
+      : isGoodTurn
+      ? undefined
+      : fallacyByBoss[bossId];
 
     // Tạo câu trả lời mẫu hoặc đề xuất tìm kiếm bổ sung - CHỈ RƠI VÀO 2 TRƯỜNG HỢP NÀY
     const grounding = this.generateGroundingAndSampleAnswer(bossId, question, difficulty, doc);

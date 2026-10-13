@@ -103,6 +103,15 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
 
     socket.on(ArenaSocketEvents.S2C_VERDICT_ANNOUNCED, (data: S2CVerdictAnnouncedPayload) => {
       setLastVerdict(data.verdict);
+      setSessionState((prev) =>
+        prev
+          ? {
+              ...prev,
+              candidateHp: data.candidateHp,
+              lastVerdict: data.verdict,
+            }
+          : prev
+      );
     });
 
     socket.on(ArenaSocketEvents.S2C_REPORT_GENERATED, (data: S2CReportGeneratedPayload) => {

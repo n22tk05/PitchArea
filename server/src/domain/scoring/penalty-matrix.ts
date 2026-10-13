@@ -62,7 +62,11 @@ export function calculatePenalty(input: PenaltyCalculationInput): PenaltyCalcula
     const calculatedDamage = Math.round(rawDamage * attitudeMultiplier * streakMultiplier);
     hpDelta = -Math.max(5, calculatedDamage);
 
-    explanation = 'Luận điểm thiếu vững chắc.';
+    if (overallScore <= 25) {
+      explanation = 'Thí sinh không phản hồi hoặc né tránh câu hỏi chất vấn.';
+    } else {
+      explanation = 'Luận điểm thiếu vững chắc.';
+    }
   }
 
   // 3. Tính máu mới trước khi xét sàn

@@ -335,6 +335,7 @@ export class ArenaGateway
       session.lastVerdict = verdict;
       session.verdictHistory = session.verdictHistory || [];
       session.verdictHistory.push(verdict);
+      session.activeQuestion = undefined;
 
       if (verdict.hpDelta > 0) {
         session.candidateHp = Math.min(100, session.candidateHp + verdict.hpDelta);
@@ -413,15 +414,34 @@ export class ArenaGateway
   }
 
   /**
-   * Yêu cầu chủ động câu hỏi tiếp theo
+   * Yêu cầu chủ động câu hỏi tiếp theo (Bỏ qua câu hỏi / Skip)
    */
   @SubscribeMessage(ArenaSocketEvents.C2S_REQUEST_NEXT_QUESTION)
-  handleRequestNextQuestion(
+  async handleRequestNextQuestion(
     @ConnectedSocket() client: Socket,
     @MessageBody() rawPayload: unknown
   ) {
     try {
       const { sessionId } = C2SRequestNextQuestionPayloadSchema.parse(rawPayload);
+      const session = this.fsmService.getSession(sessionId);
+      if (!session) return;
+
+      // Nếu đang trong lượt đối chất mà câu hỏi hiện tại chưa được trả lời:
+      // Thí sinh chủ động bỏ qua câu hỏi -> Phạt trừ điểm ngay tại thời điểm bỏ qua!
+      const isUnanswered =
+        Boolean(session.activeQuestion) &&
+        (session.fsmState === SessionFsmState.COMBAT_ACTIVE ||
+         session.fsmState === SessionFsmState.PREP_BUFFER);
+
+      if (isUnanswered) {
+        this.logger.log(`[${sessionId}] Thí sinh chủ động bỏ qua câu hỏi khi chưa hết giờ -> Phạt trừ điểm ngay tại chỗ.`);
+        const pendingSpeech = this.latestCandidateSpeech.get(sessionId)?.trim();
+        const defenseText = pendingSpeech || 'Thí sinh bỏ qua câu hỏi chất vấn.';
+        await this.processCandidateDefense(sessionId, defenseText);
+        return;
+      }
+
+      // Nếu không có câu hỏi nào đang dở dang thì kích hoạt câu hỏi mới
       this.triggerBossQuestioning(sessionId);
     } catch (err: any) {
       this.logger.error(`Error in handleRequestNextQuestion: ${err.message}`);
@@ -549,13 +569,69 @@ export class ArenaGateway
    * Kết thúc trận đấu chủ động từ phía client
    */
   @SubscribeMessage(ArenaSocketEvents.C2S_FINISH_COMBAT)
-  handleFinishCombat(
+  async handleFinishCombat(
     @ConnectedSocket() client: Socket,
     @MessageBody() rawPayload: unknown
   ) {
     try {
       const { sessionId } = C2SSessionActionPayloadSchema.parse(rawPayload);
       this.logger.log(`[${sessionId}] Nhận yêu cầu kết thúc trận đấu (C2S_FINISH_COMBAT)`);
+      const session = this.fsmService.getSession(sessionId);
+
+      if (session) {
+        // Kiểm tra nếu câu hỏi hiện tại chưa được phản biện/phán quyết
+        const isUnanswered =
+          Boolean(session.activeQuestion) &&
+          (session.fsmState === SessionFsmState.COMBAT_ACTIVE ||
+           session.fsmState === SessionFsmState.PREP_BUFFER);
+
+        if (isUnanswered) {
+          this.logger.log(`[${sessionId}] Kết thúc đối chất khi câu hỏi còn dở -> Phạt trừ điểm câu hỏi chưa trả lời trước khi tổng kết.`);
+          const pendingSpeech = this.latestCandidateSpeech.get(sessionId)?.trim();
+          const defenseText = pendingSpeech || 'Thí sinh bỏ qua câu hỏi (Kết thúc đối chất sớm).';
+
+          // Đánh giá và trừ HP cho câu hỏi này trước
+          const verdict = await this.arbiterService.evaluateDefense(session, defenseText);
+          session.lastVerdict = verdict;
+          session.verdictHistory = session.verdictHistory || [];
+          session.verdictHistory.push(verdict);
+          session.activeQuestion = undefined;
+
+          // Ghi nhận transcript
+          session.transcriptHistory.push({
+            sender: 'CANDIDATE',
+            text: defenseText,
+            timestamp: new Date().toLocaleTimeString(),
+          });
+          if (verdict.prosecutorArgument) {
+            session.transcriptHistory.push({
+              sender: 'PROSECUTOR',
+              agentName: 'Công tố viên',
+              text: verdict.prosecutorArgument,
+              timestamp: new Date().toLocaleTimeString(),
+            });
+          }
+          session.transcriptHistory.push({
+            sender: 'ARBITER',
+            agentName: 'Chủ tọa Hội đồng',
+            text: verdict.reason,
+            timestamp: new Date().toLocaleTimeString(),
+            penaltyApplied: verdict.hpDelta,
+            score: verdict.score.overallScore,
+          });
+
+          if (verdict.hpDelta < 0) {
+            this.fsmService.deductHp(sessionId, Math.abs(verdict.hpDelta));
+          }
+
+          // Phát phán quyết
+          this.server.to(sessionId).emit(ArenaSocketEvents.S2C_VERDICT_ANNOUNCED, {
+            verdict,
+            candidateHp: session.candidateHp,
+          });
+        }
+      }
+
       this.finishMatchAndGenerateReport(sessionId);
     } catch (err: any) {
       this.logger.error(`Error in handleFinishCombat: ${err.message}`);
@@ -781,31 +857,10 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
 
     this.logger.log(`[${sessionId}] Turn time expired!`);
 
-    // Nếu thí sinh đang nói dở khi hết giờ, lập tức ngắt lời và nộp bài phản biện đó để phán xử ngay
+    // Dù thí sinh đang nói dở hay hoàn toàn im lặng, khi hết giờ PHẢI xử lý bài nộp và trừ điểm:
     const pendingSpeech = this.latestCandidateSpeech.get(sessionId)?.trim();
-    if (pendingSpeech) {
-      this.logger.log(`[${sessionId}] Auto-submitting pending candidate speech on timeout: "${pendingSpeech}"`);
-      this.processCandidateDefense(sessionId, pendingSpeech);
-      return;
-    }
-
-    // Tự động chuyển lượt tiếp theo hoặc kết thúc nếu thí sinh hoàn toàn im lặng
-    if (session.currentTurn < session.totalTurns) {
-      session.currentTurn += 1;
-      session.followUpCount = 0;
-      session.isCoachingPivot = false;
-      const decision = this.followUpEngine.decideNextMove(
-        0,
-        session.currentTopic || this.followUpEngine.getDefaultTopicForBoss(session.activeBossId),
-        { isVague: false, isDefensive: false, hasNumbers: false, wordCount: 0 },
-        session.activeBossId,
-        session.availableBossIds
-      );
-      session.activeBossId = decision.suggestedBossId;
-      session.currentTopic = decision.topic;
-      this.triggerBossQuestioning(sessionId);
-    } else {
-      this.finishMatchAndGenerateReport(sessionId);
-    }
+    const defenseToProcess = pendingSpeech || 'Thí sinh không phản hồi hoặc phản hồi quá ngắn.';
+    this.logger.log(`[${sessionId}] Hết giờ lượt ${session.currentTurn} -> Tự động nộp bài và phán quyết: "${defenseToProcess}"`);
+    this.processCandidateDefense(sessionId, defenseToProcess);
   }
 }

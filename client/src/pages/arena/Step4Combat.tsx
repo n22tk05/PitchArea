@@ -168,7 +168,10 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
       stopRecording();
     }
     finishCombat();
-    onNext(sessionState);
+    // Chờ server đồng bộ phán quyết và tạo báo cáo qua FSM EVALUATION_REPORT, dự phòng tối đa 1.5s
+    setTimeout(() => {
+      onNext(sessionState);
+    }, 1500);
   };
 
   return (

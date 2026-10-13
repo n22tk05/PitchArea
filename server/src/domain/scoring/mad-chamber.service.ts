@@ -92,8 +92,27 @@ export class MADChamberService {
     rag: RAGMatchResult,
     preset?: EvaluationPreset
   ): Promise<ProsecutorOpinion> {
-    // Có thể dùng LLM hoặc Heuristic nhanh
-    const speechLower = speech.toLowerCase();
+    const speechTrimmed = speech.trim();
+    const speechLower = speechTrimmed.toLowerCase();
+    const words = speechTrimmed ? speechTrimmed.split(/\s+/) : [];
+
+    // Trường hợp thí sinh hoàn toàn không phản hồi hoặc chủ động bỏ qua câu hỏi
+    const isNoResponse =
+      words.length === 0 ||
+      words.length < 3 ||
+      speechLower.includes('không phản hồi') ||
+      speechLower.includes('bỏ qua câu hỏi') ||
+      speechLower.includes('kết thúc đối chất');
+
+    if (isNoResponse) {
+      return {
+        isVague: true,
+        evasionDetected: true,
+        attitudeScore: 10,
+        directnessScore: 10,
+        critique: 'Thí sinh không phản hồi hoặc né tránh câu hỏi chất vấn của Giám khảo.',
+      };
+    }
 
     // Dấu hiệu cãi cùn / né tránh: "tất nhiên là", "ai cũng biết", "chắc chắn sẽ", "nhóm em nghĩ là"
     const evasionKeywords = ['ai cũng biết', 'đương nhiên', 'chắc chắn là', 'em nghĩ là', 'sau này sẽ', 'tùy trường hợp'];
@@ -103,22 +122,22 @@ export class MADChamberService {
     const honestKeywords = ['tiếp thu', 'thiếu sót', 'thực tế khảo sát', 'số liệu hiện tại', 'đang hoàn thiện'];
     const hasHonesty = honestKeywords.some((kw) => speechLower.includes(kw));
 
-    const isShort = speech.trim().split(/\s+/).length < 15;
+    const isShort = words.length < 15;
     const isVague = isShort || (!rag.hasFactualSupport && evasionDetected);
 
-    let directnessScore = isShort ? 40 : 70;
+    let directnessScore = isShort ? 30 : 70;
     if (rag.hasFactualSupport) directnessScore += 20;
     if (evasionDetected) directnessScore -= 25;
 
     let attitudeScore = 60;
     if (hasHonesty) attitudeScore = 90;
-    else if (evasionDetected) attitudeScore = 40;
+    else if (evasionDetected) attitudeScore = 30;
 
     return {
       isVague,
       evasionDetected,
-      attitudeScore: Math.min(100, Math.max(20, attitudeScore)),
-      directnessScore: Math.min(100, Math.max(20, directnessScore)),
+      attitudeScore: Math.min(100, Math.max(10, attitudeScore)),
+      directnessScore: Math.min(100, Math.max(10, directnessScore)),
       critique: evasionDetected
         ? 'Thí sinh có dấu hiệu trả lời nước đôi hoặc né tránh số liệu cụ thể.'
         : isVague
@@ -136,6 +155,26 @@ export class MADChamberService {
     rag: RAGMatchResult,
     preset?: EvaluationPreset
   ): Promise<DefenderOpinion> {
+    const speechTrimmed = speech.trim();
+    const speechLower = speechTrimmed.toLowerCase();
+    const words = speechTrimmed ? speechTrimmed.split(/\s+/) : [];
+
+    const isNoResponse =
+      words.length === 0 ||
+      words.length < 3 ||
+      speechLower.includes('không phản hồi') ||
+      speechLower.includes('bỏ qua câu hỏi') ||
+      speechLower.includes('kết thúc đối chất');
+
+    if (isNoResponse) {
+      return {
+        mitigatingFactors: [],
+        honestyScore: 20,
+        factualScore: 10,
+        defenseArgument: 'Không thể ghi nhận căn cứ bào chữa do thí sinh không đưa ra câu trả lời cho câu hỏi này.',
+      };
+    }
+
     const mitigatingFactors: string[] = [];
     let factualScore = rag.relevanceScore;
     let honestyScore = 65;
@@ -150,7 +189,7 @@ export class MADChamberService {
       factualScore += 15;
     }
 
-    const speechLength = speech.trim().split(/\s+/).length;
+    const speechLength = words.length;
     if (speechLength >= 25) {
       mitigatingFactors.push('Thí sinh diễn đạt mạch lạc, nỗ lực giải trình chi tiết');
       honestyScore += 15;
@@ -158,8 +197,8 @@ export class MADChamberService {
 
     return {
       mitigatingFactors,
-      honestyScore: Math.min(100, Math.max(30, honestyScore)),
-      factualScore: Math.min(100, Math.max(30, factualScore)),
+      honestyScore: Math.min(100, Math.max(20, honestyScore)),
+      factualScore: Math.min(100, Math.max(20, factualScore)),
       defenseArgument:
         mitigatingFactors.length > 0
           ? mitigatingFactors.join('; ')
@@ -176,7 +215,37 @@ export class MADChamberService {
     startTime: number,
     triggered: boolean
   ): MADChamberOutput {
-    const wordCount = speech.trim().split(/\s+/).length;
+    const speechTrimmed = speech.trim();
+    const speechLower = speechTrimmed.toLowerCase();
+    const words = speechTrimmed ? speechTrimmed.split(/\s+/) : [];
+    const isNoResponse =
+      words.length === 0 ||
+      words.length < 3 ||
+      speechLower.includes('không phản hồi') ||
+      speechLower.includes('bỏ qua câu hỏi') ||
+      speechLower.includes('kết thúc đối chất');
+
+    if (isNoResponse) {
+      return {
+        prosecutor: {
+          isVague: true,
+          evasionDetected: true,
+          attitudeScore: 10,
+          directnessScore: 10,
+          critique: 'Thí sinh không phản hồi hoặc né tránh câu hỏi chất vấn của Giám khảo.',
+        },
+        defender: {
+          mitigatingFactors: [],
+          honestyScore: 20,
+          factualScore: 10,
+          defenseArgument: 'Không thể ghi nhận căn cứ bào chữa do thí sinh không đưa ra câu trả lời cho câu hỏi này.',
+        },
+        isCircuitBreakerTriggered: triggered,
+        latencyMs: Date.now() - startTime,
+      };
+    }
+
+    const wordCount = words.length;
     const hasNumbers = rag.supportedNumbers.length > 0;
 
     const prosecutor: ProsecutorOpinion = {
