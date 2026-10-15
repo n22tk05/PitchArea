@@ -32,9 +32,11 @@ export function useAudioRecorder({
   const wordSamplesRef = useRef<{ timestamp: number; wordCount: number }[]>([]);
   const lastWpmRef = useRef<number>(0);
   const finalTranscriptRef = useRef<string>('');
+  const isRecordingRef = useRef<boolean>(false);
 
   // Bắt đầu thu âm và kích hoạt Web Speech API
   const startRecording = useCallback(async () => {
+    isRecordingRef.current = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -227,21 +229,51 @@ export function useAudioRecorder({
           }
         };
 
-        recognition.onerror = () => {
-          // Xử lý lỗi ngầm không làm đứt mạch
+        recognition.onerror = (event: any) => {
+          // Bỏ qua các lỗi vô hại như 'no-speech' để không làm đứt mạch thu âm
+          if (event.error === 'no-speech' || event.error === 'aborted') {
+            return;
+          }
+          console.warn('[SpeechRecognition] error:', event.error);
         };
 
-        recognition.start();
+        // Khi Web Speech API tự ngắt (do im lặng hoặc hết buffer trình duyệt), tự động kích hoạt lại nếu đang trong phiên thu
+        recognition.onend = () => {
+          if (isRecordingRef.current && recognitionRef.current) {
+            try {
+              recognition.start();
+            } catch {
+              // Trình duyệt đang trong quá trình chuyển trạng thái, thử lại sau 150ms
+              setTimeout(() => {
+                if (isRecordingRef.current && recognitionRef.current) {
+                  try {
+                    recognition.start();
+                  } catch {
+                    // Ignored
+                  }
+                }
+              }, 150);
+            }
+          }
+        };
+
+        try {
+          recognition.start();
+        } catch {
+          // Đã start trước đó
+        }
         recognitionRef.current = recognition;
       }
     } catch (err) {
       setHasMicPermission(false);
       setIsRecording(false);
+      isRecordingRef.current = false;
     }
   }, [onTranscriptChange, onVadSilenceAlert, vadThresholdSec]);
 
   // Dừng thu âm
   const stopRecording = useCallback(() => {
+    isRecordingRef.current = false;
     setIsRecording(false);
     setAudioLevel(0);
 
@@ -249,14 +281,21 @@ export function useAudioRecorder({
       cancelAnimationFrame(animationFrameRef.current);
     }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close();
+      try {
+        audioContextRef.current.close();
+      } catch {
+        // Ignored
+      }
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
     if (recognitionRef.current) {
+      const rec = recognitionRef.current;
+      recognitionRef.current = null;
       try {
-        recognitionRef.current.stop();
+        rec.stop();
       } catch {
         // Ignored
       }

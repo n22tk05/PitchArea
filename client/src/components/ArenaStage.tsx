@@ -104,34 +104,64 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
   const mode = sessionState?.config.mode || ArenaMode.FULL_ARENA;
   const hp = sessionState?.candidateHp ?? 100;
 
-  // Lắng nghe biến động HP để nháy nền
+  // Phán quyết gần nhất từ Hội đồng trọng tài
+  const effectiveVerdict = lastVerdict || sessionState?.lastVerdict;
+
+  // Lắng nghe phán quyết trọng tài và biến động HP để kích hoạt hiệu ứng thị giác (Heal / Damage)
+  const lastProcessedVerdictKey = useRef<string | null>(null);
+
   useEffect(() => {
+    if (effectiveVerdict) {
+      const verdictKey = `${effectiveVerdict.turnIndex}_${effectiveVerdict.hpDelta}_${effectiveVerdict.score.overallScore}_${effectiveVerdict.reason}`;
+      if (lastProcessedVerdictKey.current !== verdictKey) {
+        lastProcessedVerdictKey.current = verdictKey;
+
+        // Nếu là hồi máu (isHeal = true hoặc hpDelta > 0): Luôn hiển thị hiệu ứng HỒI MÁU (ngọc lục bảo Emerald)
+        if (effectiveVerdict.isHeal || effectiveVerdict.hpDelta > 0) {
+          setHpDelta(Math.abs(effectiveVerdict.hpDelta) || 5);
+          setHpFlashType('heal');
+        } else if (effectiveVerdict.hpDelta < 0) {
+          setHpDelta(Math.abs(effectiveVerdict.hpDelta));
+          setHpFlashType('damage');
+        }
+
+        const timer = setTimeout(() => {
+          setHpFlashType(null);
+        }, 1200);
+
+        prevHpRef.current = hp;
+        return () => clearTimeout(timer);
+      }
+    }
+
+    // Trường hợp biến động HP ngoài phán quyết (hoặc fallback)
     if (prevHpRef.current !== null && prevHpRef.current !== hp) {
       const diff = hp - prevHpRef.current;
-      setHpDelta(Math.abs(diff));
-      if (diff < 0) {
-        setHpFlashType('damage');
-      } else if (diff > 0) {
-        setHpFlashType('heal');
+      // Chỉ kích hoạt nếu không có phán quyết vừa xử lý
+      if (!lastProcessedVerdictKey.current || !effectiveVerdict) {
+        setHpDelta(Math.abs(diff));
+        if (diff > 0) {
+          setHpFlashType('heal');
+        } else if (diff < 0) {
+          setHpFlashType('damage');
+        }
+        const timer = setTimeout(() => {
+          setHpFlashType(null);
+        }, 1200);
+        prevHpRef.current = hp;
+        return () => clearTimeout(timer);
       }
-
-      const timer = setTimeout(() => {
-        setHpFlashType(null);
-      }, 900);
-
-      return () => clearTimeout(timer);
     }
     prevHpRef.current = hp;
-  }, [hp]);
+  }, [hp, effectiveVerdict]);
 
   // Kiểm tra phán quyết gần nhất để duy trì hiệu ứng xanh khi phản biện thực sự xuất sắc (được hồi máu)
-  const effectiveVerdict = lastVerdict || sessionState?.lastVerdict;
   const isAnswerCorrect = useMemo(() => {
     if (!effectiveVerdict) return false;
-    // Điểm chất lượng tổng hợp Q >= 65 VÀ được thưởng hồi máu thực sự (hpDelta > 0), không phải do sàn tân thủ giữ máu
+    // Điểm chất lượng tổng hợp Q >= 65 VÀ được thưởng hồi máu thực sự (hpDelta > 0 hoặc isHeal), không phải do sàn tân thủ giữ máu
     return (
+      (effectiveVerdict.isHeal || effectiveVerdict.hpDelta > 0) &&
       effectiveVerdict.score.overallScore >= 65 &&
-      effectiveVerdict.hpDelta > 0 &&
       !effectiveVerdict.isShieldProtected
     );
   }, [effectiveVerdict]);

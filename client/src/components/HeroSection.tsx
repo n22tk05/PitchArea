@@ -101,7 +101,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreClick }) => {
 
             {/* Sub-heading */}
             <h2 className="font-headline text-xl sm:text-2xl text-black tracking-tight leading-snug font-bold">
-              Tôi Luyện Bản Lĩnh Đối Chất Trước Giờ G Hội Đồng.
+              Tôi Luyện Đối Chất
+              
+              
+               Trước Hội Đồng Giám Khảo.
             </h2>
           </div>
 

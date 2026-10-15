@@ -246,11 +246,13 @@ export class AppendixGeneratorService {
   }
 
   /**
-   * Tìm kiếm câu văn hoặc thực thể số liệu liên quan trực tiếp từ tệp docx của người dùng
+   * Tìm kiếm câu văn hoặc thực thể số liệu liên quan trực tiếp từ tệp docx của người dùng.
+   * Ưu tiên quét câu có từ khóa phù hợp; nếu không, lấy câu có nội dung thực tế nhất trong mục tương ứng.
    */
   private extractDocxEvidence(
     bossId: JuryBossId,
-    doc?: DocumentAnalysisResult
+    doc?: DocumentAnalysisResult,
+    questionText?: string
   ): { sentence: string; sectionTitle: string } | null {
     if (!doc || !doc.sections || doc.sections.length === 0) {
       return null;
@@ -263,31 +265,44 @@ export class AppendixGeneratorService {
     const keywordsByBoss: Record<JuryBossId, string[]> = {
       [JuryBossId.FINANCE_DRAGON]: [
         'chi phí', 'giá', 'doanh thu', 'hòa vốn', 'ngân sách', 'lợi nhuận',
-        'triệu', 'tỷ', 'đầu tư', 'vốn', 'tháng', 'burn rate', 'thu phí'
+        'triệu', 'tỷ', 'đầu tư', 'vốn', 'tháng', 'burn rate', 'thu phí', 'kinh doanh'
       ],
       [JuryBossId.TECH_SENTINEL]: [
         'công nghệ', 'api', 'hệ thống', 'dữ liệu', 'kiến trúc', 'offline',
-        'bản mẫu', 'mvp', 'độ trễ', 'máy chủ', 'bảo mật', 'thuật toán', 'mô hình'
+        'bản mẫu', 'mvp', 'độ trễ', 'máy chủ', 'bảo mật', 'thuật toán', 'mô hình', 'tính năng', 'phần mềm', 'ứng dụng'
       ],
       [JuryBossId.MARKET_SHARK]: [
         'khách hàng', 'người dùng', 'khảo sát', 'phỏng vấn', '%', 'nhu cầu',
-        'thị trường', 'trả tiền', 'sử dụng', 'đăng ký', 'chuyển đổi'
+        'thị trường', 'trả tiền', 'sử dụng', 'đăng ký', 'chuyển đổi', 'đối tượng', 'sinh viên', 'học sinh'
       ],
       [JuryBossId.RISK_STRATEGIST]: [
         'đối thủ', 'cạnh tranh', 'khác biệt', 'rào cản', 'lợi thế', 'rủi ro',
-        'lộ trình', 'thời gian', 'pháp lý', 'độc quyền', 'moat'
+        'lộ trình', 'thời gian', 'pháp lý', 'độc quyền', 'moat', 'kế hoạch', 'phát triển'
       ],
     };
 
-    const keywords = keywordsByBoss[bossId] || ['dự án', 'giải pháp'];
+    const keywords = keywordsByBoss[bossId] || ['dự án', 'giải pháp', 'hệ thống', 'người dùng'];
+
+    // 0. Nếu câu hỏi có từ khóa cụ thể, thêm các từ khóa đó vào bộ lọc
+    const questionKeywords: string[] = [];
+    if (questionText) {
+      const qWords = questionText
+        .toLowerCase()
+        .replace(/[?,.:;!]/g, '')
+        .split(/\s+/)
+        .filter((w) => w.length >= 3 && !['cho', 'của', 'trong', 'với', 'được', 'không', 'như', 'thế', 'nào', 'nhóm', 'thưa', 'thầy', 'cô'].includes(w));
+      questionKeywords.push(...qWords.slice(0, 5));
+    }
 
     // 1. Quét trong Entity Whitelist trước (những câu đã được thẩm định số liệu)
     if (doc.entityWhitelist && doc.entityWhitelist.length > 0) {
       for (const ent of doc.entityWhitelist) {
         if (targetTypes.length === 0 || targetTypes.includes(ent.sectionType)) {
-          if (ent.contextSentence && ent.contextSentence.length >= 25) {
+          if (ent.contextSentence && ent.contextSentence.length >= 20) {
             const lowerSentence = ent.contextSentence.toLowerCase();
-            if (keywords.some((kw) => lowerSentence.includes(kw))) {
+            const matchesQ = questionKeywords.some((qw) => lowerSentence.includes(qw));
+            const matchesKw = keywords.some((kw) => lowerSentence.includes(kw));
+            if (matchesQ || matchesKw) {
               const label = BusinessSectionLabel[ent.sectionType] || 'Đề án';
               return {
                 sentence: ent.contextSentence.trim().replace(/^[-*#\s]+/, ''),
@@ -299,25 +314,58 @@ export class AppendixGeneratorService {
       }
     }
 
-    // 2. Quét trong nội dung từng Section tương ứng
+    // 2. Quét trong nội dung từng Section tương ứng (ưu tiên khớp từ khóa câu hỏi hoặc từ khóa chuyên môn)
     for (const sec of sectionsToSearch) {
       if (!sec.content || sec.content.trim().length === 0) continue;
       const sentences = sec.content
         .split(/(?<=[.!?\n])\s+/)
         .map((s) => s.replace(/^[-*#\s]+/, '').trim())
-        .filter((s) => s.length >= 25 && s.length <= 250);
+        .filter((s) => s.length >= 20 && s.length <= 300 && !s.includes('Chưa phát hiện nội dung rõ ràng'));
 
+      // Ưu tiên 2a: Khớp từ khóa câu hỏi của Giám khảo
+      if (questionKeywords.length > 0) {
+        for (const st of sentences) {
+          const lower = st.toLowerCase();
+          const matchQCount = questionKeywords.filter((qw) => lower.includes(qw)).length;
+          if (matchQCount >= 1) {
+            const label = sec.title || BusinessSectionLabel[sec.type] || 'Tài liệu đề án';
+            return { sentence: st, sectionTitle: label };
+          }
+        }
+      }
+
+      // Ưu tiên 2b: Khớp từ khóa chuyên môn của Boss
       for (const st of sentences) {
         const lower = st.toLowerCase();
         const matchCount = keywords.filter((kw) => lower.includes(kw)).length;
-        const hasNumber = /\d+/.test(st);
-        if (matchCount >= 2 || (matchCount >= 1 && hasNumber)) {
+        if (matchCount >= 1) {
           const label = sec.title || BusinessSectionLabel[sec.type] || 'Tài liệu đề án';
-          return {
-            sentence: st,
-            sectionTitle: label,
-          };
+          return { sentence: st, sectionTitle: label };
         }
+      }
+    }
+
+    // 3. Fallback thông minh: Lấy câu văn có nội dung đầy đủ và thực tế nhất từ Section tương ứng
+    for (const sec of sectionsToSearch) {
+      if (!sec.content || sec.content.trim().length === 0) continue;
+      const sentences = sec.content
+        .split(/(?<=[.!?\n])\s+/)
+        .map((s) => s.replace(/^[-*#\s]+/, '').trim())
+        .filter((s) => s.length >= 25 && s.length <= 250 && !s.includes('Chưa phát hiện nội dung'));
+      if (sentences.length > 0) {
+        const label = sec.title || BusinessSectionLabel[sec.type] || 'Tài liệu đề án';
+        return { sentence: sentences[0], sectionTitle: label };
+      }
+    }
+
+    // 4. Fallback cuối cùng: Lấy câu văn từ tổng thể tài liệu Word nếu có
+    if (doc.markdownContent && doc.markdownContent.length > 50) {
+      const allSentences = doc.markdownContent
+        .split(/(?<=[.!?\n])\s+/)
+        .map((s) => s.replace(/^[-*#\s]+/, '').trim())
+        .filter((s) => s.length >= 30 && s.length <= 200 && !s.includes('#') && !s.includes('Chưa phát hiện'));
+      if (allSentences.length > 0) {
+        return { sentence: allSentences[0], sectionTitle: 'Bản thuyết minh đề án' };
       }
     }
 
@@ -337,17 +385,17 @@ export class AppendixGeneratorService {
         clean = parts[1].trim();
       }
     }
-    // Rút ngắn tối đa 85 ký tự để người nói diễn đạt tự nhiên trong 5-10s
-    if (clean.length > 85) {
+    // Rút ngắn tối đa 120 ký tự để người nói diễn đạt tự nhiên và đủ ý
+    if (clean.length > 120) {
       const words = clean.split(/\s+/);
-      clean = words.slice(0, 12).join(' ') + '...';
+      clean = words.slice(0, 18).join(' ') + '...';
     }
     return clean;
   }
 
   /**
-   * Phân loại chặt chẽ thành đúng 2 trường hợp:
-   * TRƯỜNG HỢP 1: Trong Word ĐÃ CÓ dữ liệu -> Gợi ý câu trả lời mẫu bám sát Word để đối chất trả lời câu đó (ngắn gọn, đúng trọng tâm).
+   * Phân loại bám sát Word:
+   * TRƯỜNG HỢP 1: Trong Word ĐÃ CÓ dữ liệu/ý tưởng -> Gợi ý câu trả lời mẫu bám sát đề án, làm rõ và phát triển mở rộng ý tưởng để giải đáp cho Giám khảo.
    * TRƯỜNG HỢP 2: Trong Word CHƯA CÓ dữ liệu -> Đề xuất tìm kiếm, khảo sát & câu trả lời cầu thị tránh bị trừ điểm.
    */
   private generateGroundingAndSampleAnswer(
@@ -363,10 +411,10 @@ export class AppendixGeneratorService {
   } {
     const targetCustomer =
       doc?.foundationFacts?.targetCustomerType || 'người dùng mục tiêu';
-    const evidence = this.extractDocxEvidence(bossId, doc);
+    const evidence = this.extractDocxEvidence(bossId, doc, question);
 
     // =========================================================================
-    // TRƯỜNG HỢP 1: TÀI LIỆU WORD ĐÃ CÓ DỮ LIỆU
+    // TRƯỜNG HỢP 1: TÀI LIỆU WORD ĐÃ CÓ DỮ LIỆU / Ý TƯỞNG (LÀM RÕ & PHÁT TRIỂN TIẾP)
     // =========================================================================
     if (evidence) {
       const compactEvidence = this.cleanAndCompactEvidence(evidence.sentence);
@@ -375,65 +423,49 @@ export class AppendixGeneratorService {
 
       if (bossId === JuryBossId.FINANCE_DRAGON) {
         slideTitle = 'Slide Phụ lục F1: Bảng Dữ Liệu Chi Phí & Điểm Hòa Vốn (Từ Đề Án)';
-        sampleText = `Thưa Ban giám khảo, về bài toán tài chính, theo đề án tại mục ${evidence.sectionTitle}: "${compactEvidence}". Nhóm đã hoạch định cơ cấu chi phí tối thiểu và điểm hòa vốn để dự án duy trì an toàn qua 6 tháng đầu.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN & ĐÚNG TRỌNG TÂM (15s):\n• 0 - 5s: Nêu thẳng con số chi phí tối thiểu/tháng hoặc sản lượng hòa vốn dự kiến.\n• 5 - 15s: Dẫn chứng số liệu từ đề án, khẳng định dự án có đủ dòng tiền duy trì.`;
+        sampleText = `Thưa Thầy/Cô, trong bản thuyết minh tại mục "${evidence.sectionTitle}", nhóm đã nêu rõ: "${compactEvidence}".\n\nĐể làm rõ hơn và phát triển định hướng này cho Hội đồng:\n• Về cơ chế tài chính: Nhóm tối ưu hóa chi phí vận hành ở mức tối thiểu để duy trì sản phẩm qua 6 tháng đầu.\n• Về bước phát triển tiếp theo: Khi đạt mốc người dùng thử nghiệm ổn định, nhóm sẽ kích hoạt gói dịch vụ nâng cao để tự chủ dòng tiền.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN (15s):\n• 0 - 5s: Dẫn ngay ý đã có trong đề án ("Theo đề án nhóm đã nêu...").\n• 5 - 15s: Làm rõ cách thức thực hiện và định hướng phát triển tiếp theo để giải tỏa thắc mắc của Giám khảo.`;
       } else if (bossId === JuryBossId.MARKET_SHARK) {
         slideTitle = 'Slide Phụ lục M1: Dữ Liệu Khảo Sát & Xác Thực Nhu Cầu Người Dùng (Từ Đề Án)';
-        sampleText = `Thưa Ban giám khảo, về nhu cầu khách hàng, theo đề án tại mục ${evidence.sectionTitle}: "${compactEvidence}". Đây là bằng chứng thực nghiệm chứng minh ${targetCustomer} thực sự có nhu cầu cấp bách và sẵn sàng đón nhận giải pháp.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN & ĐÚNG TRỌNG TÂM (15s):\n• 0 - 5s: Nêu ngay số liệu khảo sát (số lượng người hoặc tỷ lệ % sẵn sàng sử dụng/chi trả).\n• 5 - 15s: Khẳng định nỗi đau thực tế của khách hàng, tránh nói cảm tính chung chung.`;
+        sampleText = `Thưa Thầy/Cô, về nhu cầu của ${targetCustomer}, trong bản thuyết minh tại mục "${evidence.sectionTitle}", nhóm đã phân tích: "${compactEvidence}".\n\nĐể làm rõ hơn thực tế triển khai:\n• Giải pháp của nhóm tập trung giải quyết đúng điểm nghẽn mà đối tượng thụ hưởng đang gặp phải so với cách làm thủ công cũ.\n• Về kế hoạch tiếp cận: Nhóm bắt đầu từ nhóm người dùng hạt giống thân thiết nhất để hoàn thiện trải nghiệm trước khi nhân rộng.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN (15s):\n• 0 - 5s: Khẳng định đề án đã xác định nhu cầu này tại mục "${evidence.sectionTitle}".\n• 5 - 15s: Nêu rõ vì sao người dùng sẵn sàng chọn giải pháp của nhóm thay vì cách làm truyền thống.`;
       } else if (bossId === JuryBossId.TECH_SENTINEL) {
-        slideTitle = 'Slide Phụ lục T2: Sơ Đồ Kiến Trúc & Luồng Dữ Liệu Thực Tế (Từ Đề Án)';
-        sampleText = `Thưa Ban giám khảo, về kiến trúc kỹ thuật, theo đề án tại mục ${evidence.sectionTitle}: "${compactEvidence}". Hệ thống kết hợp cơ chế lưu tạm dữ liệu tại chỗ (Local Cache) và xử lý ngoại lệ, bảo đảm trải nghiệm không bị đứt đoạn khi mất mạng.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN & ĐÚNG TRỌNG TÂM (15s):\n• 0 - 5s: Trả lời trực diện công nghệ/giải pháp dự phòng (Local Cache / Offline Mode).\n• 5 - 15s: Nêu cơ chế hoạt động thực tế, chốt phương án bảo vệ trải nghiệm người dùng.`;
+        slideTitle = 'Slide Phụ lục T2: Sơ Đồ Kiến Trúc & Cơ Chế Vận Hành Kỹ Thuật (Từ Đề Án)';
+        sampleText = `Thưa Thầy/Cô, về mặt kỹ thuật, trong bản thuyết minh tại mục "${evidence.sectionTitle}", nhóm đã thiết kế: "${compactEvidence}".\n\nĐể làm rõ quy trình vận hành thực tế:\n• Cơ chế hoạt động: Nhóm kết hợp xử lý dữ liệu tại chỗ (cục bộ) và cơ chế đồng bộ nền để đảm bảo trải nghiệm người dùng luôn thông suốt.\n• Hướng phát triển công nghệ: Nhóm liên tục tối ưu thuật toán để giảm độ trễ và tăng tính ổn định trên các thiết bị phổ thông.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN (15s):\n• 0 - 5s: Dẫn chứng giải pháp kỹ thuật đã nêu trong đề án.\n• 5 - 15s: Làm rõ quy trình hoạt động thực tế và cách nhóm kiểm soát chất lượng kỹ thuật.`;
       } else {
-        slideTitle = 'Slide Phụ lục R3: Ma Trận Cạnh Tranh & Lợi Thế Khác Biệt (Từ Đề Án)';
-        sampleText = `Thưa Ban giám khảo, về rào cản phòng thủ, theo đề án tại mục ${evidence.sectionTitle}: "${compactEvidence}". Đây là điểm khác biệt cốt lõi giúp nhóm bảo vệ tệp khách hàng trước sự cạnh tranh của các giải pháp hiện có.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN & ĐÚNG TRỌNG TÂM (15s):\n• 0 - 5s: Nêu duy nhất 1 điểm khác biệt vượt trội nhất của giải pháp.\n• 5 - 15s: Nêu lý do đối thủ khó sao chép ngay hoặc chi phí chuyển đổi của người dùng.`;
+        slideTitle = 'Slide Phụ lục R3: Ma Trận Cạnh Tranh & Kế Hoạch Triển Khai (Từ Đề Án)';
+        sampleText = `Thưa Thầy/Cô, về định hướng chiến lược, trong bản thuyết minh tại mục "${evidence.sectionTitle}", nhóm đã xác định: "${compactEvidence}".\n\nĐể bảo vệ giải pháp và phát triển bền vững:\n• Lợi thế cốt lõi: Nhóm bám sát trải nghiệm thực tế và sự linh hoạt của đội ngũ để tạo sự khác biệt so với các giải pháp hiện hữu.\n• Cam kết dài hạn: Các thành viên đã phân công nhiệm vụ cụ thể theo từng mốc thời gian trong lộ trình 6 tháng tới.\n\n🎯 HƯỚNG DẪN TRẢ LỜI NGẮN GỌN (15s):\n• 0 - 5s: Nêu thẳng điểm tựa đã có trong đề án.\n• 5 - 15s: Trình bày kế hoạch thực thi rõ ràng, chứng minh khả năng duy trì và nhân rộng của dự án.`;
       }
 
       return {
         isDocxGrounded: true,
-        slideActionProposal: `Trích xuất dữ liệu đã có từ mục "${evidence.sectionTitle}" đưa lên Slide phụ lục để làm luận cứ đối chất trực tiếp trước Hội đồng.`,
+        slideActionProposal: `Lấy nội dung đã có tại mục "${evidence.sectionTitle}" làm điểm tựa, bổ sung sơ đồ/số liệu trực quan lên Slide phụ lục để làm rõ và phát triển luận điểm trước Hội đồng.`,
         recommendedSlideTitle: slideTitle,
         sampleDefenseArgument: sampleText,
       };
     }
 
     // =========================================================================
-    // TRƯỜNG HỢP 2: TÀI LIỆU WORD CHƯA CÓ DỮ LIỆU
+    // TRƯỜNG HỢP 2: TÀI LIỆU WORD THỰC SỰ CHƯA CÓ NỘI DUNG VỀ ĐỀ TÀI NÀY
     // =========================================================================
     let missingGuidance = '';
     let missingSlideTitle = '';
 
     if (bossId === JuryBossId.FINANCE_DRAGON) {
-      missingSlideTitle = 'Slide Phụ lục F1: Kế Hoạch Dự Toán Ngân Sách (Cần Bổ Sung)';
-      if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa có dự toán chi phí vận hành chi tiết 6 tháng đầu. Đề xuất bạn tìm kiếm/ước tính: Liệt kê chi phí tối thiểu gồm máy chủ (Domain/Hosting), chi phí làm mẫu, công cụ AI, và tính số lượng ${targetCustomer} cần đạt để tự bù chi phí duy trì rồi bổ sung vào đề án.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, hiện tại đề án đang ở giai đoạn thử nghiệm nên nhóm đang tạm ước tính chi phí tối thiểu theo quy mô sinh viên. Nhóm xin tiếp thu góp ý của thầy/cô và sẽ lập bảng dự toán chi tiết bổ sung trong 2 tuần tới."`;
-      } else {
-        missingGuidance = `Trong file Word hiện chưa có bảng tính điểm hòa vốn cụ thể. Đề xuất bạn tính toán thêm: Phân tách rõ chi phí cố định (máy chủ, nhân sự) và chi phí biến đổi trên mỗi đơn vị dịch vụ, tính toán sản lượng hòa vốn để bổ sung vào slide phụ lục tài chính.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, điểm hòa vốn hiện đang được nhóm mô hình hóa dựa trên đơn giá dự kiến. Nhóm xin ghi nhận và sẽ chuẩn hóa bảng phân tích độ nhạy chi phí để cập nhật vào báo cáo."`;
-      }
+      missingSlideTitle = 'Slide Phụ lục F1: Kế Hoạch Dự Toán Ngân Sách (Bổ Sung)';
+      missingGuidance = `Trong tài liệu hiện chưa nêu dự toán chi phí chi tiết. Đề xuất nhóm bổ sung một bảng dự toán chi phí vận hành 6 tháng đầu và số lượng ${targetCustomer} cần đạt để cân đối dòng tiền.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Thầy/Cô, hiện đề án đang ở giai đoạn thử nghiệm nên nhóm đang tạm ước tính chi phí tối thiểu theo quy mô sinh viên. Nhóm xin tiếp thu góp ý của Thầy/Cô và sẽ lập bảng dự toán chi tiết bổ sung trong 2 tuần tới."`;
     } else if (bossId === JuryBossId.MARKET_SHARK) {
-      missingSlideTitle = 'Slide Phụ lục M1: Dữ Liệu Khảo Sát Người Dùng (Cần Bổ Sung)';
-      if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa có bằng chứng người dùng sẵn sàng chi trả thực tế. Đề xuất bạn khảo sát thêm: Phỏng vấn sâu 10-15 ${targetCustomer} khi cho trải nghiệm bản mẫu thử nghiệm, ghi nhận trích dẫn phản hồi cụ thể và lập danh sách đăng ký chờ (Waitlist) để bổ sung vào slide.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, hiện nhóm mới ghi nhận phản hồi định tính qua phỏng vấn thử nghiệm. Nhóm xin tiếp thu và sẽ triển khai đo lường mức độ sẵn sàng chi trả trên 20 khách hàng hạt giống ngay trong tháng này."`;
-      } else {
-        missingGuidance = `Trong file Word hiện chưa có số liệu cam kết chi trả thương mại. Đề xuất bạn khảo sát thêm: Khảo sát đo lường mức giá chấp nhận được (Willingness to Pay) trên 20-30 người dùng mục tiêu, kết hợp dữ liệu dùng thử có thu phí danh nghĩa để bổ sung vào đề án.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, các chỉ số chuyển đổi hiện tại dựa trên đợt khảo sát nhu cầu ban đầu. Nhóm xin tiếp thu và sẽ chạy thử nghiệm thu phí danh nghĩa để kiểm chứng tỷ lệ trả tiền thực tế."`;
-      }
+      missingSlideTitle = 'Slide Phụ lục M1: Dữ Liệu Khảo Sát Người Dùng (Bổ Sung)';
+      missingGuidance = `Trong tài liệu hiện chưa có số liệu khảo sát thực tế từ người dùng. Đề xuất nhóm bổ sung kết quả phỏng vấn 10-15 ${targetCustomer} và danh sách đăng ký dùng thử.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Thầy/Cô, hiện nhóm mới ghi nhận phản hồi định tính qua phỏng vấn thử nghiệm. Nhóm xin tiếp thu và sẽ triển khai đo lường mức độ sẵn sàng đón nhận trên 20 khách hàng hạt giống ngay trong tháng này."`;
     } else if (bossId === JuryBossId.TECH_SENTINEL) {
-      missingSlideTitle = 'Slide Phụ lục T2: Quy Trình Xử Lý Ngoại Lệ & Dự Phòng (Cần Bổ Sung)';
-      if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa nêu phương án xử lý sự cố mạng hoặc lỗi API bên ngoài. Đề xuất bạn tìm hiểu thêm: Bổ sung quy trình xử lý ngoại lệ với thông báo thân thiện và cơ chế lưu tạm dữ liệu trên thiết bị người dùng (LocalStorage/Cache) vào slide kỹ thuật.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, giải pháp hiện tại đang ưu tiên luồng xử lý chính. Nhóm xin tiếp thu và sẽ bổ sung cơ chế lưu tạm dữ liệu tại chỗ (Local Cache) để bảo đảm trải nghiệm không bị đứt đoạn khi mất mạng."`;
-      } else {
-        missingGuidance = `Trong file Word hiện chưa có sơ đồ kiến trúc dự phòng và cơ chế chịu tải. Đề xuất bạn thiết kế thêm: Vẽ sơ đồ khối thể hiện cơ chế Local Cache kết hợp hàng đợi xử lý nền (Queue/Worker) và kịch bản Circuit Breaker khi mất kết nối Cloud.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, kiến trúc mở rộng và cơ chế chịu tải đang được nhóm hoàn thiện thiết kế. Nhóm xin tiếp thu và sẽ bổ sung sơ đồ dự phòng Circuit Breaker vào slide phụ lục kỹ thuật."`;
-      }
+      missingSlideTitle = 'Slide Phụ lục T2: Quy Trình Xử Lý Ngoại Lệ & Kỹ Thuật (Bổ Sung)';
+      missingGuidance = `Trong tài liệu hiện chưa nêu phương án xử lý sự cố kỹ thuật. Đề xuất nhóm bổ sung sơ đồ xử lý ngoại lệ và cơ chế lưu trữ dữ liệu tạm thời.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Thầy/Cô, giải pháp hiện tại đang ưu tiên luồng xử lý chính. Nhóm xin tiếp thu và sẽ bổ sung cơ chế lưu tạm dữ liệu tại chỗ (Local Cache) để bảo đảm trải nghiệm không bị đứt đoạn."`;
     } else {
-      missingSlideTitle = 'Slide Phụ lục R3: Ma Trận Khác Biệt & Rào Cản (Cần Bổ Sung)';
-      if (difficulty === CombatDifficulty.EASY) {
-        missingGuidance = `Trong file Word hiện chưa làm rõ điểm khác biệt nổi trội so với các giải pháp hiện có. Đề xuất bạn tìm hiểu thêm: So sánh 1-2 tính năng giải quyết đúng nỗi đau nhất của ${targetCustomer} và bổ sung lộ trình phân công nhiệm vụ cụ thể của các thành viên trong 6 tháng tới.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, điểm khác biệt hiện tại của nhóm tập trung vào trải nghiệm đơn giản hóa cho người dùng. Nhóm xin tiếp thu và sẽ lập bảng so sánh ma trận tính năng chi tiết với các đối thủ trên thị trường."`;
-      } else {
-        missingGuidance = `Trong file Word hiện chưa phân tích rào cản phòng thủ độc quyền (Moat). Đề xuất bạn phân tích thêm: Lập ma trận chi phí chuyển đổi (Switching Cost) và chiến lược bảo vệ tài sản dữ liệu/nghiệp vụ để bổ sung vào slide rủi ro cạnh tranh.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Ban giám khảo, rào cản phòng thủ hiện tại của nhóm bám vào lợi thế am hiểu người dùng ngách. Nhóm xin tiếp thu và sẽ xây dựng chiến lược tăng chi phí chuyển đổi để củng cố rào cản cạnh tranh dài hạn."`;
-      }
+      missingSlideTitle = 'Slide Phụ lục R3: Ma Trận Khác Biệt & Lộ Trình (Bổ Sung)';
+      missingGuidance = `Trong tài liệu hiện chưa làm rõ điểm khác biệt và kế hoạch duy trì. Đề xuất nhóm lập bảng so sánh 1-2 tính năng vượt trội nhất và lộ trình phân công nhiệm vụ 6 tháng tới.\n\n🎯 CÂU TRẢ LỜI MẪU CẦU THỊ KHI CHƯA CÓ SỐ LIỆU:\n"Thưa Thầy/Cô, điểm khác biệt hiện tại của nhóm tập trung vào trải nghiệm tối ưu cho người dùng. Nhóm xin tiếp thu và sẽ lập bảng so sánh chi tiết với các giải pháp hiện có trên thị trường."`;
     }
 
     return {
       isDocxGrounded: false,
-      slideActionProposal: `Tài liệu Word hiện chưa có dữ liệu này. Cần tìm kiếm/khảo sát thêm số liệu để bổ sung một Slide phụ lục mới giải tỏa thắc mắc của Ban giám khảo.`,
+      slideActionProposal: `Tài liệu Word chưa có phần này. Cần khảo sát/tính toán thêm số liệu để bổ sung một Slide phụ lục mới giải tỏa thắc mắc của Ban giám khảo.`,
       recommendedSlideTitle: missingSlideTitle,
       sampleDefenseArgument: missingGuidance,
     };

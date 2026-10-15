@@ -56,15 +56,19 @@ export function calculatePenalty(input: PenaltyCalculationInput): PenaltyCalcula
     // AN TOÀN / TRỪ RẤT NHẸ (Đạt chuẩn tối thiểu)
     hpDelta = -Math.round(baseDamage * 0.25);
     explanation = 'Phản biện đạt yêu cầu nhưng còn chung chung.';
+  } else if (overallScore >= 45) {
+    // GHI NHẬN Ý TƯỞNG CỐT LÕI (Nói vấp / ngập ngừng nhưng làm rõ được ý tưởng cho người nghe)
+    hpDelta = -Math.round(baseDamage * 0.35); // Trừ rất nhẹ, ghi nhận điểm nỗ lực
+    explanation = 'Thí sinh diễn đạt còn vấp váp nhưng đã làm rõ được định hướng ý tưởng cốt lõi.';
   } else {
     // PHẠT NẶNG PHI ĐỐI XỨNG (Thiếu căn cứ, mâu thuẫn hoặc né tránh)
-    const rawDamage = baseDamage * ((65 - Math.max(0, overallScore)) / 65);
+    const rawDamage = baseDamage * ((55 - Math.max(0, overallScore)) / 55);
     const calculatedDamage = Math.round(rawDamage * attitudeMultiplier * streakMultiplier);
     hpDelta = -Math.max(5, calculatedDamage);
 
     if (overallScore <= 25) {
       explanation = 'Thí sinh không phản hồi hoặc né tránh câu hỏi chất vấn.';
-    } else if (overallScore <= 40) {
+    } else if (overallScore <= 35) {
       explanation = 'Câu trả lời bị ngắt giữa chừng, diễn đạt lặp từ vòng vo hoặc thiếu hẳn căn cứ số liệu.';
     } else {
       explanation = 'Luận điểm thiếu vững chắc, chưa đủ cơ sở định lượng.';

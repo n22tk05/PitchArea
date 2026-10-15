@@ -250,32 +250,35 @@ export class MADChamberService {
 
     // PHÂN BIỆT RẠCH RÒI: VERBOSE (Nói dài, dở dang có nội dung) vs EVASION (Né tránh)
     const isVerbose = (isTrailingUnfinished && wordCount >= 18) || (wordCount >= 35 && isTrailingUnfinished);
-    const isRambling = hasStutter && wordCount > 15 && !hasNumbers;
+    const isRambling = hasStutter && wordCount > 25 && !hasNumbers && !rag.hasFactualSupport;
 
     const evasionKeywords = ['ai cũng biết', 'đương nhiên', 'chắc chắn là', 'em nghĩ là', 'sau này sẽ', 'tùy trường hợp'];
     const evasionDetected = !isVerbose && (evasionKeywords.some((kw) => speechLower.includes(kw)) || isRambling);
 
     let directnessScore = 55;
-    if (wordCount < 15) directnessScore -= 20;
+    if (wordCount < 10) directnessScore -= 15;
     if (isVerbose) directnessScore = 50; // Câu có nội dung nhưng chưa kịp kết luận do hết 30s
-    if (isRambling) directnessScore -= 20;
-    if (hasStutter) directnessScore -= 10;
-    if (!hasNumbers) directnessScore -= 10;
+    if (hasStutter) directnessScore -= 3; // Chỉ trừ nhẹ 3 điểm cho lỗi phát âm, không đánh trượt ý tưởng
+    if (isRambling) directnessScore -= 10;
+    if (!hasNumbers) directnessScore -= 5;
     if (rag.hasFactualSupport) directnessScore += 15;
-    if (evasionDetected) directnessScore -= 15;
+    if (evasionDetected) directnessScore -= 12;
 
-    let attitudeScore = 65;
+    let attitudeScore = 70;
     if (isVerbose) attitudeScore = 75; // Không phạt thái độ vì thí sinh thực sự giải trình
-    else if (isRambling || hasStutter) attitudeScore = 35;
-    else if (evasionDetected) attitudeScore = 30;
+    else if (hasStutter && !isRambling) attitudeScore = 65; // Giữ thái độ tích cực nếu thí sinh nỗ lực nói dù vấp
+    else if (isRambling) attitudeScore = 50;
+    else if (evasionDetected) attitudeScore = 35;
 
     let critique = 'Thí sinh đối diện trực tiếp với câu hỏi.';
     if (isVerbose) {
       critique = `Thí sinh nỗ lực giải trình nhưng câu trả lời quá dài trong thời gian 30s giới hạn (chưa dứt câu kết luận).`;
     } else if (isTrailingUnfinished) {
-      critique = `Câu trả lời bị ngắt giữa chừng, chưa hoàn thiện luận điểm và thiếu giải pháp cụ thể.`;
-    } else if (isRambling || hasStutter) {
-      critique = `Thí sinh nói vòng vo, lặp từ, nhiều từ đệm và thiếu số liệu chứng minh.`;
+      critique = `Thí sinh đang giải trình ý tưởng nhưng bị ngắt giữa chừng khi hết thời gian 30s.`;
+    } else if (hasStutter && !isRambling) {
+      critique = `Thí sinh trình bày còn ngập ngừng, nói vấp nhưng đã làm rõ được định hướng giải pháp.`;
+    } else if (isRambling) {
+      critique = `Thí sinh lặp từ và cần cô đọng luận điểm hơn khi trình bày.`;
     } else if (evasionDetected) {
       critique = 'Thí sinh có dấu hiệu trả lời nước đôi hoặc né tránh số liệu cụ thể.';
     }

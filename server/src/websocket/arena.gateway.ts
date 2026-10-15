@@ -765,20 +765,42 @@ export class ArenaGateway
       }
 
       const relevantSectionTypes = BOSS_TO_SECTION_MAP[session.activeBossId] || [];
-      const relevantSections = doc.sections.filter((s) => relevantSectionTypes.includes(s.type));
+      const relevantSections = doc.sections.filter(
+        (s) =>
+          relevantSectionTypes.includes(s.type) &&
+          s.content &&
+          !s.content.includes('Chưa phát hiện nội dung rõ ràng')
+      );
+
       if (relevantSections.length > 0) {
         docContext = relevantSections
-          .map((s) => `[MỤC ${s.title || s.type}]: ${s.content.slice(0, 800)}`)
+          .map((s) => `[ĐỀ MỤC: ${s.title || s.type}]\n${s.content.slice(0, 2000)}`)
           .join('\n\n');
+        
+        // Nếu đề mục quá ngắn (dưới 150 ký tự), bổ sung thêm một phần nội dung tổng thể của đề án
+        if (docContext.length < 150 && doc.markdownContent) {
+          docContext += `\n\n[NỘI DUNG TỔNG THỂ ĐỀ ÁN]:\n${doc.markdownContent.slice(0, 1500)}`;
+        }
       } else {
-        docContext = doc.markdownContent.slice(0, 1500);
+        docContext = `[NỘI DUNG TỔNG THỂ ĐỀ ÁN]:\n${doc.markdownContent.slice(0, 2500)}`;
+      }
+
+      // Bổ sung các con số, tên thực thể đã trích xuất được trong đề mục này (Entity Whitelist)
+      const relevantEntities = (doc.entityWhitelist || [])
+        .filter((e) => relevantSectionTypes.includes(e.sectionType))
+        .slice(0, 6);
+      if (relevantEntities.length > 0) {
+        const entityList = relevantEntities
+          .map((e) => `- ${e.rawText} (${e.category}): "${e.contextSentence.slice(0, 120)}"`)
+          .join('\n');
+        docContext += `\n\n[CÁC CON SỐ & THỰC THỂ ĐÃ BÓC TÁCH TỪ ĐỀ MỤC NÀY]:\n${entityList}`;
       }
     }
 
-    const ragContext = `Dự án: ${doc?.filename || session.documentId}
-Chủ đề chất vấn: ${session.currentTopic}
+    const ragContext = `Tên đề án: ${doc?.filename || session.documentId}
+Chủ đề chất vấn hiện tại: ${session.currentTopic}
 ${foundationContext ? `${foundationContext}\n` : ''}
-Trọng tâm nội dung hồ sơ dự án:
+DỮ LIỆU ĐÃ BÓC TÁCH TỪ ĐỀ MỤC TƯƠNG ỨNG TRONG BẢN WORD:
 ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
 
     let accumulatedQuestion = '';
@@ -801,25 +823,30 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
       previousQuestions,
       onChunk: (chunk: string) => {
         accumulatedQuestion += chunk;
+        // Tự động làm sạch tiền tố số thứ tự như "1. ", "1. Thầy/Cô: ", "Câu 1: " nếu AI vô tình sinh ra
+        const cleanedText = accumulatedQuestion.replace(/^(\d+[\.\)]\s*(?:Thầy\/Cô[:\s]*|Thầy[:\s]*|Cô[:\s]*|Tôi[:\s]*)?|Câu\s*\d+[:\.\)]\s*|[-*#]\s*)/i, '');
         const chunkPayload: S2CBossStreamChunkPayload = {
           bossId: session.activeBossId,
           chunk,
           isComplete: false,
-          accumulatedText: accumulatedQuestion,
+          accumulatedText: cleanedText,
         };
         this.server
           .to(sessionId)
           .emit(ArenaSocketEvents.S2C_BOSS_STREAM_CHUNK, chunkPayload);
       },
       onComplete: (fullText: string) => {
-        session.activeQuestion = fullText;
+        const cleanedFullText = fullText
+          .replace(/^(\d+[\.\)]\s*(?:Thầy\/Cô[:\s]*|Thầy[:\s]*|Cô[:\s]*|Tôi[:\s]*)?|Câu\s*\d+[:\.\)]\s*|[-*#]\s*)/i, '')
+          .trim();
+        session.activeQuestion = cleanedFullText;
         session.isStreamingQuestion = false;
 
         const completePayload: S2CBossStreamChunkPayload = {
           bossId: session.activeBossId,
           chunk: '',
           isComplete: true,
-          accumulatedText: fullText,
+          accumulatedText: cleanedFullText,
         };
         this.server
           .to(sessionId)
