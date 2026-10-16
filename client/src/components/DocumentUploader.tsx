@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { DocumentAnalysisResult } from '@pitcharena/shared';
 import { uploadDocumentApi } from '../api';
+import { getBackendUrl } from '../utils/backendUrl';
 
 export function fixMojibake(str: string): string {
   if (!str) return '';
@@ -45,9 +46,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   onAnalysisComplete,
   onNext,
   onReset,
-  serverUrl = import.meta.env.VITE_API_URL ||
-    import.meta.env.VITE_SERVER_URL ||
-    'http://localhost:4000',
+  serverUrl = getBackendUrl(),
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);

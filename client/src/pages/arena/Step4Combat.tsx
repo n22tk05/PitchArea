@@ -56,11 +56,11 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     finishCombat,
   } = activeSocket;
 
-  // Hook Audio Recorder cho Micro thí sinh
   const {
     isRecording,
     transcript,
     interimTranscript,
+    speechError,
     startRecording,
     stopRecording,
     resetTranscript,
@@ -203,6 +203,13 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
       {connectionError && (
         <div className="p-3 bg-rose-50 border-2 border-rose-500 text-rose-700 font-mono text-xs">
           Lưu ý kết nối: {connectionError}. Hệ thống đang hoạt động ở chế độ mô phỏng phản xạ nhanh tại chỗ.
+        </div>
+      )}
+
+      {speechError && (
+        <div className="p-3 bg-amber-50 border-2 border-amber-500 text-amber-900 font-mono text-xs flex items-center justify-between">
+          <span>⚠️ {speechError}</span>
+          <span className="text-[10px] text-neutral-600">Bạn vẫn có thể gõ trực tiếp luận điểm phản biện vào khung chat bên dưới.</span>
         </div>
       )}
 

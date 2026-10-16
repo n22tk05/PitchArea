@@ -14,8 +14,9 @@ import {
   AppendixReport,
   VerdictResult,
 } from '@pitcharena/shared';
+import { getBackendUrl } from '../utils/backendUrl';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
+const SERVER_URL = getBackendUrl();
 
 export function useArenaSocket(sessionId: string, documentId?: string) {
   const [isConnected, setIsConnected] = useState(false);

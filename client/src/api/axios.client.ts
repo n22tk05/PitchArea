@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { getBackendUrl } from '../utils/backendUrl';
 
-// Lấy Base URL từ Vite Environment Variables (hoặc fallback mặc định NestJS localhost:4000)
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+// Lấy Base URL tự động theo hostname của người dùng (hoặc biến môi trường VITE_API_URL)
+const BASE_URL = getBackendUrl();
 
 /**
  * Axios Client instance dùng chung cho toàn bộ ứng dụng PitchArena

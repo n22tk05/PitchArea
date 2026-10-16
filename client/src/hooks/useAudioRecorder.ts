@@ -16,6 +16,7 @@ export function useAudioRecorder({
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
+  const [speechError, setSpeechError] = useState<string | null>(null);
   const [estimatedWpm, setEstimatedWpm] = useState(0);
   const [isSilent, setIsSilent] = useState(false);
 
@@ -37,6 +38,23 @@ export function useAudioRecorder({
   // Bắt đầu thu âm và kích hoạt Web Speech API
   const startRecording = useCallback(async () => {
     isRecordingRef.current = true;
+    setSpeechError(null);
+
+    // Kiểm tra bảo mật trình duyệt: getUserMedia chỉ chạy trên HTTPS hoặc localhost
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+      const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const msg = !isHttps && !isLocal
+        ? 'Trình duyệt chặn Micro vì trang web không chạy qua HTTPS. Hãy truy cập qua HTTPS hoặc dùng localhost.'
+        : 'Trình duyệt của bạn không hỗ trợ thu âm micro (navigator.mediaDevices.getUserMedia).';
+      console.warn('[useAudioRecorder]', msg);
+      setSpeechError(msg);
+      setHasMicPermission(false);
+      setIsRecording(false);
+      isRecordingRef.current = false;
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -326,6 +344,7 @@ export function useAudioRecorder({
     transcript,
     interimTranscript,
     hasMicPermission,
+    speechError,
     estimatedWpm,
     isSilent,
     startRecording,
