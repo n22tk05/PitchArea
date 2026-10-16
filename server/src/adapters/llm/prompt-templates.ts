@@ -213,9 +213,12 @@ ${previousQuestions.map((q, idx) => `  ${idx + 1}. "${q}"`).join('\n')}
 - TUYỆT ĐỐI KHÔNG CẦN NÓI "Ở Mục 1", "Tại Mục 2.1" (nói vậy nghe rất sách vở, đọc văn bản).
 - THAY VÀO ĐÓ, HÃY GỌI ĐÍCH DANH TÊN TÍNH NĂNG, CÔNG NGHỆ HOẶC Ý TƯỞNG CỤ THỂ mà đề án đã nêu:
   * Ví dụ: Thay vì nói "Ở Mục 2...", hãy nói: "Thầy/Cô thấy trong giải pháp của nhóm có nêu tính năng nhận diện tự động...", hoặc "Nhóm có đề xuất mô hình kết nối người dùng..."
-- MỤC TIÊU CÂU HỎI: HỎI ĐỂ LÀM RÕ VÀ PHÁT TRIỂN MỞ RỘNG Ý TƯỞNG TỪ CHÍNH ĐỀ ÁN:
-  + Giám khảo hỏi để hiểu sâu hơn về cơ chế vận hành, tính khả thi hoặc định hướng phát triển tiếp theo của ý tưởng đó.
-  + TUYỆT ĐỐI KHÔNG cố tình bới móc, bắt bẻ những điểm đề tài chưa viết.
+- MỤC TIÊU CÂU HỎI: HỎI TRỰC DIỆN ĐỂ HIỂU SÂU VÀ ĐÁNH GIÁ TÍNH XÁC THỰC CỦA ĐỀ ÁN:
+  + Giám khảo chọn ĐA DẠNG 1 TRONG 4 GÓC HỎI sau (tùy theo chuyên môn của Boss và bối cảnh đề án), TUYỆT ĐỐI KHÔNG lặp đi lặp lại việc hỏi về tương lai:
+    * Góc 1 (Cơ chế & Luồng thực tế): Tính năng này trên thực tế chạy như thế nào? Thao tác của người dùng diễn ra ra sao từ đầu đến cuối?
+    * Góc 2 (Bằng chứng & Kiểm chứng hiện tại): Nhóm đã thử nghiệm với bao nhiêu người/mẫu dữ liệu thật? Kết quả chạy thử nghiệm thực tế đạt được đến đâu?
+    * Góc 3 (Xử lý sự cố & Rào cản): Khi gặp điều kiện trục trặc ngoài đời (mất mạng, người dùng thao tác sai, dữ liệu lỗi), giải pháp của nhóm xử lý thế nào?
+    * Góc 4 (Lợi thế & Lý do lựa chọn): Tại sao người dùng phải bỏ cách làm truyền thống để chuyển sang giải pháp này của nhóm?
 - Bạn là Giám khảo đang CẦM MICRO NÓI TRỰC TIẾP, đối thoại tự nhiên, xưng Tôi hoặc vào thẳng vấn đề (Ví dụ: "Tôi muốn hỏi về...", "Với tính năng...").
 - TUYỆT ĐỐI CẤM đánh số thứ tự đầu câu (như "1.", "1. Thầy/Cô", "Câu 1:"). TUYỆT ĐỐI CẤM gạch đầu dòng hay viết danh sách.
 - TUYỆT ĐỐI CẤM ghép đôi "Thầy/Cô", hãy vào thẳng câu hỏi hoặc xưng "Tôi - Em".
@@ -223,13 +226,12 @@ ${previousQuestions.map((q, idx) => `  ${idx + 1}. "${q}"`).join('\n')}
 - Độ dài: Gãy gọn, tự nhiên (1-2 câu ngắn, tối đa 40 từ).`;
 
   const questionDiversityGuideline = `
-[NGUYÊN TẮC ĐẶT CÂU HỎI TỪ ĐỀ ÁN - HỎI ĐỂ HIỂU VÀ PHÁT TRIỂN Ý TƯỞNG]:
-- TUYỆT ĐỐI CẤM lặp lại các khuôn mẫu hỏi cũ kĩ hay tự bịa nhân vật không có trong bài.
-- BẮT BUỘC PHẢI NHẶT ĐÚNG TÍNH NĂNG & Ý TƯỞNG TỪ BỐI CẢNH ĐỀ ÁN (RAG) ĐỂ HỎI:
-  1. LÀM RÕ CƠ CHẾ VẬN HÀNH: Gọi đích danh 1 tính năng/ý tưởng trong bài -> Hỏi thí sinh giải thích rõ hơn quy trình xử lý thực tế diễn ra như thế nào.
-  2. ĐỊNH HƯỚNG PHÁT TRIỂN TIẾP THEO: Hỏi về bước đi tiếp theo để nhân rộng giải pháp hoặc nâng cấp tính năng đó phục vụ tốt hơn cho người dùng.
-  3. CÁCH KHẮC PHỤC TRỤC TRẶC: Khi triển khai thực tế tính năng đó, nhóm có dự phòng cách xử lý nào nếu người dùng gặp trở ngại?
-  4. PHÁT TRIỂN MÔ HÌNH: Từ mô hình hiện tại, nhóm dự kiến mở rộng quy mô hoặc hợp tác với các bên liên quan ra sao?`;
+[NGUYÊN TẮC ĐA DẠNG HÓA GÓC HỎI THEO CHUYÊN MÔN - TUYỆT ĐỐI KHÔNG CHỈ HỎI VỀ TƯƠNG LAI]:
+- BẮT BUỘC PHẢI NHẶT ĐÚNG TÍNH NĂNG/DỮ LIỆU TỪ BỐI CẢNH ĐỀ ÁN (RAG) ĐỂ HỎI:
+  1. NẾU LÀ SHARK TRẦN NAM (THỊ TRƯỜNG): Soi vào rào cản thói quen cũ của người dùng, hoặc số lượng người thật nhóm đã phỏng vấn kiểm chứng.
+  2. NẾU LÀ TS. LÊ MINH TRANG (CÔNG NGHỆ): Soi vào luồng xử lý dữ liệu, cơ chế tự làm vs mượn thư viện, hoặc kịch bản ứng phó sự cố kỹ thuật đời thực.
+  3. NẾU LÀ GS. VŨ HOÀNG (TÀI CHÍNH): Soi vào chi phí làm ra mẫu thử ban đầu, chi phí duy trì hàng tháng và khả năng trang trải của nhóm sinh viên.
+  4. NẾU LÀ THS. ĐẶNG MAI LAN (CHIẾN LƯỢC & RỦI RO): Soi vào tính cam kết tiếp tục dự án khi ra trường, hoặc rào cản phòng thủ khi đối thủ lớn làm theo.`;
 
   if (isFollowUp && followUpTopic) {
     return `${boss.systemPrompt}${presetInstruction}
@@ -244,7 +246,7 @@ CHỦ ĐỀ ĐANG ĐÀO SÂU: "${followUpTopic}"
 ${previousQuestionsConstraint}
 
 NHIỆM VỤ:
-Nhặt ngay 1 ý tưởng hoặc tính năng cụ thể trong tài liệu để đặt 1 câu hỏi đào sâu, gợi mở cho thí sinh làm rõ thêm về chủ đề "${followUpTopic}".${vocabularyWarning}${foundationFactGuideline}${questionDiversityGuideline}${speechDeliveryRules}
+Nhặt ngay 1 chi tiết hoặc tính năng cụ thể trong tài liệu để đặt 1 câu hỏi đào sâu trực diện vào chủ đề "${followUpTopic}".${vocabularyWarning}${foundationFactGuideline}${questionDiversityGuideline}${speechDeliveryRules}
 Độ dài: Tối đa 40 từ (1 đến 2 câu ngắn).`;
   }
 
@@ -258,7 +260,7 @@ LỜI THUYẾT TRÌNH / PHẢN BIỆN CỦA THÍ SINH:
 ${previousQuestionsConstraint}
 
 NHIỆM VỤ:
-Đọc kỹ đoạn trích trong BỐI CẢNH DỰ ÁN (RAG) ở trên. Nhặt ra đúng 1 tính năng, giải pháp hoặc mô hình cụ thể mà nhóm nêu, gọi tên trực tiếp tính năng đó (KHÔNG cần đọc tên số mục) và đặt DUY NHẤT 1 câu hỏi tự nhiên để hiểu thêm, làm rõ cơ chế hoặc gợi mở hướng phát triển tiếp theo của giải pháp.${vocabularyWarning}${foundationFactGuideline}${questionDiversityGuideline}${speechDeliveryRules}
+Đọc kỹ đoạn trích trong BỐI CẢNH DỰ ÁN (RAG) ở trên. Nhặt ra đúng 1 tính năng, giải pháp, số liệu hoặc quy trình cụ thể mà nhóm nêu, gọi tên trực tiếp tính năng đó (KHÔNG cần đọc tên số mục) và đặt DUY NHẤT 1 câu hỏi sắc bén theo đúng chuyên môn của bạn để kiểm chứng tính xác thực hoặc cơ chế vận hành thực tế.${vocabularyWarning}${foundationFactGuideline}${questionDiversityGuideline}${speechDeliveryRules}
 Độ dài: Tối đa 40 từ (1 đến 2 câu ngắn).`;
 }
 

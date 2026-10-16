@@ -46,23 +46,23 @@ export function calculatePenalty(input: PenaltyCalculationInput): PenaltyCalcula
   let explanation = '';
 
   // 2. Tính toán biến động HP dựa trên điểm chất lượng Q
-  if (overallScore >= 75) {
-    // THƯỞNG HỒI MÁU (Phản biện xuất sắc, có số liệu thuyết phục)
+  if (overallScore >= 65) {
+    // THƯỞNG HỒI MÁU (Phản biện đạt yêu cầu tốt, lập luận rõ ràng, thuyết phục)
     isHeal = true;
-    const healBonus = Math.min(15, Math.max(5, Math.round((overallScore - 70) * 0.35)));
+    const healBonus = Math.min(15, Math.max(5, Math.round((overallScore - 60) * 0.4)));
     hpDelta = healBonus;
-    explanation = 'Phản biện xuất sắc, lập luận thuyết phục.';
-  } else if (overallScore >= 55) {
-    // AN TOÀN / TRỪ RẤT NHẸ (Đạt chuẩn tối thiểu)
-    hpDelta = -Math.round(baseDamage * 0.25);
-    explanation = 'Phản biện đạt yêu cầu nhưng còn chung chung.';
-  } else if (overallScore >= 45) {
-    // GHI NHẬN Ý TƯỞNG CỐT LÕI (Nói vấp / ngập ngừng nhưng làm rõ được ý tưởng cho người nghe)
-    hpDelta = -Math.round(baseDamage * 0.35); // Trừ rất nhẹ, ghi nhận điểm nỗ lực
-    explanation = 'Thí sinh diễn đạt còn vấp váp nhưng đã làm rõ được định hướng ý tưởng cốt lõi.';
+    explanation = 'Phản biện tốt, lập luận rõ ràng và làm rõ được ý tưởng đề tài.';
+  } else if (overallScore >= 50) {
+    // AN TOÀN / GIỮ MÁU (Đạt chuẩn tối thiểu, tiếp thu hoặc diễn đạt tương đối)
+    hpDelta = 0; // Giữ nguyên máu, không trừ oan thí sinh khi đã đạt ngưỡng trung bình khá
+    explanation = 'Phản biện đạt yêu cầu cơ bản, bảo vệ thành công luận điểm.';
+  } else if (overallScore >= 40) {
+    // TRỪ NHẸ (Nói vấp / ngập ngừng hoặc thiếu số liệu nhưng có nỗ lực giải trình)
+    hpDelta = -Math.max(3, Math.round(baseDamage * 0.25)); // Trừ rất nhẹ (3-5 HP)
+    explanation = 'Thí sinh diễn đạt còn vấp váp hoặc chung chung, cần bổ sung thêm dẫn chứng cụ thể.';
   } else {
     // PHẠT NẶNG PHI ĐỐI XỨNG (Thiếu căn cứ, mâu thuẫn hoặc né tránh)
-    const rawDamage = baseDamage * ((55 - Math.max(0, overallScore)) / 55);
+    const rawDamage = baseDamage * ((50 - Math.max(0, overallScore)) / 50);
     const calculatedDamage = Math.round(rawDamage * attitudeMultiplier * streakMultiplier);
     hpDelta = -Math.max(5, calculatedDamage);
 

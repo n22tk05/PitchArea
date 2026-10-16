@@ -210,9 +210,9 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
   const modeOptions: RetroOption<ArenaMode>[] = [
     {
       value: ArenaMode.FULL_ARENA,
-      label: "Hội Đồng Toàn Diện (3 Boss)",
-      subLabel: "3 Giám khảo AI luân phiên phản biện theo 5 phân mục",
-      badge: "3 BOSS",
+      label: "Hội Đồng Toàn Diện ",
+      subLabel: "4 Giám khảo AI luân phiên phản biện theo 5 phân mục",
+      badge: "",
       badgeColor: "bg-black text-white",
       icon: <Layers className="w-3.5 h-3.5" />,
     },
@@ -553,7 +553,7 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
                         [ MỜ 25% ]
                       </div>
                     ) : (
-                      <div className="text-[8px] text-neutral-600 font-sans line-clamp-1 border-t border-black/10 pt-1">
+                      <div className="text-[8px] text-neutral-600 font-sans line-clamp-2 border-t border-black/10 pt-1">
                         {boss.domain}
                       </div>
                     )}

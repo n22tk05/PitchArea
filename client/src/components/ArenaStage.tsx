@@ -317,6 +317,34 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
               </span>
             </div>
 
+            {/* Tag Đánh Giá Câu Trả Lời Trước (Tốt / Bình thường / Tệ) */}
+            {effectiveVerdict && (
+              <div
+                className={`h-9 flex items-center gap-1.5 px-2.5 border text-xs font-extrabold shadow-[2px_2px_0px_#000] transition-all duration-200 animate-fadeIn ${
+                  effectiveVerdict.score.overallScore >= 65 || effectiveVerdict.hpDelta > 0
+                    ? 'bg-emerald-950/90 border-emerald-400 text-emerald-300'
+                    : effectiveVerdict.score.overallScore >= 50 || effectiveVerdict.hpDelta === 0
+                    ? 'bg-amber-950/90 border-amber-400 text-amber-300'
+                    : 'bg-rose-950/90 border-rose-500 text-rose-300'
+                }`}
+                title={`Điểm câu trước: Q=${effectiveVerdict.score.overallScore} (Trọng tâm: ${effectiveVerdict.score.directness}, Căn cứ: ${effectiveVerdict.score.factualBacking}, Trung thực: ${effectiveVerdict.score.intellectualHonesty}) | ${effectiveVerdict.reason}`}
+              >
+                {effectiveVerdict.score.overallScore >= 65 || effectiveVerdict.hpDelta > 0 ? (
+                  <>
+                    <span>CÂU TRƯỚC: TỐT</span>
+                  </>
+                ) : effectiveVerdict.score.overallScore >= 50 || effectiveVerdict.hpDelta === 0 ? (
+                  <>
+                    <span>CÂU TRƯỚC: BÌNH THƯỜNG</span>
+                  </>
+                ) : (
+                  <>
+                    <span>CÂU TRƯỚC: TỆ</span>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* 2. Đồng hồ đối chất lượt (30s) kèm hiệu ứng Time Freeze */}
             {isFrozen ? (
               <div className="h-9 flex items-center gap-1.5 px-3 bg-cyan-950 border border-cyan-400 text-cyan-300 text-xs font-bold animate-pulse shadow-[2px_2px_0px_#000]">

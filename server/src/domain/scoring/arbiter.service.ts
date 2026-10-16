@@ -117,8 +117,8 @@ export class ArbiterService {
     // Góp ý xây dựng nếu thí sinh trả lời quá dài trong 30s nhưng không cố tình né tránh
     if (isVerbose && !chamberResult.prosecutor.evasionDetected) {
       finalExplanation =
-        overallScore >= 55
-          ? 'Thí sinh có nội dung chuyên môn nhưng câu trả lời quá dài trong thời gian 30s (chưa kịp kết luận).'
+        overallScore >= 50
+          ? 'Thí sinh có nội dung chuyên môn tốt nhưng câu trả lời quá dài trong thời gian 30s (chưa kịp kết luận).'
           : 'Câu trả lời quá dài trong giới hạn 30s, chưa đủ cô đọng và thiếu luận điểm chốt.';
     }
 
