@@ -14,6 +14,7 @@ assets
 *.md
 !README.md
 !docs/deployment.md
+!docs/prds/*.md
 node_modules
 dist
 .env
