@@ -1,98 +1,117 @@
-# PRD SPRINT 2 (1 TUẦN): REALTIME STREAMING PITCH RAG & ROBUST VOICE GROUNDING
+# PRD: REALTIME STREAMING PITCH GRAPHRAG & CROSS-GROUNDING JURY
+## Sprint 2 (1 Tuần) • PITCH·ARENA STUDIO
 
-| Thông Tin | Chi Tiết |
+| Thuộc Tính | Nội Dung Chi Tiết |
 | :--- | :--- |
 | **Dự Án** | PITCH·ARENA STUDIO |
-| **Sprint / Phiên Bản** | Sprint 2 (Tuần 3) • Phase 2 Extension |
+| **Tài Liệu** | Product Requirements Document (PRD) — Sprint 2 |
 | **Thời Gian Thực Hiện** | 1 Tuần (7 Ngày) |
-| **Vai Trò Phụ Trách** | John (Product Manager) & Amelia (Lead Dev) |
-| **Trạng Thái** | **DRAFT / READY FOR ARCHITECTURE** |
+| **Trạng Thái** | **FINALIZED DRAFT / READY FOR DEV** |
+| **Tác Giả** | John (Product Manager) phối hợp cùng Hệ thống BMad |
 
 ---
 
-## 1. TỔNG QUAN & BỐI CẢNH (Executive Summary)
+## 1. TỔNG QUAN & TẦM NHÌN SẢN PHẨM (Vision & Core Intent)
 
-### 1.1. Bối cảnh
-Ở Sprint 1 (Phase 1 - Phase 5), PITCH·ARENA đã hoàn thành bộ khung nền tảng: bóc tách tài liệu Word `.docx` In-Memory, đấu trường WebSocket với 4 Boss Giám khảo, thanh máu HP, phân xử MAD Chamber và báo cáo phụ lục. 
+### 1.1. Vấn Đề Thực Tế (Problem Statement)
+Ở Sprint 1, PITCH·ARENA đã bóc tách tài liệu Word tĩnh thành 5 phân mục chuyên môn. Tuy nhiên:
+1. **Thiếu khả năng thu nạp bài nói thực tế:** Khi thí sinh thuyết trình ở Bước 3 (2-3 phút), họ công bố rất nhiều số liệu thực tế, giải thích kiến trúc hoặc kế hoạch cập nhật mới. Nhưng RAG hiện tại không thu thập được, dẫn đến việc Giám khảo ở Bước 4 chỉ hỏi lại nội dung trong Word và coi các số liệu mới của thí sinh là "vô căn cứ".
+2. **Bẫy nói nhầm & đính chính (Speech Retraction):** Thí sinh khi run thường nói vấp: *"Số lượng khách hàng là 50... à không, ý tôi là 250 người dùng"*. Nếu RAG thu thập mù quáng sẽ ghi nhận cả số 50 lẫn 250, gây xung đột thông tin và làm Giám khảo ảo giác.
+3. **Mất chữ do mạng giật (Network & Chunk Drops):** Các chunk âm thanh gửi qua WebSocket nếu bị rớt mạng giữa chừng sẽ làm bài nói bị đứt đoạn, mất ngữ cảnh.
 
-Tuy nhiên, trong quá trình thử nghiệm thực chiến, tồn tại **3 điểm nghẽn trải nghiệm chí tử**:
-1. **RAG chỉ là tài liệu chết trên giấy:** Bước 3 (Pitching), thí sinh thuyết trình 2-5 phút rất nhiều ý tưởng mới, số liệu thực tế ngoài đời, nhưng hệ thống không thu thập được. Sang Bước 4, Giám khảo chỉ hỏi theo file Word và coi những gì thí sinh vừa nói là "vô căn cứ".
-2. **Độ ổn định của Micro/Voice khi deploy:** Trình duyệt siết chặt chính sách bảo mật Micro qua mạng/HTTPS, dễ dẫn đến mất từ cuối câu hoặc ngắt kết nối STT.
-3. **Độ bám sát đề án chưa sắc sảo:** Câu chất vấn của Boss đôi lúc còn chung chung, chưa trích dẫn được chính xác con số hoặc mục đối nghịch giữa bài nói và tài liệu.
-
-### 1.2. Tuyên ngôn mục tiêu Sprint 2 (Sprint Goal)
-> *"Biến bài thuyết trình bằng giọng nói ở Bước 3 thành nguồn tri thức sống động nạp tức thời vào RAG, tối ưu hóa độ nhạy Micro/VAD chống nuốt chữ, và nâng cấp Giám khảo AI đối soát chéo từng số liệu giữa Lời Nói và Đề Án Word."*
-
----
-
-## 2. CHÂN DUNG NGƯỜI DÙNG & TÌNH HUỐNG SỬ DỤNG (User Personas & Scenarios)
-
-### 2.1. Thí sinh khởi nghiệp (Student Pitcher)
-- **Tình huống:** Thí sinh nộp file Word cách đây 1 tháng (số liệu cũ: 50 người dùng thử). Trong 2 phút Pitching ở Bước 3, thí sinh cập nhật: *"Thưa hội đồng, tuần vừa rồi nhóm đã nâng số lượng người dùng lên 250 người và có doanh thu đầu tiên là 3 triệu đồng"*.
-- **Kỳ vọng:** Hệ thống thu thập ngay số liệu mới này. Khi sang Bước 4, Boss Shark Nam ghi nhận con số 250 người dùng và truy vấn sâu vào doanh thu 3 triệu đồng, thay vì trừ điểm thí sinh vì "bịa số liệu ngoài file Word".
-
-### 2.2. Hội đồng Giám khảo AI (Jury Bosses)
-- **Kỳ vọng:** Có đầy đủ 2 nguồn căn cứ song song: `Căn cứ Hồ sơ Word` vs `Căn cứ Thuyết trình thực tế`. Bóc trần được các điểm mâu thuẫn (nói trên slide/mic một đằng, viết trong đề án một nẻo).
+### 1.2. Tuyên Ngôn Giải Pháp (The Solution Vision)
+Xây dựng kiến trúc **Real-time Spoken GraphRAG** chạy song song trong lúc thuyết trình:
+- **Cắt nhịp tự nhiên $\ge 1.0\text{s}$** (Pacing & Pausing).
+- **Phát hiện từ khóa bẻ lái (Retraction Detection)** kèm cơ chế Overwrite Buffer ("Xóa băng & Thay thế").
+- **Ủ tạm ý tưởng mới trong Staging Buffer** và **chỉ khai sinh Khối Thứ 6 (`Section 6: Dynamic Sub-topics`) khi người dùng ấn nút nộp bài**.
+- **Cơ chế phục hồi ngầm (Deferred Recovery)** bù đắp 100% các chunk lỗi trong 500ms chuyển cảnh.
+- **Hội đồng Giám khảo ưu tiên phản biện bài Pitch**, nếu RAG đang phục hồi thì tự động fallback hỏi Đề án Word mượt mà.
 
 ---
 
-## 3. CÁC TÍNH NĂNG CỐT LÕI CẦN ĐẠT ĐƯỢC (Core Requirements)
+## 2. CHÂN DUNG NGƯỜI DÙNG & USER JOURNEY
 
-### FR-01: Realtime Streaming Pitch Ingestion (Người dùng Pitch tới đâu, RAG thu tới đó)
-- **P0 (Must-have):**
-  - Trong Bước 3 (Pitching), khi Web Speech API trả về các đoạn text (`interimTranscript` và `finalPiece`), client stream liên tục các chunk này lên server qua WebSocket event `c2s:stream_pitch_chunk`.
-  - Server sử dụng cơ chế **Rolling Window Buffer (Cửa sổ trượt 30-45s)** để nhóm các câu thành các phân đoạn ý nghĩa.
-  - Tự động gắn nhãn phân đoạn theo 5 khối đề mục (`PITCH_PROBLEM`, `PITCH_SOLUTION`, `PITCH_BUSINESS_MODEL`, `PITCH_TECH_MOAT`, `PITCH_ROADMAP`).
-- **P1 (Should-have):**
-  - Hiển thị trực quan cho thí sinh: Tag phản hồi số từ và số liệu đã thu nạp thành công (ví dụ: `Đã nạp 320 từ thuyết trình • 2 thực thể mới`).
-
-### FR-02: Instant Entity & Metric Sniffer (Bắt nóng số liệu & cập nhật Whitelist)
-- **P0 (Must-have):**
-  - Hệ thống chạy bộ quét thực thể nhanh (Regex + Fuzzy Match) trên dòng lời nói của thí sinh để nhận diện: Phần trăm (`%`), Tiền tệ (`VNĐ`, `$`), Số lượng (`users`, `khách hàng`, `tháng/năm`).
-  - Tự động bổ sung các số liệu này vào **Bảng Whitelist mở rộng (`dynamicPitchWhitelist`)**.
-  - Các số liệu này được bảo vệ trong phiên đấu, giúp Arbiter không phạt trừ máu oan khi thí sinh trả lời ở Bước 4 dựa trên số liệu họ đã công bố trong bài Pitch.
-
-### FR-03: Combined Knowledge RAG Engine (Đối soát chéo Word vs Lời Nói)
-- **P0 (Must-have):**
-  - Kết thúc Bước 3, toàn bộ transcript bài Pitch được đóng gói thành một tài liệu bổ trợ chính thức: `CandidatePitchTranscriptDoc`.
-  - Cập nhật prompt của 4 Boss Giám khảo và Arbiter: Nạp cả 2 khối context:
-    1. `[CĂN CỨ TÀI LIỆU WORD ĐÃ NỘP]`
-    2. `[CĂN CỨ THUYẾT MINH THỰC TẾ VỪA NÓI]`
-  - Giám khảo có khả năng đặt câu hỏi đối chiếu: *"Trong bài thuyết trình vừa rồi bạn có nói X, nhưng trong mục Y của đề án lại viết Z, bạn giải thích thế nào về sự chênh lệch này?"*.
-
-### FR-04: Robust Voice Engine & VAD Precision (Cải thiện Micro & Giọng Nói)
-- **P0 (Must-have):**
-  - **Chống nuốt chữ cuối:** Gom trọn cả `interimTranscript` cuối cùng hợp nhất với `finalTranscript` khi hết giờ hoặc khi người dùng bấm dừng mic.
-  - **Tự động phục hồi Web Speech:** Tự động lắng nghe sự kiện `onend` và khởi động lại SpeechRecognition mượt mà nếu trình duyệt tự ngắt sau khoảng lặng.
-  - **VAD ngữ nghĩa:** Khi phát hiện các từ nối bỏ lửng (`và là...`, `bởi vì...`, `tuy nhiên...`), VAD tự động cộng thêm đệm 0.8s để tránh ngắt lời oan khi thí sinh đang lấy hơi.
-- **P1 (Should-have):**
-  - Cảnh báo rõ ràng và thân thiện nếu trình duyệt chặn quyền truy cập Micro trên môi trường không an toàn (non-HTTPS).
+### 2.1. Protagonist: Tuấn Khánh (Trưởng nhóm Sinh viên Khởi nghiệp)
+- **Tình huống:** Khánh nộp bản Word ghi nhận *"Chưa thương mại hóa, có 50 người test nội bộ"*. 
+- **Diễn biến tại Bước 3:** Đứng trước mic, Khánh hào hứng nói: *"Thưa ban giám khảo, tháng vừa rồi nhóm đã nâng lên 200 người dùng thật và thu được 3 triệu đồng doanh thu đầu tiên. À không, chính xác là 3.5 triệu đồng. Ngoài ra nhóm cũng dự định sang năm sẽ mở rộng mô hình sang thị trường Lào"*.
+- **Hành vi hệ thống:**
+  - Nhận diện `À không, chính xác là 3.5 triệu` $\rightarrow$ Xóa con số 3 triệu, ghi nhận `3.5 triệu` vào Whitelist.
+  - Nhận diện `200 người dùng thật & 3.5 triệu` $\rightarrow$ Cập nhật vào `Refined Node` của Mục 3 (Mô hình kinh doanh).
+  - Nhận diện `Mở rộng sang thị trường Lào` (ngoài phạm vi 5 mục) $\rightarrow$ Đẩy vào `Unmapped Staging Buffer`.
+- **Khi Khánh bấm [KẾT THÚC THUYẾT TRÌNH]:**
+  - Hệ thống gom `thị trường Lào` tạo thành **Khối Thứ 6: Kế Hoạch Mở Rộng Địa Lý**.
+  - Sang Bước 4, Shark Nam lập tức chất vấn: *"Trong bài pitch bạn có nhắc đến kế hoạch sang thị trường Lào và đạt 3.5 triệu doanh thu, nhưng đề án Word không hề có dự trù ngân sách cho việc này. Bạn giải thích thế nào?"*.
+  - Khánh thở phào vì Giám khảo lắng nghe thực sự và đánh giá đúng những gì mình vừa trình bày.
 
 ---
 
-## 4. PHẠM VI KHÔNG LÀM TRONG SPRINT NÀY (Out of Scope / Non-Goals)
-- Không làm tính năng phòng thi nhiều người (Multiplayer / Mentor Dashboard).
-- Không làm tính năng đọc trực tiếp file slide `.pptx` nhúng hình ảnh phức tạp.
-- Không thay đổi thiết kế giao diện chủ đạo (Vẫn giữ vững phong cách Monochrome Retro Pixel).
+## 3. DANH SÁCH YÊU CẦU CHỨC NĂNG (Functional Requirements - FRs)
+
+### FR-01: Pacing & Pausing Streaming Segmenter
+- **Mô tả:** Bộ ngắt chunk âm thanh thông minh dựa trên nhịp thở của người nói.
+- **Quy tắc:**
+  - Khi khoảng lặng giữa các từ $\ge 1.0\text{s}$ $\rightarrow$ Kích hoạt đóng gói chunk văn bản hoàn chỉnh và gửi qua WebSocket (`c2s:stream_pitch_chunk`).
+  - Khi đang nói liên tục (Pacing $\le 0.8\text{s}$) $\rightarrow$ Tích lũy vào Sliding Window (15 - 25 từ) để giữ trọn vẹn mệnh đề ngữ nghĩa.
+
+### FR-02: Retraction Detection & Overwrite Buffer ("Xóa Băng & Thay Thế")
+- **Mô tả:** Nhận diện các điểm đính chính ngữ nghĩa của thí sinh để tránh xung đột dữ liệu đồ thị.
+- **Từ khóa bẻ lái nhận diện (Retraction Markers):**
+  - `"Nhưng mà"`, `"Ý tôi là"`, `"Nói cách khác"`, `"Để nói rõ hơn"`, `"Thôi bỏ đi"`, `"Đính chính lại"`, `"Chính xác là"`.
+- **Cơ chế xử lý:** Khi gặp marker, bộ đệm Overwrite Buffer lập tức thu hồi thực thể vừa phát hiện trước đó, thay thế bằng thực thể phát âm liền sau marker và đánh dấu node cũ là `SUPERSEDED`.
+
+### FR-03: Optimistic Real-time with Deferred Recovery
+- **Mô tả:** Xử lý dòng dữ liệu lạc quan, không chặn luồng nói của thí sinh khi gặp lỗi mạng.
+- **Quy tắc:**
+  - Nếu chunk gửi lên server bị timeout hoặc lỗi worker $\rightarrow$ Client gắn cờ `FAILED_RETRY_CHUNK` và lưu vào hàng đợi cục bộ.
+  - Khi thí sinh ấn `[KẾT THÚC THUYẾT TRÌNH]` (hoặc hết 2 phút) $\rightarrow$ Client gửi gói tổng kết `c2s:finalize_pitch_stream`. Server lập tức kích hoạt tiến trình chạy bù ngầm (Background Recovery) trong 500ms để vá trọn vẹn toàn bộ transcript.
+
+### FR-04: Bifurcated Graph Ingestion (Refined Node vs. Unmapped Staging)
+- **Mô tả:** Phân loại thông tin bài nói theo 2 nhánh độc lập:
+  - **Nhánh A (Trùng khớp 5 Section cũ với độ tương đồng $\ge 65\%$):** Ghi đè vào lớp `Refined Node Layer` tương ứng (Ví dụ: Số lượng người dùng mới đè lên số lượng cũ trong đề án).
+  - **Nhánh B (Ngoại lai / Ý tưởng mới với độ tương đồng $< 65\%$):** Đẩy vào vùng đệm chờ `Unmapped Staging Buffer`. Tuyệt đối không tạo Node rác trong lúc đang nói.
+
+### FR-05: Materialization of Section 6 (Khai Sinh Khối Thứ 6)
+- **Mô tả:** Khối thứ 6 chỉ được chính thức tạo ra tại thời điểm bấm nộp bài thuyết trình.
+- **Quy tắc:**
+  - Quét `Unmapped Staging Buffer`: Lọc bỏ lời chào hỏi xã giao (`"Cảm ơn quý thầy cô..."`, `"Xin chào ban giám khảo..."`).
+  - Gom các câu có cùng chủ đề lại. Nếu có nội dung giá trị thực chất $\rightarrow$ Tạo `Section 6: DYNAMIC_EXPANDED_SCOPE` (Khối mở rộng phát sinh).
+  - Nếu không có ý tưởng mới nào đáng kể $\rightarrow$ Không tạo Khối 6, giữ nguyên 5 Section đã refine.
+
+### FR-06: Adaptive Cross-Grounding Jury Strategy
+- **Mô tả:** Quy tắc chất vấn ưu tiên của 4 Boss Giám khảo ở Bước 4.
+- **Thứ tự ưu tiên:**
+  1. **Ưu tiên 1 (Pitch-First):** Boss chất vấn trực tiếp các điểm mới tại `Section 6` hoặc các `Refined Nodes` có sự chênh lệch so với bản Word.
+  2. **Cơ chế Fallback (Graceful Degradation):** Nếu tiến trình Deferred Recovery của bài Pitch chưa hoàn tất khi vừa bước vào Bước 4 $\rightarrow$ Lượt 1 (Turn 1) Boss lập tức dùng dữ liệu Word để hỏi nền tảng. Khi Recovery hoàn tất, từ Lượt 2 trở đi Boss chuyển hướng sang hỏi bài Pitch.
 
 ---
 
-## 5. TIÊU CHÍ NGHIỆM THU & THÀNH CÔNG (Acceptance Criteria & Metrics)
+## 4. YÊU CẦU PHI CHỨC NĂNG (Non-Functional Requirements - NFRs)
 
-| Chỉ Số | Mục Tiêu Nghiệm Thu |
-| :--- | :--- |
-| **Độ trễ Streaming RAG** | Dữ liệu lời nói từ lúc phát âm đến khi nạp vào bộ nhớ server $\le 500\text{ms}$. |
-| **Tỷ lệ nhận diện số liệu mới** | Bắt được $\ge 90\%$ các số liệu tiền tệ, phần trăm, số lượng người dùng được phát âm rõ ràng trong bài Pitch. |
-| **Khả năng chất vấn đối soát** | Ít nhất 1 trong 3 câu hỏi đầu tiên của Boss ở Bước 4 trích dẫn trực tiếp được một chi tiết thí sinh vừa thuyết minh ở Bước 3. |
-| **Tỷ lệ mất chữ cuối câu** | Giảm tỷ lệ nuốt chữ/mất chữ khi hết giờ xuống $\le 2\%$. |
-| **Chất lượng mã nguồn** | Không có lỗi biên dịch TypeScript (`npx tsc --noEmit` pass 100%), tuyệt đối không chạy lệnh build. |
+- **NFR-01 (Độ trễ):** Thời gian phân loại và xử lý chunk lời nói $\le 450\text{ms}$.
+- **NFR-02 (Thời gian chuyển cảnh):** Thời gian tổng hợp Staging Buffer và sinh Khối 6 khi bấm Nộp bài $\le 1.2\text{s}$.
+- **NFR-03 (Bộ nhớ In-Memory):** Toàn bộ Đồ thị tri thức lưu trên RAM của tiến trình NestJS, giải phóng hoàn toàn khi kết thúc session (Zero Disk Storage).
+- **NFR-04 (Type Safety & No Build Command):** Toàn bộ Contracts được định nghĩa bằng Zod trong `packages/shared`, kiểm tra bằng `npx tsc --noEmit`, tuân thủ nghiêm ngặt quy tắc không chạy `npm run build`.
 
 ---
 
-## 6. LỘ TRÌNH TRIỂN KHAI 7 NGÀY (Sprint 2 Schedule)
+## 5. KẾ HOẠCH TRIỂN KHAI 7 NGÀY (Sprint 2 Roadmap)
 
-- **Ngày 1 - 2:** Thiết kế Kiến trúc (`bmad-architecture`) & Định nghĩa WebSocket Events cho Streaming Pitch Chunks (`packages/shared`).
-- **Ngày 3 - 4:** Xây dựng Streaming Ingestion Buffer & Entity Sniffer trên NestJS Backend (`server`).
-- **Ngày 5:** Nâng cấp Audio Recorder Hook trên React Client (chống nuốt chữ, VAD ngữ nghĩa) & Tích hợp hiển thị Tag tiến độ thu thập.
-- **Ngày 6:** Cập nhật Prompt Templates cho Boss & Arbiter đối soát chéo Word vs Pitch.
-- **Ngày 7:** Kiểm thử đối soát kịch bản thực tế, rà soát Type safety và chốt bàn giao.
+```mermaid
+flowchart TD
+    D1["Ngày 1: Contracts & Shared Schemas (Zod, Types)"] --> D2["Ngày 2: Pacing/Pausing Segmenter & Retraction Buffer (Client)"]
+    D2 --> D3["Ngày 3: In-Memory Graph Engine & Refined Nodes (Server)"]
+    D3 --> D4["Ngày 4: Unmapped Staging & Section 6 Materialization (Server)"]
+    D4 --> D5["Ngày 5: Deferred Recovery & Fallback Mechanism"]
+    D5 --> D6["Ngày 6: Cập nhật Prompt Cross-Grounding cho 4 Boss"]
+    D6 --> D7["Ngày 7: E2E Testing, Type Safety Audit & Handoff"]
+```
+
+---
+
+## 6. TIÊU CHÍ NGHIỆM THU (Acceptance Sign-off)
+
+1. Thí sinh nói ngắt quãng $\ge 1.0\text{s}$, chunk được gửi tức thì lên server không bị giật lag.
+2. Thí sinh nói đính chính ("à không, ý tôi là X"), hệ thống chỉ lưu giá trị X, loại bỏ giá trị cũ.
+3. Khi thí sinh bấm [Nộp bài Pitch], Khối thứ 6 tự động sinh ra nếu có ý mới; không sinh ra nếu chỉ chào hỏi.
+4. Boss Giám khảo ở Bước 4 đặt được ít nhất 1 câu hỏi bắt bẻ sự khác nhau giữa Đề án và Lời nói bài Pitch.
+5. `npx tsc --noEmit` pass 100% trên cả 3 package (`shared`, `server`, `client`).
