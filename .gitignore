@@ -1,7 +1,8 @@
 # BMAD (local only) - Commented out for config repo tracking
 # .bmad-core/
 .bmad-*/
-_bmad*
+_bmad/
+_bmad-output/
 .agents
 .agent
 .claude
