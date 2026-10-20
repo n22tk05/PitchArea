@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   DocumentAnalysisResult,
   LobbyConfig as LobbyConfigType,
   EvaluationPreset,
   EvaluationPresetDetails,
   JURY_BOSS_PROFILES,
+  RetractionMarkerType,
 } from '@pitcharena/shared';
 import {
   Mic,
@@ -17,12 +18,18 @@ import {
   ArrowRight,
   Volume2,
   Flame,
+  AlertTriangle,
+  Keyboard,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
+import { useArenaSocket } from '../../hooks/useArenaSocket';
 
 interface Step3PitchingProps {
   documentData: DocumentAnalysisResult | null;
   lobbyConfig?: LobbyConfigType | null;
+  arenaSocket?: ReturnType<typeof useArenaSocket>;
   onBack: () => void;
   onNext: (pitchTranscript?: string) => void;
 }
@@ -30,6 +37,7 @@ interface Step3PitchingProps {
 export const Step3Pitching: React.FC<Step3PitchingProps> = ({
   documentData,
   lobbyConfig,
+  arenaSocket,
   onBack,
   onNext,
 }) => {
@@ -41,15 +49,41 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
   const [remainingSeconds, setRemainingSeconds] = useState(initialTotalSeconds);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
 
-  // 3. Audio Recorder Hook cho Pitching
+  // 3. Chế độ nhập liệu: Voice qua Micro hoặc Gõ văn bản trực tiếp
+  const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
+  const [manualText, setManualText] = useState('');
+
+  // 4. Audio Recorder Hook cho Pitching với Streaming RAG Chunks
+  const chunksSentCountRef = useRef(0);
+
+  const handlePitchChunk = useCallback(
+    (chunk: {
+      sequenceId: number;
+      text: string;
+      isFinalChunk: boolean;
+      detectedMarkers: RetractionMarkerType[];
+      timestamp: number;
+    }) => {
+      chunksSentCountRef.current += 1;
+      arenaSocket?.streamPitchChunk(chunk);
+    },
+    [arenaSocket]
+  );
+
   const {
     isRecording,
+    audioLevel,
     transcript,
     interimTranscript,
+    speechError,
     estimatedWpm,
     startRecording,
     stopRecording,
-  } = useAudioRecorder();
+    flushRemainingBuffer,
+    setManualTranscript,
+  } = useAudioRecorder({
+    onPitchChunk: handlePitchChunk,
+  });
 
   // Khởi động mic thu âm khi mount
   useEffect(() => {
@@ -58,6 +92,13 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
       stopRecording();
     };
   }, [startRecording, stopRecording]);
+
+  // Tự động đồng bộ giọng nói sang ô gõ phím khi đang ở chế độ Voice
+  useEffect(() => {
+    if (transcript && inputMode === 'voice') {
+      setManualText(transcript);
+    }
+  }, [transcript, inputMode]);
 
   // Bộ đếm lùi thời gian
   useEffect(() => {
@@ -119,17 +160,22 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
     };
   }, [estimatedWpm]);
 
-  // Toàn bộ lời thoại
+  // Toàn bộ lời thoại (kết hợp cả Voice và Manual Text)
   const fullText = useMemo(() => {
-    return (transcript + ' ' + interimTranscript).trim();
-  }, [transcript, interimTranscript]);
+    if (inputMode === 'text') {
+      return manualText.trim();
+    }
+    const voiceText = (transcript + ' ' + interimTranscript).trim();
+    return voiceText || manualText.trim();
+  }, [inputMode, manualText, transcript, interimTranscript]);
 
   // Kích thước từ cho mỗi batch 2 dòng (khoảng 18 từ là vừa vặn 2 dòng văn bản monospace, không scroll)
   const BATCH_WORDS = 18;
 
   const currentBatch = useMemo(() => {
-    const finalWords = transcript.trim() ? transcript.trim().split(/\s+/) : [];
-    const interimWords = interimTranscript.trim() ? interimTranscript.trim().split(/\s+/) : [];
+    const activeText = inputMode === 'text' ? manualText : transcript;
+    const finalWords = activeText.trim() ? activeText.trim().split(/\s+/) : [];
+    const interimWords = inputMode === 'voice' && interimTranscript.trim() ? interimTranscript.trim().split(/\s+/) : [];
     const totalWordsCount = finalWords.length + interimWords.length;
 
     if (totalWordsCount === 0) {
@@ -157,7 +203,7 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
       interimPart,
       batchNumber: batchIndex + 1,
     };
-  }, [transcript, interimTranscript]);
+  }, [transcript, interimTranscript, manualText, inputMode]);
 
   // Điều khiển đồng hồ
   const handleToggleTimer = () => {
@@ -169,9 +215,48 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
     setIsTimerRunning(true);
   };
 
+  // Bật/tắt Micro
+  const handleToggleRecord = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      setInputMode('voice');
+      startRecording();
+    }
+  };
+
+  // Người dùng gõ phím trực tiếp
+  const handleManualTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setManualText(val);
+    setManualTranscript(val);
+  };
+
+  // Nạp nhanh bài Pitch mẫu từ hồ sơ đề tài
+  const handleFillDemoPitch = () => {
+    const demoText =
+      documentData?.sections?.length
+        ? documentData.sections.map((s) => s.content).join(' ')
+        : 'Kính chào Hội đồng Giám khảo. Chúng tôi xin giới thiệu giải pháp ứng dụng công nghệ chuyên sâu giải quyết triệt để bài toán thị trường. Mô hình kinh doanh B2B định kỳ với quy mô thị trường 1.2 tỷ USD, dự kiến hòa vốn sau 8 tháng vận hành.';
+    setManualText(demoText);
+    setManualTranscript(demoText);
+    setInputMode('text');
+    if (isRecording) {
+      stopRecording();
+    }
+  };
+
   // Hoàn tất bài thuyết trình để sang vòng chất vấn
   const handleFinishPitch = () => {
+    // Ép xả nốt các từ còn tồn trong buffer trước khi chốt
+    flushRemainingBuffer();
     stopRecording();
+    const durationSeconds = initialTotalSeconds - remainingSeconds;
+    arenaSocket?.finalizePitchStream(
+      chunksSentCountRef.current || 1,
+      fullText || 'Thí sinh đã hoàn thành phần thuyết minh đề tài.',
+      durationSeconds > 0 ? durationSeconds : 1
+    );
     onNext(fullText);
   };
 
@@ -212,6 +297,47 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ==================== CẢNH BÁO MICRO NẾU CÓ LỖI ==================== */}
+      {speechError && (
+        <div className="border-2 border-amber-500 bg-amber-50 p-3 shadow-[3px_3px_0px_#000] text-amber-900 text-xs flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 animate-bounce" />
+            <span>
+              <strong>LƯU Ý MICRO:</strong> {speechError}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setInputMode('voice');
+                startRecording();
+              }}
+              className="px-2.5 py-1 bg-amber-400 text-black border-2 border-black font-bold text-[11px] hover:bg-amber-300 active:translate-x-0.5 active:translate-y-0.5 shadow-[1px_1px_0px_#000] flex items-center gap-1 cursor-pointer"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>THỬ LẠI MICRO</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleFillDemoPitch}
+              className="px-2.5 py-1 bg-black text-white border-2 border-black font-bold text-[11px] hover:bg-neutral-800 active:translate-x-0.5 active:translate-y-0.5 shadow-[1px_1px_0px_#000] flex items-center gap-1 cursor-pointer"
+            >
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              <span>DÙNG PITCH MẪU</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputMode('text')}
+              className="px-2.5 py-1 bg-white text-black border-2 border-black font-bold text-[11px] hover:bg-neutral-100 active:translate-x-0.5 active:translate-y-0.5 shadow-[1px_1px_0px_#000] flex items-center gap-1 cursor-pointer"
+            >
+              <Keyboard className="w-3 h-3" />
+              <span>GÕ BÀN PHÍM</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ==================== BỐ CỤC 2 CỘT NGANG (VỪA KHÍT CHIỀU CAO MÀN HÌNH) ==================== */}
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4 ">
@@ -305,73 +431,142 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
 
         {/* ==================== CỘT 2 (4 COLS): LỜI THOẠI ĐANG NÓI & SẴN SÀNG ĐỐI MẶT ==================== */}
         <div className="lg:col-span-4 flex flex-col gap-4 ">
-          {/* PHẦN 1: LỜI THOẠI ĐANG NÓI (2 DÒNG) + TAG NHỊP ĐỘ + MIC */}
-          <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] flex flex-col justify-between gap-2.5 flex-1 min-h-0">
-            {/* Header: Tiêu đề, Tag Nhịp độ, Nút Mic */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-black/15 text-xs shrink-0">
-              <div className="flex items-center gap-1.5">
-                <Volume2 className="w-4 h-4 text-black" />
-                <span className="font-black uppercase tracking-wider text-xs">
-                  LỜI THOẠI ĐANG NÓI:
-                </span>
+          {/* PHẦN 1: LỜI THOẠI ĐANG NÓI / GÕ PHÍM + TAG NHỊP ĐỘ + ĐIỀU KHIỂN */}
+          <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] flex flex-col justify-between gap-3 flex-1 min-h-0">
+            {/* Header: Tiêu đề, Tag Nhịp độ, Nút Mic & Nút Chế độ */}
+            <div className="flex flex-col gap-2 pb-2 border-b border-black/15 text-xs shrink-0">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Volume2 className="w-4 h-4 text-black" />
+                  <span className="font-black uppercase tracking-wider text-xs">
+                    LỜI THOẠI PITCH:
+                  </span>
+                </div>
+
+                {/* Chuyển đổi tab: NÓI MICRO vs GÕ BÀN PHÍM */}
+                <div className="flex items-center border border-black p-0.5 bg-neutral-100 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputMode('voice');
+                      if (!isRecording) startRecording();
+                    }}
+                    className={`px-2 py-0.5 font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                      inputMode === 'voice' ? 'bg-black text-white shadow-[1px_1px_0px_#000]' : 'text-neutral-600 hover:text-black'
+                    }`}
+                  >
+                    <Mic className="w-3 h-3" />
+                    <span>NÓI MICRO</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInputMode('text')}
+                    className={`px-2 py-0.5 font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                      inputMode === 'text' ? 'bg-black text-white shadow-[1px_1px_0px_#000]' : 'text-neutral-600 hover:text-black'
+                    }`}
+                  >
+                    <Keyboard className="w-3 h-3" />
+                    <span>GÕ PHÍM</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Dòng điều khiển phụ: Tag Nhịp độ, Sóng âm, Bật/Tắt Mic, Nạp Demo */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                 {/* Tag nhịp độ nói: CHẬM / CHUẨN / NHANH */}
-                <div className="flex items-center gap-1">
-                  <span className={`px-1.5 py-0.5 border text-[11px] font-black tracking-wide ${pacingTag.color}`}>
+                <div className="flex items-center gap-1.5">
+                  <span className={`px-1.5 py-0.5 border text-[10px] font-black tracking-wide ${pacingTag.color}`}>
                     {pacingTag.text}
                   </span>
-                  <span className="text-[11px] font-mono text-neutral-500 font-bold">
-                    ({estimatedWpm > 0 ? `${estimatedWpm} WPM` : '-- WPM'})
-                  </span>
+
+                  {/* Sóng âm Audio Wave động phản hồi âm thanh thực tế */}
+                  {isRecording && (
+                    <div className="flex items-end gap-0.5 h-3.5 px-1 bg-neutral-900 border border-black" title={`Âm lượng: ${audioLevel}%`}>
+                      <span className="w-1 bg-emerald-400 rounded-xs transition-all duration-75" style={{ height: `${Math.max(3, (audioLevel / 100) * 12)}px` }} />
+                      <span className="w-1 bg-emerald-400 rounded-xs transition-all duration-75" style={{ height: `${Math.max(4, (audioLevel / 100) * 14)}px` }} />
+                      <span className="w-1 bg-emerald-400 rounded-xs transition-all duration-75" style={{ height: `${Math.max(2, (audioLevel / 100) * 10)}px` }} />
+                    </div>
+                  )}
                 </div>
 
-                {/* Nút bật/tắt Micro */}
-                <button
-                  type="button"
-                  onClick={isRecording ? stopRecording : startRecording}
-                  className={`px-2 py-0.5 border-2 border-black text-[10px] font-bold flex items-center gap-1 shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer ${
-                    isRecording ? 'bg-rose-500 text-white' : 'bg-emerald-400 text-black hover:bg-emerald-300'
-                  }`}
-                >
-                  {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                  <span>{isRecording ? 'TẮT MIC' : 'BẬT MIC'}</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {/* Nút nạp nhanh bài Pitch mẫu */}
+                  <button
+                    type="button"
+                    onClick={handleFillDemoPitch}
+                    className="px-2 py-0.5 border border-black bg-neutral-100 hover:bg-amber-300 text-[10px] font-bold flex items-center gap-1 active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer shadow-[1px_1px_0px_#000]"
+                    title="Nạp bài thuyết trình mẫu từ hồ sơ đề tài"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    <span className="hidden sm:inline">PITCH MẪU</span>
+                  </button>
+
+                  {/* Nút bật/tắt Micro */}
+                  <button
+                    type="button"
+                    onClick={handleToggleRecord}
+                    className={`px-2 py-0.5 border-2 border-black text-[10px] font-bold flex items-center gap-1 shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer ${
+                      isRecording ? 'bg-rose-500 text-white animate-pulse' : 'bg-emerald-400 text-black hover:bg-emerald-300'
+                    }`}
+                  >
+                    {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                    <span>{isRecording ? 'DỪNG MIC' : 'BẬT MIC'}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Khung hiển thị lời thoại chỉ đúng 2 dòng, hiển thị theo từng batch 2 dòng, KHÔNG SCROLL */}
-            <div className="relative w-full flex-1 min-h-[64px] max-h-[90px] bg-neutral-950 border-2 border-black px-3.5 py-2 text-emerald-400 font-mono text-sm leading-6 overflow-hidden flex items-center select-none">
-              {/* CRT scanline mỏng */}
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.3)_50%)] bg-[length:100%_4px] pointer-events-none opacity-25" />
+            {/* Nội dung: Hiển thị 2 dòng LCD hoặc Textarea gõ phím tùy chế độ */}
+            {inputMode === 'text' ? (
+              <div className="relative w-full flex-1 min-h-[90px] flex flex-col">
+                <textarea
+                  value={manualText}
+                  onChange={handleManualTextChange}
+                  placeholder="Gõ hoặc dán nội dung bài thuyết minh Pitch của bạn vào đây (hệ thống sẽ tự động phân tích đồ thị cho vòng chất vấn)..."
+                  className="w-full flex-1 p-2.5 bg-neutral-950 border-2 border-black text-emerald-400 font-mono text-xs leading-5 resize-none focus:outline-none focus:border-amber-400 shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] placeholder:text-neutral-600"
+                />
+              </div>
+            ) : (
+              <div
+                onClick={() => setInputMode('text')}
+                className="relative w-full flex-1 min-h-[75px] max-h-[140px] bg-neutral-950 border-2 border-black px-3.5 py-2 text-emerald-400 font-mono text-xs sm:text-sm leading-6 overflow-hidden flex items-start select-none cursor-text"
+                title="Bấm vào để chuyển sang chế độ gõ phím / chỉnh sửa"
+              >
+                {/* CRT scanline mỏng */}
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.3)_50%)] bg-[length:100%_4px] pointer-events-none opacity-25" />
 
-              {fullText ? (
-                <div className="relative z-10 w-full overflow-hidden leading-6">
-                  {currentBatch.finalPart && (
-                    <span className="text-emerald-300">
-                      {currentBatch.finalPart}
-                    </span>
-                  )}
-                  {currentBatch.interimPart && (
-                    <span className="text-amber-300 underline decoration-dotted ml-1 animate-pulse font-bold">
-                      {currentBatch.interimPart}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div className="relative z-10 text-neutral-500 text-xs italic flex items-center gap-2">
-                  <Mic className="w-3.5 h-3.5 text-neutral-400 animate-pulse" />
-                  <span>Đang lắng nghe... Hãy nói vào micro để bắt đầu thuyết minh bài pitch của bạn.</span>
-                </div>
-              )}
-            </div>
+                {fullText ? (
+                  <div className="relative z-10 w-full max-h-[120px] overflow-y-auto leading-6 pr-1 font-mono">
+                    {transcript && (
+                      <span className="text-emerald-300">
+                        {transcript}{' '}
+                      </span>
+                    )}
+                    {interimTranscript && (
+                      <span className="text-amber-300 underline decoration-dotted font-bold animate-pulse">
+                        {interimTranscript}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative z-10 text-neutral-500 text-xs italic flex items-center gap-2 my-auto">
+                    <Mic className="w-3.5 h-3.5 text-neutral-400 animate-pulse" />
+                    <span>Đang lắng nghe... Nói vào micro hoặc bấm [GÕ PHÍM] / [PITCH MẪU].</span>
+                  </div>
+                )}
+              </div>
+            )}
 
-            <div className="text-[10px] text-neutral-500 font-sans flex items-center justify-between pt-1 shrink-0">
-              <span>* Tự động chuyển batch 2 dòng mới khi nói tiếp.</span>
+            {/* Footer của khung lời thoại */}
+            <div className="text-[10px] text-neutral-500 font-sans flex items-center justify-between pt-1 shrink-0 border-t border-black/10">
+              <span className="text-neutral-600">
+                {inputMode === 'text'
+                  ? `* Đang ở chế độ gõ phím (${fullText.split(/\s+/).filter(Boolean).length} từ). Bấm [NÓI MICRO] để bật mic.`
+                  : '* Tự động chuyển batch 2 dòng mới khi nói tiếp. Bấm vào khung để chỉnh sửa.'}
+              </span>
               {fullText && (
-                <span className="font-mono text-neutral-400 font-bold">
-                  BATCH #{String(currentBatch.batchNumber).padStart(2, '0')}
+                <span className="font-mono text-neutral-700 font-bold">
+                  {inputMode === 'voice' ? `BATCH #${String(currentBatch.batchNumber).padStart(2, '0')}` : `${fullText.length} ký tự`}
                 </span>
               )}
             </div>

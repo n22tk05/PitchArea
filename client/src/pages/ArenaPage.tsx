@@ -157,6 +157,7 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
           <Step3Pitching
             documentData={documentData}
             lobbyConfig={lobbyConfig}
+            arenaSocket={arenaSocket}
             onBack={() => setActiveStep(2)}
             onNext={(transcript) => {
               if (transcript) setPitchTranscript(transcript);

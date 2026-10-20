@@ -13,6 +13,9 @@ import {
   S2CReportGeneratedPayload,
   AppendixReport,
   VerdictResult,
+  C2SStreamPitchChunkPayload,
+  C2SFinalizePitchStreamPayload,
+  S2CPitchGraphSyncPayload,
 } from '@pitcharena/shared';
 import { getBackendUrl } from '../utils/backendUrl';
 
@@ -31,6 +34,7 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
     reason: 'RESUMED',
   });
   const [coachingAlert, setCoachingAlert] = useState<S2CCoachingAlertPayload | null>(null);
+  const [pitchGraphSync, setPitchGraphSync] = useState<S2CPitchGraphSyncPayload | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
@@ -119,6 +123,10 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
       setReportData(data.report);
     });
 
+    socket.on(ArenaSocketEvents.S2C_PITCH_GRAPH_SYNC, (data: S2CPitchGraphSyncPayload) => {
+      setPitchGraphSync(data);
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -205,6 +213,7 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
       setLastVerdict(null);
       setStreamingQuestion(null);
       setLiveTranscript(null);
+      setPitchGraphSync(null);
     }
   }, [sessionId, isConnected]);
 
@@ -213,6 +222,32 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
       socketRef.current.emit(ArenaSocketEvents.C2S_FINISH_COMBAT, { sessionId });
     }
   }, [sessionId, isConnected]);
+
+  const streamPitchChunk = useCallback(
+    (chunk: Omit<C2SStreamPitchChunkPayload, 'sessionId'>) => {
+      if (socketRef.current && isConnected) {
+        socketRef.current.emit(ArenaSocketEvents.C2S_STREAM_PITCH_CHUNK, {
+          sessionId,
+          ...chunk,
+        });
+      }
+    },
+    [sessionId, isConnected]
+  );
+
+  const finalizePitchStream = useCallback(
+    (totalChunks: number, fullRawTranscript: string, durationSeconds: number) => {
+      if (socketRef.current && isConnected) {
+        socketRef.current.emit(ArenaSocketEvents.C2S_FINALIZE_PITCH_STREAM, {
+          sessionId,
+          totalChunks,
+          fullRawTranscript,
+          durationSeconds,
+        });
+      }
+    },
+    [sessionId, isConnected]
+  );
 
   return {
     isConnected,
@@ -225,6 +260,7 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
     coachingAlert,
     lastVerdict,
     connectionError,
+    pitchGraphSync,
     updateConfig,
     startCombat,
     skipPrep,
@@ -236,5 +272,7 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
     requestReport,
     requestRematch,
     finishCombat,
+    streamPitchChunk,
+    finalizePitchStream,
   };
 }
