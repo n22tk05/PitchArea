@@ -31,6 +31,11 @@ import {
   getAvailableBossesForSections,
   JURY_BOSS_PROFILES,
   BOSS_TO_SECTION_MAP,
+  StreamPitchChunkSchema,
+  FinalizePitchStreamSchema,
+  C2SStreamPitchChunkPayload,
+  C2SFinalizePitchStreamPayload,
+  S2CPitchGraphSyncPayload,
 } from '@pitcharena/shared';
 import { ArenaFsmService } from '../domain/fsm/arena-fsm.service';
 import { GeminiService } from '../adapters/llm/gemini.service';
@@ -40,6 +45,7 @@ import { ArbiterService } from '../domain/scoring/arbiter.service';
 import { AppendixGeneratorService } from '../domain/reporting/appendix-generator.service';
 import { RematchEngine } from '../domain/orchestrator/rematch-engine';
 import { SessionPersistenceService } from '../adapters/db/session-persistence.service';
+import { PitchGraphService } from '../domain/rag/pitch-graph.service';
 
 @WebSocketGateway({
   cors: {
@@ -55,6 +61,8 @@ export class ArenaGateway
   private readonly logger = new Logger(ArenaGateway.name);
   private readonly latestCandidateSpeech = new Map<string, string>();
   private readonly processingTurnLocks = new Set<string>();
+  private readonly socketSessionMap = new Map<string, string>();
+  private readonly sessionCleanupTimeouts = new Map<string, NodeJS.Timeout>();
 
   constructor(
     private readonly fsmService: ArenaFsmService,
@@ -64,7 +72,8 @@ export class ArenaGateway
     private readonly arbiterService: ArbiterService,
     private readonly appendixGeneratorService: AppendixGeneratorService,
     private readonly rematchEngine: RematchEngine,
-    private readonly sessionPersistenceService: SessionPersistenceService
+    private readonly sessionPersistenceService: SessionPersistenceService,
+    private readonly pitchGraphService: PitchGraphService
   ) {}
 
   /**
@@ -86,6 +95,27 @@ export class ArenaGateway
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+    const sessionId = this.socketSessionMap.get(client.id);
+    this.socketSessionMap.delete(client.id);
+
+    if (sessionId) {
+      const room = this.server?.sockets?.adapter?.rooms?.get(sessionId);
+      if (!room || room.size === 0) {
+        // Hủy timer cũ nếu có
+        const existingTimer = this.sessionCleanupTimeouts.get(sessionId);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+        }
+
+        // Lên lịch giải phóng bộ nhớ đồ thị sau 5 phút nếu client không kết nối lại
+        const timeout = setTimeout(() => {
+          this.pitchGraphService.removeSession(sessionId);
+          this.sessionCleanupTimeouts.delete(sessionId);
+          this.logger.log(`[ArenaGateway] Cleaned up PitchGraphSession for inactive session: ${sessionId}`);
+        }, 5 * 60 * 1000);
+        this.sessionCleanupTimeouts.set(sessionId, timeout);
+      }
+    }
   }
 
   /**
@@ -102,10 +132,20 @@ export class ArenaGateway
       const { sessionId, documentId } = payload;
 
       client.join(sessionId);
+      this.socketSessionMap.set(client.id, sessionId);
+
+      // Nếu có lịch dọn dẹp đang chờ, hủy bỏ vì client đã kết nối lại
+      const pendingCleanup = this.sessionCleanupTimeouts.get(sessionId);
+      if (pendingCleanup) {
+        clearTimeout(pendingCleanup);
+        this.sessionCleanupTimeouts.delete(sessionId);
+        this.logger.log(`[ArenaGateway] Cancelled scheduled cleanup for reconnected session: ${sessionId}`);
+      }
 
       const doc = this.documentService.getDocument(documentId);
       const availableBossIds = doc ? getAvailableBossesForSections(doc.sections) : undefined;
       const session = this.fsmService.getOrCreateSession(sessionId, documentId, availableBossIds);
+      this.pitchGraphService.getOrCreateSession(sessionId, documentId);
 
       // Cấu hình timer callbacks nếu chưa có
       const timer = this.fsmService.getTimer(sessionId);
@@ -508,6 +548,55 @@ export class ArenaGateway
   }
 
   /**
+   * Tiếp nhận Chunk phát biểu theo nhịp thở từ thí sinh ở Bước 3 (FR-01, FR-02, AD-2)
+   */
+  @SubscribeMessage(ArenaSocketEvents.C2S_STREAM_PITCH_CHUNK)
+  async handleStreamPitchChunk(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() rawPayload: unknown
+  ) {
+    try {
+      const parsed = StreamPitchChunkSchema.safeParse(rawPayload);
+      if (!parsed.success) {
+        this.logger.warn(`[PitchChunk] Validation failed: ${parsed.error.message}`);
+        return;
+      }
+      const payload: C2SStreamPitchChunkPayload = parsed.data;
+      const syncData = await this.pitchGraphService.processStreamPitchChunk(payload);
+      this.server
+        .to(payload.sessionId)
+        .emit(ArenaSocketEvents.S2C_PITCH_GRAPH_SYNC, syncData);
+    } catch (err: any) {
+      this.logger.error(`Error in handleStreamPitchChunk: ${err.message}`);
+    }
+  }
+
+  /**
+   * Khóa bài thuyết trình và hoàn tất đồ thị In-Memory (FR-03, AD-5)
+   */
+  @SubscribeMessage(ArenaSocketEvents.C2S_FINALIZE_PITCH_STREAM)
+  async handleFinalizePitchStream(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() rawPayload: unknown
+  ) {
+    try {
+      const parsed = FinalizePitchStreamSchema.safeParse(rawPayload);
+      if (!parsed.success) {
+        this.logger.warn(`[FinalizePitch] Validation failed: ${parsed.error.message}`);
+        return;
+      }
+      const payload: C2SFinalizePitchStreamPayload = parsed.data;
+      const syncData = await this.pitchGraphService.finalizePitchStream(payload);
+      this.server
+        .to(payload.sessionId)
+        .emit(ArenaSocketEvents.S2C_PITCH_GRAPH_SYNC, syncData);
+      this.logger.log(`[FinalizePitch] Pitch finalized for session ${payload.sessionId}`);
+    } catch (err: any) {
+      this.logger.error(`Error in handleFinalizePitchStream: ${err.message}`);
+    }
+  }
+
+  /**
    * Yêu cầu xem lại hoặc tải Báo cáo Phụ lục Hành động
    */
   @SubscribeMessage(ArenaSocketEvents.C2S_REQUEST_REPORT)
@@ -590,6 +679,12 @@ export class ArenaGateway
       session.isTimeFrozen = false;
       session.isStreamingQuestion = false;
       session.activeQuestion = undefined;
+
+      // Reset đồ thị tri thức In-Memory
+      this.pitchGraphService.removeSession(sessionId);
+      this.pitchGraphService.getOrCreateSession(sessionId, session.documentId);
+      const resetGraphSync = this.pitchGraphService.getGraphSyncPayload(sessionId);
+      this.server.to(sessionId).emit(ArenaSocketEvents.S2C_PITCH_GRAPH_SYNC, resetGraphSync);
 
       this.fsmService.transitionState(sessionId, SessionFsmState.LOBBY_READY);
 

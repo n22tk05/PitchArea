@@ -10,6 +10,7 @@ import { AppendixGeneratorService } from '../domain/reporting/appendix-generator
 import { RematchEngine } from '../domain/orchestrator/rematch-engine';
 import { SessionPersistenceService } from '../adapters/db/session-persistence.service';
 import { ArenaController } from './arena.controller';
+import { PitchGraphService } from '../domain/rag/pitch-graph.service';
 
 @Module({
   imports: [DocumentModule, ScoringModule],
@@ -22,6 +23,7 @@ import { ArenaController } from './arena.controller';
     AppendixGeneratorService,
     RematchEngine,
     SessionPersistenceService,
+    PitchGraphService,
   ],
   exports: [
     ArenaGateway,
@@ -29,6 +31,7 @@ import { ArenaController } from './arena.controller';
     AppendixGeneratorService,
     RematchEngine,
     SessionPersistenceService,
+    PitchGraphService,
   ],
 })
 export class ArenaModule {}
