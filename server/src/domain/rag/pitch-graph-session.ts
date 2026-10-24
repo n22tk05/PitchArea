@@ -177,6 +177,13 @@ export class PitchGraphSession {
   }
 
   /**
+   * Lấy danh sách phát biểu trong Staging Buffer
+   */
+  public getStagingBuffer(): StagingChunkItem[] {
+    return [...this.stagingBuffer];
+  }
+
+  /**
    * Xóa sạch toàn bộ bộ nhớ của session khi kết thúc (C-1: Zero Memory Leak)
    */
   public clear(): void {

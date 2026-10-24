@@ -11,6 +11,8 @@ import { RematchEngine } from '../domain/orchestrator/rematch-engine';
 import { SessionPersistenceService } from '../adapters/db/session-persistence.service';
 import { ArenaController } from './arena.controller';
 import { PitchGraphService } from '../domain/rag/pitch-graph.service';
+import { ChunkClassifierService } from '../domain/rag/chunk-classifier.service';
+import { Section6BuilderService } from '../domain/rag/section6-builder.service';
 
 @Module({
   imports: [DocumentModule, ScoringModule],
@@ -24,6 +26,8 @@ import { PitchGraphService } from '../domain/rag/pitch-graph.service';
     RematchEngine,
     SessionPersistenceService,
     PitchGraphService,
+    ChunkClassifierService,
+    Section6BuilderService,
   ],
   exports: [
     ArenaGateway,
@@ -32,6 +36,8 @@ import { PitchGraphService } from '../domain/rag/pitch-graph.service';
     RematchEngine,
     SessionPersistenceService,
     PitchGraphService,
+    ChunkClassifierService,
+    Section6BuilderService,
   ],
 })
 export class ArenaModule {}

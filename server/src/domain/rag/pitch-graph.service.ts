@@ -14,13 +14,24 @@ import {
 } from '@pitcharena/shared';
 import { PitchGraphSession } from './pitch-graph-session';
 import { DocumentService } from '../../document/document.service';
+import { ChunkClassifierService } from './chunk-classifier.service';
+import { Section6BuilderService } from './section6-builder.service';
 
 @Injectable()
 export class PitchGraphService {
   private readonly logger = new Logger(PitchGraphService.name);
   private readonly sessions = new Map<string, PitchGraphSession>();
+  private readonly classifierService: ChunkClassifierService;
+  private readonly section6Builder: Section6BuilderService;
 
-  constructor(@Optional() private readonly documentService?: DocumentService) {}
+  constructor(
+    @Optional() private readonly documentService?: DocumentService,
+    @Optional() classifierService?: ChunkClassifierService,
+    @Optional() section6Builder?: Section6BuilderService
+  ) {
+    this.classifierService = classifierService || new ChunkClassifierService();
+    this.section6Builder = section6Builder || new Section6BuilderService();
+  }
 
   /**
    * Khởi tạo hoặc lấy ra phiên đồ thị tri thức In-Memory theo Session
@@ -155,13 +166,6 @@ export class PitchGraphService {
         };
 
         session.addNode(newNode);
-        session.addStagingItem({
-          sequenceId: payload.sequenceId,
-          text: rawText,
-          timestamp: payload.timestamp || Date.now(),
-          detectedMarkers: markers,
-          category: newNode.category,
-        });
 
         if (targetNode) {
           session.updateNodeStatus(
@@ -217,13 +221,6 @@ export class PitchGraphService {
         };
 
         session.addNode(newNode);
-        session.addStagingItem({
-          sequenceId: payload.sequenceId,
-          text: rawText,
-          timestamp: payload.timestamp || Date.now(),
-          detectedMarkers: markers,
-          category: newNode.category,
-        });
 
         if (targetNode) {
           session.addEdge({
@@ -234,35 +231,63 @@ export class PitchGraphService {
           });
         }
       } else {
-        // Chunk thông thường: Phân loại cơ bản và lưu trữ
-        const category = this.heuristicClassifyCategory(rawText);
-        const newNodeId = randomUUID();
-        const newNode: PitchGraphNode = {
-          id: newNodeId,
-          sessionId: session.sessionId,
-          sectionType: this.heuristicSectionType(rawText),
-          category,
-          key: this.extractKeySummary(rawText),
-          value: rawText,
-          status: PitchGraphNodeStatus.ACTIVE,
-          source:
-            category !== 'OTHER'
-              ? PitchNodeSource.PITCH_EXPANDED
-              : PitchNodeSource.PITCH_REFINED,
-          confidence: 0.95,
-          sequenceId: payload.sequenceId,
-          timestamp: payload.timestamp || Date.now(),
-          originalSentence: rawText,
-        };
+        // Chunk thông thường: Phân luồng 2 nhánh (Bifurcated Routing) & Whitelist Gate (FR-04)
+        const baselineNodes = session.getActiveNodes().filter(
+          (n) => n.source === PitchNodeSource.WORD_BASELINE
+        );
 
-        session.addNode(newNode);
-        session.addStagingItem({
-          sequenceId: payload.sequenceId,
-          text: rawText,
-          timestamp: payload.timestamp || Date.now(),
-          detectedMarkers: markers,
-          category,
-        });
+        const classification = this.classifierService.classifyChunk(
+          rawText,
+          baselineNodes
+        );
+
+        // 1. Nếu là rác hội thoại (chào hỏi, than thở, cảm thán): Bỏ qua triệt để
+        if (classification.isNoise) {
+          this.logger.debug(
+            `[ChunkClassifier] Ignored noise/filler chunk: "${rawText}"`
+          );
+          return this.getGraphSyncPayload(payload.sessionId);
+        }
+
+        const newNodeId = randomUUID();
+
+        // 2. Nhánh 1: Tương đồng >= 65% với Word -> Ghi vào Refined Layer (PITCH_REFINED)
+        if (classification.routing === 'REFINED') {
+          const newNode: PitchGraphNode = {
+            id: newNodeId,
+            sessionId: session.sessionId,
+            sectionType: classification.sectionType,
+            category: classification.category,
+            key: this.extractKeySummary(rawText),
+            value: rawText,
+            status: PitchGraphNodeStatus.ACTIVE,
+            source: PitchNodeSource.PITCH_REFINED,
+            confidence: classification.similarityScore,
+            sequenceId: payload.sequenceId,
+            timestamp: payload.timestamp || Date.now(),
+            originalSentence: rawText,
+          };
+
+          session.addNode(newNode);
+          this.logger.log(
+            `[ChunkClassifier] Refined Node in Section [${classification.sectionType}]: "${rawText}" (sim=${classification.similarityScore})`
+          );
+        } else if (classification.routing === 'STAGING') {
+          // 3. Nhánh 2: Tương đồng < 65% nhưng thỏa Whitelist -> Đưa vào Staging Buffer
+          // LƯU Ý: Khối 6 KHÔNG sinh ra khi đang pitch dở dang; chỉ sinh khi nộp bài (finalize)
+          session.addStagingItem({
+            sequenceId: payload.sequenceId,
+            text: rawText,
+            timestamp: payload.timestamp || Date.now(),
+            detectedMarkers: markers,
+            category: classification.category,
+          });
+
+          this.logger.log(
+            `[ChunkClassifier] Staged entity in Whitelist [${classification.category}]: "${rawText}"`
+          );
+        }
+        // Nếu routing === 'DISCARDED': Bỏ qua, không đưa vào Staging Buffer
       }
 
       return this.getGraphSyncPayload(payload.sessionId);
@@ -270,7 +295,7 @@ export class PitchGraphService {
   }
 
   /**
-   * Khóa bài thuyết trình và hoàn tất đồ thị In-Memory (FR-03)
+   * Khóa bài thuyết trình và hoàn tất đồ thị In-Memory (FR-03 & FR-05)
    */
   public async finalizePitchStream(
     payload: C2SFinalizePitchStreamPayload
@@ -283,9 +308,17 @@ export class PitchGraphService {
       session.durationSeconds = payload.durationSeconds;
       session.totalChunksCount = payload.totalChunks;
 
+      // Khai sinh Khối thứ 6 (nếu có staging) và phát hiện bẻ lái chiến lược (> 80% lệch Word)
+      const baselineCount = Array.from(session.nodes.values()).filter(
+        (n) => n.source === PitchNodeSource.WORD_BASELINE
+      ).length;
+
+      this.section6Builder.materializeSection6(session, baselineCount);
+
       this.logger.log(
         `[PitchGraphService] Finalized pitch stream for session ${payload.sessionId}: ` +
-          `${session.totalChunksCount} chunks, ${session.getActiveNodes().length} active nodes`
+          `${session.totalChunksCount} chunks, ${session.getActiveNodes().length} active nodes, ` +
+          `hasSection6=${session.hasSection6}, isPivotDetected=${session.isPivotDetected}`
       );
 
       return this.getGraphSyncPayload(payload.sessionId);

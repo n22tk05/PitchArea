@@ -289,8 +289,8 @@ describe('Phase 3: Server In-Memory Graph & Promise Queue', () => {
       assert.ok(clarifiesEdge);
       assert.strictEqual(clarifiesEdge.targetNodeId, originalNode.id);
 
-      // Staging buffer được ghi nhận
-      assert.strictEqual(session.stagingBuffer.length, 2);
+      // Staging buffer không bị rò rỉ bởi elaboration (chỉ dành cho ý tưởng mở rộng Khối 6)
+      assert.strictEqual(session.stagingBuffer.length, 0);
     });
 
     it('should finalize pitch stream and return sync payload', async () => {

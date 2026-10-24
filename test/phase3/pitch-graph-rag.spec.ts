@@ -155,9 +155,9 @@ test.describe('Phase 3: Real-time Streaming Pitch GraphRAG & Step 3 Pitching', (
       const sync2 = await syncPromise2;
       expect(sync2.sessionId).toBe(testSessionId);
       // Khi có OVERWRITE_DIRECT: Node cũ bị SUPERSEDED và node mới ACTIVE
-      // => Tổng số activeNodes vẫn giữ nguyên = 1 (không bị tăng vọt), và staging buffer tăng lên 2
+      // => Tổng số activeNodes vẫn giữ nguyên = 1 (không bị tăng vọt), và không ô nhiễm vào staging buffer Khối 6
       expect(sync2.activeNodesCount).toBe(1);
-      expect(sync2.section6EntitiesCount).toBe(2);
+      expect(sync2.section6EntitiesCount).toBe(0);
 
       // 4. Stream chunk 3: Làm rõ (ELABORATION -> cả 2 node đều ACTIVE)
       const syncPromise3 = new Promise<S2CPitchGraphSyncPayload>((resolve) => {
@@ -178,7 +178,7 @@ test.describe('Phase 3: Real-time Streaming Pitch GraphRAG & Step 3 Pitching', (
       const sync3 = await syncPromise3;
       // Khi có ELABORATION: Cả node gốc và node làm rõ đều ACTIVE => activeNodesCount tăng lên 2
       expect(sync3.activeNodesCount).toBe(2);
-      expect(sync3.section6EntitiesCount).toBe(3);
+      expect(sync3.section6EntitiesCount).toBe(0);
 
       // 5. Kết thúc stream phát biểu (c2s:finalize_pitch_stream)
       const finalSyncPromise = new Promise<S2CPitchGraphSyncPayload>((resolve) => {
@@ -198,7 +198,8 @@ test.describe('Phase 3: Real-time Streaming Pitch GraphRAG & Step 3 Pitching', (
       const finalSync = await finalSyncPromise;
       expect(finalSync.sessionId).toBe(testSessionId);
       expect(finalSync.activeNodesCount).toBeGreaterThanOrEqual(2);
-      expect(finalSync.section6EntitiesCount).toBe(3);
+      expect(finalSync.section6EntitiesCount).toBe(0);
+      expect(finalSync.hasSection6).toBe(false);
     } finally {
       socket.disconnect();
     }
