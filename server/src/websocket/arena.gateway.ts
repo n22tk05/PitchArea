@@ -31,6 +31,7 @@ import {
   getAvailableBossesForSections,
   JURY_BOSS_PROFILES,
   BOSS_TO_SECTION_MAP,
+  BusinessSectionLabel,
   StreamPitchChunkSchema,
   FinalizePitchStreamSchema,
   C2SStreamPitchChunkPayload,
@@ -422,6 +423,15 @@ export class ArenaGateway
       this.server
         .to(sessionId)
         .emit(ArenaSocketEvents.S2C_VERDICT_ANNOUNCED, verdictPayload);
+
+      // Nếu thí sinh đã hết máu (Knockout/0 HP) sau khi khiên đã vỡ, kết thúc trận đấu và xuất báo cáo
+      if (session.candidateHp <= 0) {
+        this.logger.log(
+          `[${sessionId}] 💀 Thí sinh đã cạn máu (0 HP) ở lượt ${session.currentTurn} -> Kết thúc trận đấu sớm (Knockout).`
+        );
+        this.finishMatchAndGenerateReport(sessionId);
+        return;
+      }
 
       // 3. Phân tích điều hướng với FollowUpEngine
       const evalResult = this.followUpEngine.evaluateCandidateSpeech(defenseText);
@@ -826,9 +836,6 @@ export class ArenaGateway
     const timer = this.fsmService.getTimer(sessionId);
     if (!session || !timer) return;
 
-    // Đóng băng đồng hồ khi Boss đang đặt câu hỏi (Time Freeze)
-    timer.freeze('BOSS_STREAMING_QUESTION');
-    this.fsmService.transitionState(sessionId, SessionFsmState.BOSS_QUESTIONING);
     // Đảm bảo Giám khảo chất vấn luôn thuộc danh sách khả dụng
     if (
       session.availableBossIds &&
@@ -842,6 +849,10 @@ export class ArenaGateway
     if (!session.currentTopic) {
       session.currentTopic = this.followUpEngine.getRandomTopicForBoss(session.activeBossId);
     }
+
+    // Đóng băng đồng hồ khi Boss đang đặt câu hỏi (Time Freeze)
+    timer.freeze('BOSS_STREAMING_QUESTION');
+    this.fsmService.transitionState(sessionId, SessionFsmState.BOSS_QUESTIONING);
 
     session.isStreamingQuestion = true;
     session.activeQuestion = '';
@@ -861,6 +872,7 @@ export class ArenaGateway
     // Trích xuất nội dung thực tế từ tài liệu theo chuyên môn của Giám khảo đang chất vấn
     let docContext = '';
     let foundationContext = '';
+    let relevantSectionTitles: string[] = [];
     const doc = this.documentService.getDocument(session.documentId);
     if (doc) {
       if (doc.foundationFacts) {
@@ -879,6 +891,9 @@ export class ArenaGateway
           relevantSectionTypes.includes(s.type) &&
           s.content &&
           !s.content.includes('Chưa phát hiện nội dung rõ ràng')
+      );
+      relevantSectionTitles = relevantSections.map(
+        (s) => `[${s.type}] ${s.title || BusinessSectionLabel[s.type] || s.type}`
       );
 
       if (relevantSections.length > 0) {
@@ -979,6 +994,12 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
           : (session.followUpCount || 0) > 0
           ? `[FOLLOW-UP LAN ${session.followUpCount}]`
           : '[CAU HOI MOI]';
+
+        this.fsmService.logJudgeQuestionBasis(session, {
+          topic: session.currentTopic,
+          activeQuestion: cleanedFullText,
+          sectionNames: relevantSectionTitles,
+        });
 
         // FR-5: Kiểm tra độ trùng lặp câu hỏi (ngưỡng >= 80% similarity) với các vòng đấu trước
         const similarityCheck = this.rematchEngine.isQuestionTooSimilar(session.documentId, fullText, 0.8);

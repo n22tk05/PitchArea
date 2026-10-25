@@ -6,6 +6,10 @@ import {
   JuryBossId,
   CombatDifficulty,
   ArenaMode,
+  BOSS_TO_SECTION_MAP,
+  BusinessSectionLabel,
+  BusinessSectionType,
+  JURY_BOSS_PROFILES,
 } from '@pitcharena/shared';
 import { SessionTimerController, TimerTickCallbackData } from './timer-controller';
 
@@ -140,17 +144,21 @@ export class ArenaFsmService {
   }
 
   /**
-   * Trừ máu thí sinh có kẹp sàn bảo vệ tân thủ (Pedagogical Shield Floor 20%)
+   * Trừ máu thí sinh có kẹp sàn bảo vệ tân thủ (Pedagogical Shield Floor 20%) trong 3 lượt đầu.
+   * Từ lượt thứ 4 trở đi, khiên bảo vệ hết hiệu lực (bị phá vỡ), sàn bảo vệ về 0% (cho phép trừ xuyên sàn).
    */
   public deductHp(sessionId: string, penaltyAmount: number): number {
     const session = this.sessions.get(sessionId);
     if (!session) return 100;
 
-    const floor = session.config.pedagogicalShieldFloor ?? 20;
+    const isShieldActive = (session.currentTurn ?? 1) <= 3;
+    const floor = isShieldActive ? (session.config.pedagogicalShieldFloor ?? 20) : 0;
     const newHp = Math.max(floor, session.candidateHp - penaltyAmount);
     session.candidateHp = newHp;
     this.logger.log(
-      `[${sessionId}] Deducted ${penaltyAmount} HP -> Current HP: ${newHp}% (Floor: ${floor}%)`
+      `[${sessionId}] Deducted ${penaltyAmount} HP -> Current HP: ${newHp}% (Lượt ${session.currentTurn} | Khiên tân thủ: ${
+        isShieldActive ? `BẢO VỆ (${floor}%)` : 'ĐÃ VỠ / MẤT BẢO HỘ (Sàn 0%)'
+      })`
     );
     return newHp;
   }
@@ -174,7 +182,87 @@ export class ArenaFsmService {
     }
 
     this.logger.log(`[${sessionId}] FSM Transition: ${oldState} -> ${targetState}`);
+
+    // Ghi log chi tiết căn cứ đề mục khi Giám khảo bước vào lượt chất vấn
+    if (targetState === SessionFsmState.BOSS_QUESTIONING) {
+      this.logJudgeQuestionBasis(session);
+    }
+
     return session;
+  }
+
+  /**
+   * Ghi log chi tiết căn cứ câu hỏi của Giám khảo:
+   * - Giám khảo nào đang chất vấn (Tên, danh xưng, chuyên môn)
+   * - Dựa trên phần / nhóm đề mục nào của tài liệu (Section Type & Section Vietnamese Label)
+   * - Chủ đề truy vấn (Topic) và câu hỏi chi tiết (nếu có)
+   */
+  public logJudgeQuestionBasis(
+    sessionOrSessionId: ArenaSessionState | string,
+    context?: {
+      topic?: string;
+      activeQuestion?: string;
+      sectionNames?: string[];
+    }
+  ): void {
+    const session =
+      typeof sessionOrSessionId === 'string'
+        ? this.sessions.get(sessionOrSessionId)
+        : sessionOrSessionId;
+    if (!session) return;
+
+    const bossId = session.activeBossId;
+    const profile = JURY_BOSS_PROFILES[bossId];
+    const bossName = profile?.name || bossId;
+    const bossTitle = profile?.title || 'Giám khảo Thẩm định';
+    const bossDomain = profile?.domain || 'Chuyên môn Thẩm định';
+
+    const sectionTypes: BusinessSectionType[] = BOSS_TO_SECTION_MAP[bossId] || [];
+    const sectionDescriptions = sectionTypes.map((type) => {
+      const label = BusinessSectionLabel[type] || type;
+      return `[${type}] ${label}`;
+    });
+
+    const topic = context?.topic || session.currentTopic || 'Chủ đề theo chuyên môn Giám khảo';
+    const question = context?.activeQuestion || session.activeQuestion;
+    const sectionBasis =
+      context?.sectionNames && context.sectionNames.length > 0
+        ? context.sectionNames.join(' | ')
+        : sectionDescriptions.join(' | ');
+
+    this.logger.log(
+      `\n================================================================================` +
+      `\n[ARENA FSM] 🎯 GIÁM KHẢO CHẤT VẤN - CĂN CỨ ĐỀ MỤC TÀI LIỆU` +
+      `\n- Lượt đấu: ${session.currentTurn}/${session.totalTurns} | Session: ${session.sessionId}` +
+      `\n- Giám khảo: ${bossName} (${bossTitle})` +
+      `\n- Lĩnh vực chuyên môn: ${bossDomain}` +
+      `\n- DỰA TRÊN PHẦN/ĐỀ MỤC: ${sectionBasis || 'Toàn bộ nội dung đề án'}` +
+      `\n- Chủ đề truy vấn: ${topic}` +
+      (question ? `\n- Nội dung câu hỏi: "${question}"` : '') +
+      `\n================================================================================`
+    );
+  }
+
+  /**
+   * Cập nhật câu hỏi đang hoạt động và ghi log chi tiết câu hỏi cùng căn cứ đề mục
+   */
+  public setActiveQuestion(
+    sessionId: string,
+    question: string,
+    topic?: string,
+    detectedSectionTitles?: string[]
+  ): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    session.activeQuestion = question;
+    if (topic) session.currentTopic = topic;
+
+    this.logJudgeQuestionBasis(session, {
+      topic: session.currentTopic,
+      activeQuestion: question,
+      sectionNames: detectedSectionTitles,
+    });
   }
 
   /**

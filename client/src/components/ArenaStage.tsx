@@ -356,7 +356,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
                 ) : (
                   <>
                     <Snowflake className="w-3.5 h-3.5 animate-spin" />
-                    <span>TIME FREEZE</span>
+                    <span>THINKING</span>
                   </>
                 )}
               </div>
@@ -402,6 +402,25 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
                 </span>
               )}
             </span>
+
+            {/* Trạng thái Khiên tân thủ 20% (Chỉ bảo vệ trong 3 lượt đầu, lượt 4 trở đi khiên bị phá vỡ) */}
+            <div className="flex items-center gap-1.5 text-[10px] font-bold">
+              {(sessionState?.currentTurn ?? 1) <= 3 ? (
+                <span className="px-2 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-700 shadow-[1px_1px_0px_#000] flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  KHIÊN TÂN THỦ: SÀN {sessionState?.config?.pedagogicalShieldFloor ?? 20}% (LƯỢT {sessionState?.currentTurn ?? 1}/3)
+                </span>
+              ) : hp <= 20 ? (
+                <span className="px-2 py-0.5 bg-rose-950 text-rose-300 border border-rose-600 animate-pulse shadow-[1px_1px_0px_#000] flex items-center gap-1">
+                  <ShieldAlert className="w-3 h-3 text-rose-400" />
+                  KHIÊN ĐÃ VỠ (SÀN 0% - NGUY HIỂM)
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 bg-neutral-900 text-neutral-400 border border-neutral-700 shadow-[1px_1px_0px_#000]">
+                  KHIÊN ĐÃ HẾT HIỆU LỰC
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Thanh Máu Liên Tục Chuẩn Xác 0 - 100% (Hiển thị chính xác từng % với vạch phân chia Retro) */}
