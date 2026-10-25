@@ -16,6 +16,7 @@ import { PitchGraphSession } from './pitch-graph-session';
 import { DocumentService } from '../../document/document.service';
 import { ChunkClassifierService } from './chunk-classifier.service';
 import { Section6BuilderService } from './section6-builder.service';
+import { DiffAlignmentService } from './diff-alignment.service';
 
 @Injectable()
 export class PitchGraphService {
@@ -23,14 +24,17 @@ export class PitchGraphService {
   private readonly sessions = new Map<string, PitchGraphSession>();
   private readonly classifierService: ChunkClassifierService;
   private readonly section6Builder: Section6BuilderService;
+  private readonly diffAlignmentService: DiffAlignmentService;
 
   constructor(
     @Optional() private readonly documentService?: DocumentService,
     @Optional() classifierService?: ChunkClassifierService,
-    @Optional() section6Builder?: Section6BuilderService
+    @Optional() section6Builder?: Section6BuilderService,
+    @Optional() diffAlignmentService?: DiffAlignmentService
   ) {
     this.classifierService = classifierService || new ChunkClassifierService();
     this.section6Builder = section6Builder || new Section6BuilderService();
+    this.diffAlignmentService = diffAlignmentService || new DiffAlignmentService();
   }
 
   /**
@@ -308,7 +312,16 @@ export class PitchGraphService {
       session.durationSeconds = payload.durationSeconds;
       session.totalChunksCount = payload.totalChunks;
 
-      // Khai sinh Khối thứ 6 (nếu có staging) và phát hiện bẻ lái chiến lược (> 80% lệch Word)
+      // 1. Chạy Single-Pass Diff Alignment bù các chunk bị rớt mạng trong <= 400ms (FR-03)
+      if (payload.fullRawTranscript) {
+        await this.diffAlignmentService.align(
+          session,
+          payload.fullRawTranscript,
+          this.classifierService
+        );
+      }
+
+      // 2. Khai sinh Khối thứ 6 (nếu có staging) và phát hiện bẻ lái chiến lược (> 80% lệch Word)
       const baselineCount = Array.from(session.nodes.values()).filter(
         (n) => n.source === PitchNodeSource.WORD_BASELINE
       ).length;

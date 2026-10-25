@@ -18,20 +18,21 @@ export interface UseAudioRecorderOptions {
 }
 
 // Regex quét các marker đính chính theo 3 nhóm phân loại (FR-02)
+// Sử dụng Unicode lookaround (?<![\p{L}\p{N}]) và (?![\p{L}\p{N}]) để chống bẫy false-positive (ví dụ "và không" bị nhận nhầm thành "à không")
 const RETRACTION_PATTERNS: Array<{ regex: RegExp; type: RetractionMarkerType }> = [
   {
     // Direct Overwrite: "à không", "nhầm", "chính xác là", "đính chính lại"
-    regex: /(?:à\s*không|nhầm\s*(?:rồi)?|chính\s*xác\s*l(?:à|a)|đính\s*chính\s*lại)/i,
+    regex: /(?<![\p{L}\p{N}])(?:à\s*không|nhầm\s*(?:rồi)?|chính\s*xác\s*l(?:à|a)|đính\s*chính\s*lại)(?![\p{L}\p{N}])/iu,
     type: RetractionMarkerType.OVERWRITE_DIRECT,
   },
   {
     // Cancellation: "thôi bỏ đi", "bỏ qua phần này", "chưa tính tới"
-    regex: /(?:thôi\s*bỏ\s*đi|bỏ\s*qua\s*(?:phần\s*này|cái\s*này)?|chưa\s*tính\s*tới)/i,
+    regex: /(?<![\p{L}\p{N}])(?:thôi\s*bỏ\s*đi|bỏ\s*qua\s*(?:phần\s*này|cái\s*này)?|chưa\s*tính\s*tới)(?![\p{L}\p{N}])/iu,
     type: RetractionMarkerType.CANCELLATION,
   },
   {
     // Elaboration: "ý tôi là", "nói cách khác", "để nói rõ hơn"
-    regex: /(?:ý\s*tôi\s*l(?:à|a)|nói\s*cách\s*khác|để\s*nói\s*rõ\s*hơn)/i,
+    regex: /(?<![\p{L}\p{N}])(?:ý\s*tôi\s*l(?:à|a)|nói\s*cách\s*khác|để\s*nói\s*rõ\s*hơn)(?![\p{L}\p{N}])/iu,
     type: RetractionMarkerType.ELABORATION,
   },
 ];
@@ -44,6 +45,59 @@ export function detectRetractionMarkers(text: string): RetractionMarkerType[] {
     }
   }
   return detected;
+}
+
+/**
+ * Loại bỏ tiền tố đã được chốt (committed prefix) khỏi chuỗi nhận dạng giọng nói,
+ * hỗ trợ chống lặp lại (deduplication) khi trình duyệt giữ phiên nhận dạng liên tục.
+ */
+export function stripCommittedPrefix(fullText: string, committedPrefix: string): string {
+  if (!committedPrefix || !fullText) return (fullText || '').trim();
+  const trimmedFull = fullText.trim();
+  const trimmedPrefix = committedPrefix.trim();
+  if (!trimmedPrefix) return trimmedFull;
+
+  // 1. Khớp chuỗi chính xác trực tiếp
+  if (trimmedFull.startsWith(trimmedPrefix)) {
+    return trimmedFull.slice(trimmedPrefix.length).replace(/^[,.\s\-]+/, '').trim();
+  }
+
+  // 2. Khớp chuỗi không phân biệt hoa thường
+  if (trimmedFull.toLowerCase().startsWith(trimmedPrefix.toLowerCase())) {
+    return trimmedFull.slice(trimmedPrefix.length).replace(/^[,.\s\-]+/, '').trim();
+  }
+
+  // 3. Khớp theo danh sách từ (Words prefix) bỏ qua dấu câu
+  const cleanWord = (w: string) =>
+    w.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'<>]/g, '');
+  const fullWords = trimmedFull.split(/\s+/).filter(Boolean);
+  const prefixWords = trimmedPrefix.split(/\s+/).filter(Boolean);
+
+  if (fullWords.length > prefixWords.length) {
+    let matches = true;
+    for (let i = 0; i < prefixWords.length; i++) {
+      if (cleanWord(fullWords[i]) !== cleanWord(prefixWords[i])) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) {
+      return fullWords.slice(prefixWords.length).join(' ').trim();
+    }
+  } else if (fullWords.length <= prefixWords.length) {
+    let matches = true;
+    for (let i = 0; i < fullWords.length; i++) {
+      if (cleanWord(fullWords[i]) !== cleanWord(prefixWords[i])) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) {
+      return '';
+    }
+  }
+
+  return trimmedFull;
 }
 
 export function useAudioRecorder({
@@ -82,7 +136,8 @@ export function useAudioRecorder({
   const chunkWordCountRef = useRef<number>(0);
   const chunkStartTimeRef = useRef<number>(Date.now());
   const pauseTimerRef = useRef<any>(null);
-  const interimCommitTimerRef = useRef<any>(null);
+  const autoFinalizeTimerRef = useRef<any>(null);
+  const committedSessionTextRef = useRef<string>('');
   const pendingInterimRef = useRef<string>('');
   const onPitchChunkRef = useRef(onPitchChunk);
   onPitchChunkRef.current = onPitchChunk;
@@ -117,9 +172,9 @@ export function useAudioRecorder({
 
   // Xả sạch buffer dứt điểm khi người dùng bấm [KẾT THÚC THUYẾT TRÌNH]
   const flushRemainingBuffer = useCallback(() => {
-    if (interimCommitTimerRef.current) {
-      clearTimeout(interimCommitTimerRef.current);
-      interimCommitTimerRef.current = null;
+    if (autoFinalizeTimerRef.current) {
+      clearTimeout(autoFinalizeTimerRef.current);
+      autoFinalizeTimerRef.current = null;
     }
     if (pendingInterimRef.current.trim()) {
       const textToCommit = pendingInterimRef.current.trim();
@@ -130,6 +185,7 @@ export function useAudioRecorder({
       setInterimTranscript('');
       pendingInterimRef.current = '';
       chunkBufferRef.current = (chunkBufferRef.current + ' ' + textToCommit).trim();
+      committedSessionTextRef.current = '';
     }
     if (pauseTimerRef.current) {
       clearTimeout(pauseTimerRef.current);
@@ -234,6 +290,11 @@ export function useAudioRecorder({
       wordSamplesRef.current = [];
       lastWpmRef.current = 0;
       finalTranscriptRef.current = '';
+      committedSessionTextRef.current = '';
+      if (autoFinalizeTimerRef.current) {
+        clearTimeout(autoFinalizeTimerRef.current);
+        autoFinalizeTimerRef.current = null;
+      }
       setEstimatedWpm(0);
       setIsSilent(false);
       lastSpokenTimestampRef.current = Date.now();
@@ -344,60 +405,76 @@ export function useAudioRecorder({
           };
 
           recognition.onresult = (event: any) => {
-            let currentInterim = '';
-            let finalPiece = '';
+            let rawInterim = '';
+            let rawFinal = '';
 
             for (let i = event.resultIndex; i < event.results.length; ++i) {
               const part = event.results[i][0].transcript;
               if (event.results[i].isFinal) {
-                finalPiece += part;
+                rawFinal += part;
               } else {
-                currentInterim += part;
+                rawInterim += part;
               }
             }
 
-            if (finalPiece) {
-              if (interimCommitTimerRef.current) {
-                clearTimeout(interimCommitTimerRef.current);
-                interimCommitTimerRef.current = null;
-              }
-              const trimmedFinal = finalPiece.trim();
-              pendingInterimRef.current = '';
-              // Tránh trùng lặp nếu debounce timer 0.5s vừa tự động chốt đoạn này trước đó
-              if (!finalTranscriptRef.current.endsWith(trimmedFinal)) {
-                finalTranscriptRef.current = (
-                  finalTranscriptRef.current + ' ' + trimmedFinal
-                ).trim();
+            // 1. Nếu trình duyệt đánh dấu câu đã chốt (isFinal = true)
+            if (rawFinal) {
+              const uncommittedFinal = stripCommittedPrefix(
+                rawFinal,
+                committedSessionTextRef.current
+              ).trim();
+
+              if (uncommittedFinal) {
+                finalTranscriptRef.current = finalTranscriptRef.current
+                  ? `${finalTranscriptRef.current} ${uncommittedFinal}`
+                  : uncommittedFinal;
                 setTranscript(finalTranscriptRef.current);
-                // Kích hoạt phân đoạn streaming cho đoạn câu hoàn tất
-                scheduleChunkSegmentation(trimmedFinal);
+                scheduleChunkSegmentation(uncommittedFinal);
               }
+              // Result này đã kết thúc hoàn toàn -> reset tiền tố cho result tiếp theo
+              committedSessionTextRef.current = '';
             }
 
-            setInterimTranscript(currentInterim);
-            pendingInterimRef.current = currentInterim;
+            // 2. Xử lý đoạn câu tạm thời (Interim) và bóc tách phần đã được chốt trước đó
+            const deltaInterim = stripCommittedPrefix(
+              rawInterim,
+              committedSessionTextRef.current
+            ).trim();
 
-            // Lexical VAD Debounce: Không cần chờ dB = 0, nếu sau 0.5s không có từ mới sinh ra -> Tự động chốt chữ VÀNG thành chữ XANH
-            if (currentInterim.trim()) {
-              if (interimCommitTimerRef.current) {
-                clearTimeout(interimCommitTimerRef.current);
-              }
-              interimCommitTimerRef.current = setTimeout(() => {
+            setInterimTranscript(deltaInterim);
+            pendingInterimRef.current = deltaInterim;
+
+            // 3. Cơ chế ngắt câu tự động sau 1.0s nếu không có text mới sinh ra (thay vì chờ 30s)
+            if (autoFinalizeTimerRef.current) {
+              clearTimeout(autoFinalizeTimerRef.current);
+              autoFinalizeTimerRef.current = null;
+            }
+
+            if (deltaInterim) {
+              autoFinalizeTimerRef.current = setTimeout(() => {
                 const textToCommit = pendingInterimRef.current.trim();
                 if (textToCommit) {
-                  finalTranscriptRef.current = (
-                    finalTranscriptRef.current + ' ' + textToCommit
-                  ).trim();
+                  finalTranscriptRef.current = finalTranscriptRef.current
+                    ? `${finalTranscriptRef.current} ${textToCommit}`
+                    : textToCommit;
                   setTranscript(finalTranscriptRef.current);
                   setInterimTranscript('');
                   pendingInterimRef.current = '';
+
+                  // Ghi nhận đoạn này đã chốt vào committedSessionTextRef để loại bỏ lặp lại khi Chrome tiếp tục gửi trong cùng result
+                  committedSessionTextRef.current = committedSessionTextRef.current
+                    ? `${committedSessionTextRef.current} ${textToCommit}`
+                    : textToCommit;
+
+                  // Kích hoạt phân đoạn streaming RAG và phát sự kiện isFinal = true
                   scheduleChunkSegmentation(textToCommit);
+                  onTranscriptChange?.(finalTranscriptRef.current, true, lastWpmRef.current);
                 }
-              }, 500);
+              }, 1000);
             }
 
             const fullCurrentText = (
-              finalTranscriptRef.current + ' ' + currentInterim
+              finalTranscriptRef.current + ' ' + deltaInterim
             ).trim();
             const currentWords = fullCurrentText
               ? fullCurrentText.split(/\s+/).filter(Boolean).length
@@ -456,14 +533,14 @@ export function useAudioRecorder({
               }
 
               onTranscriptChange?.(
-                finalPiece ? finalTranscriptRef.current : fullCurrentText,
-                Boolean(finalPiece),
+                rawFinal ? finalTranscriptRef.current : fullCurrentText,
+                Boolean(rawFinal),
                 calculatedWpm
               );
-            } else if (currentInterim) {
+            } else if (deltaInterim) {
               lastSpokenTimestampRef.current = now;
               setIsSilent(false);
-              onTranscriptChange?.(currentInterim, false);
+              onTranscriptChange?.(deltaInterim, false);
             }
           };
 
@@ -488,6 +565,21 @@ export function useAudioRecorder({
           // Khi Web Speech API tự ngắt (do hết buffer, ngắt nghỉ câu): Khởi tạo instance mới lập tức nếu đang thu
           recognition.onend = () => {
             if (isRecordingRef.current) {
+              if (autoFinalizeTimerRef.current) {
+                clearTimeout(autoFinalizeTimerRef.current);
+                autoFinalizeTimerRef.current = null;
+              }
+              if (pendingInterimRef.current.trim()) {
+                const textToCommit = pendingInterimRef.current.trim();
+                finalTranscriptRef.current = (
+                  finalTranscriptRef.current + ' ' + textToCommit
+                ).trim();
+                setTranscript(finalTranscriptRef.current);
+                setInterimTranscript('');
+                pendingInterimRef.current = '';
+                scheduleChunkSegmentation(textToCommit);
+              }
+              committedSessionTextRef.current = '';
               setTimeout(() => {
                 if (isRecordingRef.current) {
                   startSpeechRecognition();
@@ -559,18 +651,34 @@ export function useAudioRecorder({
         // Ignored
       }
     }
+    if (autoFinalizeTimerRef.current) {
+      clearTimeout(autoFinalizeTimerRef.current);
+      autoFinalizeTimerRef.current = null;
+    }
+    if (pendingInterimRef.current.trim()) {
+      const textToCommit = pendingInterimRef.current.trim();
+      finalTranscriptRef.current = (
+        finalTranscriptRef.current + ' ' + textToCommit
+      ).trim();
+      setTranscript(finalTranscriptRef.current);
+      setInterimTranscript('');
+      pendingInterimRef.current = '';
+      scheduleChunkSegmentation(textToCommit);
+    }
+    committedSessionTextRef.current = '';
     if (pauseTimerRef.current) {
       clearTimeout(pauseTimerRef.current);
       pauseTimerRef.current = null;
     }
-    if (interimCommitTimerRef.current) {
-      clearTimeout(interimCommitTimerRef.current);
-      interimCommitTimerRef.current = null;
-    }
-  }, []);
+  }, [scheduleChunkSegmentation]);
 
   // Xóa sạch dữ liệu transcript và bộ đệm lời nói để chuẩn bị cho câu hỏi mới
   const resetTranscript = useCallback(() => {
+    if (autoFinalizeTimerRef.current) {
+      clearTimeout(autoFinalizeTimerRef.current);
+      autoFinalizeTimerRef.current = null;
+    }
+    committedSessionTextRef.current = '';
     setTranscript('');
     setInterimTranscript('');
     finalTranscriptRef.current = '';
@@ -588,10 +696,6 @@ export function useAudioRecorder({
       clearTimeout(pauseTimerRef.current);
       pauseTimerRef.current = null;
     }
-    if (interimCommitTimerRef.current) {
-      clearTimeout(interimCommitTimerRef.current);
-      interimCommitTimerRef.current = null;
-    }
   }, []);
 
   useEffect(() => {
@@ -600,6 +704,10 @@ export function useAudioRecorder({
       if (pauseTimerRef.current) {
         clearTimeout(pauseTimerRef.current);
         pauseTimerRef.current = null;
+      }
+      if (autoFinalizeTimerRef.current) {
+        clearTimeout(autoFinalizeTimerRef.current);
+        autoFinalizeTimerRef.current = null;
       }
     };
   }, [stopRecording]);

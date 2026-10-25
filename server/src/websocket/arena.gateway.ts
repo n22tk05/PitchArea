@@ -63,6 +63,10 @@ export class ArenaGateway
   private readonly processingTurnLocks = new Set<string>();
   private readonly socketSessionMap = new Map<string, string>();
   private readonly sessionCleanupTimeouts = new Map<string, NodeJS.Timeout>();
+  private readonly pitchAutoFinalizeTimeouts = new Map<string, NodeJS.Timeout>();
+
+  // Thời gian ân hạn tối đa cho bài pitch (2 phút + 5s ân hạn chống treo sàn đấu theo FR-03)
+  public static readonly PITCH_AUTO_FINALIZE_GRACE_MS = 125 * 1000;
 
   constructor(
     private readonly fsmService: ArenaFsmService,
@@ -109,6 +113,7 @@ export class ArenaGateway
 
         // Lên lịch giải phóng bộ nhớ đồ thị sau 5 phút nếu client không kết nối lại
         const timeout = setTimeout(() => {
+          this.clearPitchAutoFinalizeSafeguard(sessionId);
           this.pitchGraphService.removeSession(sessionId);
           this.sessionCleanupTimeouts.delete(sessionId);
           this.logger.log(`[ArenaGateway] Cleaned up PitchGraphSession for inactive session: ${sessionId}`);
@@ -229,6 +234,7 @@ export class ArenaGateway
       const { sessionId } = C2SSessionActionPayloadSchema.parse(rawPayload);
       const session = this.fsmService.getSession(sessionId);
       if (!session) return;
+      this.clearPitchAutoFinalizeSafeguard(sessionId);
 
       const timer = this.fsmService.getTimer(sessionId);
       if (timer) {
@@ -562,6 +568,12 @@ export class ArenaGateway
         return;
       }
       const payload: C2SStreamPitchChunkPayload = parsed.data;
+
+      // Kích hoạt Server Auto-Finalize Safeguard (FR-03) nếu chưa có timer cho session này
+      if (!this.pitchAutoFinalizeTimeouts.has(payload.sessionId)) {
+        this.armPitchAutoFinalizeSafeguard(payload.sessionId);
+      }
+
       const syncData = await this.pitchGraphService.processStreamPitchChunk(payload);
       this.server
         .to(payload.sessionId)
@@ -586,6 +598,7 @@ export class ArenaGateway
         return;
       }
       const payload: C2SFinalizePitchStreamPayload = parsed.data;
+      this.clearPitchAutoFinalizeSafeguard(payload.sessionId);
       const syncData = await this.pitchGraphService.finalizePitchStream(payload);
       this.server
         .to(payload.sessionId)
@@ -646,6 +659,7 @@ export class ArenaGateway
 
       const timer = this.fsmService.getTimer(sessionId);
       if (timer) timer.stop();
+      this.clearPitchAutoFinalizeSafeguard(sessionId);
 
       // Ghi nhận toàn bộ câu hỏi của trận trước vào RematchEngine
       const askedQuestions = session.transcriptHistory
@@ -1019,5 +1033,51 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
     const defenseToProcess = pendingSpeech || 'Thí sinh không phản hồi hoặc phản hồi quá ngắn.';
     this.logger.log(`[${sessionId}] Hết giờ lượt ${session.currentTurn} -> Tự động nộp bài và phán quyết: "${defenseToProcess}"`);
     this.processCandidateDefense(sessionId, defenseToProcess);
+  }
+
+  /**
+   * Kích hoạt bộ đếm giờ Server Auto-Finalize Safeguard chống treo sàn đấu (FR-03)
+   * Tự động hoàn tất đồ thị sau 2 phút + 5s nếu client ngắt kết nối hoặc không gửi finalize
+   */
+  public armPitchAutoFinalizeSafeguard(sessionId: string, customDurationMs?: number): void {
+    if (this.pitchAutoFinalizeTimeouts.has(sessionId)) {
+      clearTimeout(this.pitchAutoFinalizeTimeouts.get(sessionId)!);
+    }
+
+    const durationMs = customDurationMs || ArenaGateway.PITCH_AUTO_FINALIZE_GRACE_MS;
+    const timeout = setTimeout(async () => {
+      this.pitchAutoFinalizeTimeouts.delete(sessionId);
+      this.logger.warn(
+        `[ArenaGateway] ⏰ Pitch Auto-Finalize Safeguard triggered for session ${sessionId} after ${durationMs}ms`
+      );
+
+      const graphSession = this.pitchGraphService.getSession(sessionId);
+      if (!graphSession || graphSession.isFinalized) {
+        return;
+      }
+      const syncData = await this.pitchGraphService.finalizePitchStream({
+        sessionId,
+        totalChunks: graphSession?.totalChunksCount || 0,
+        fullRawTranscript: graphSession?.fullRawTranscript || '',
+        durationSeconds: Math.round(durationMs / 1000),
+      });
+
+      this.server
+        .to(sessionId)
+        .emit(ArenaSocketEvents.S2C_PITCH_GRAPH_SYNC, syncData);
+    }, durationMs);
+
+    this.pitchAutoFinalizeTimeouts.set(sessionId, timeout);
+  }
+
+  /**
+   * Hủy bộ đếm giờ Auto-Finalize khi client đã nộp bài thành công
+   */
+  public clearPitchAutoFinalizeSafeguard(sessionId: string): void {
+    const timer = this.pitchAutoFinalizeTimeouts.get(sessionId);
+    if (timer) {
+      clearTimeout(timer);
+      this.pitchAutoFinalizeTimeouts.delete(sessionId);
+    }
   }
 }

@@ -13,6 +13,7 @@ import { ArenaController } from './arena.controller';
 import { PitchGraphService } from '../domain/rag/pitch-graph.service';
 import { ChunkClassifierService } from '../domain/rag/chunk-classifier.service';
 import { Section6BuilderService } from '../domain/rag/section6-builder.service';
+import { DiffAlignmentService } from '../domain/rag/diff-alignment.service';
 
 @Module({
   imports: [DocumentModule, ScoringModule],
@@ -28,6 +29,7 @@ import { Section6BuilderService } from '../domain/rag/section6-builder.service';
     PitchGraphService,
     ChunkClassifierService,
     Section6BuilderService,
+    DiffAlignmentService,
   ],
   exports: [
     ArenaGateway,
@@ -38,6 +40,7 @@ import { Section6BuilderService } from '../domain/rag/section6-builder.service';
     PitchGraphService,
     ChunkClassifierService,
     Section6BuilderService,
+    DiffAlignmentService,
   ],
 })
 export class ArenaModule {}
