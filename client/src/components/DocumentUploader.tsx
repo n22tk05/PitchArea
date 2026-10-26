@@ -121,7 +121,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       }
     } catch (err: any) {
       setErrorMessage(
-        err.message || 'Không thể kết nối đến máy chủ NestJS (port 4000).'
+        err.message || 'Không thể kết nối đến máy chủ PitchArena.'
       );
     } finally {
       setIsUploading(false);
