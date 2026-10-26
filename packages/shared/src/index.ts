@@ -415,6 +415,30 @@ export interface ArenaSessionState {
   }>;
   verdictHistory?: VerdictResult[];
   report?: AppendixReport;
+  hasSection6?: boolean;
+  section6Title?: string;
+  isPivotDetected?: boolean;
+}
+
+/**
+ * Ngữ cảnh đối chiếu mâu thuẫn giữa bài Pitch và tài liệu Word (Cross-Grounding Context)
+ */
+export interface CrossGroundingContext {
+  refinedNodes?: Array<{
+    id?: string;
+    key: string;
+    value: string;
+    sectionType?: string;
+    source?: string;
+  }>;
+  section6Nodes?: Array<{
+    id?: string;
+    key: string;
+    value: string;
+    sectionType?: string;
+  }>;
+  isPivotDetected?: boolean;
+  section6Title?: string;
 }
 
 /**

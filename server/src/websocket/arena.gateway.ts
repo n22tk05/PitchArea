@@ -32,6 +32,8 @@ import {
   JURY_BOSS_PROFILES,
   BOSS_TO_SECTION_MAP,
   BusinessSectionLabel,
+  PitchSectionType,
+  CrossGroundingContext,
   StreamPitchChunkSchema,
   FinalizePitchStreamSchema,
   C2SStreamPitchChunkPayload,
@@ -921,11 +923,70 @@ export class ArenaGateway
       }
     }
 
+    // 3. Trích xuất dữ liệu Pitch Graph thời gian thực (chỉ lấy Node ACTIVE, loại bỏ SUPERSEDED)
+    const pitchGraph = this.pitchGraphService.getSession(sessionId);
+    let crossGroundingContext: CrossGroundingContext | undefined;
+    let pitchGraphContextText = '';
+
+    if (pitchGraph) {
+      session.hasSection6 = pitchGraph.hasSection6;
+      session.section6Title = pitchGraph.section6Title;
+      session.isPivotDetected = pitchGraph.isPivotDetected;
+
+      // Graceful Fallback: Nếu dữ liệu Pitch chưa sẵn sàng ở Turn 1 -> Fallback hỏi bản Word
+      const isPitchReady = pitchGraph.isFinalized || session.currentTurn > 1;
+
+      if (isPitchReady) {
+        const activeNodes = pitchGraph.getActiveNodes();
+        const refinedNodes = pitchGraph.getRefinedNodes();
+        const section6Nodes = activeNodes.filter(
+          (n) => n.sectionType === PitchSectionType.DYNAMIC_EXPANDED_SCOPE
+        );
+
+        crossGroundingContext = {
+          refinedNodes: refinedNodes.map((n) => ({
+            id: n.id,
+            key: n.key,
+            value: n.value,
+            sectionType: n.sectionType,
+            source: n.source,
+          })),
+          section6Nodes: section6Nodes.map((n) => ({
+            id: n.id,
+            key: n.key,
+            value: n.value,
+            sectionType: n.sectionType,
+          })),
+          isPivotDetected: pitchGraph.isPivotDetected,
+          section6Title: pitchGraph.section6Title,
+        };
+
+        if (refinedNodes.length > 0 || section6Nodes.length > 0 || pitchGraph.isPivotDetected) {
+          pitchGraphContextText = `\n\n[DỮ LIỆU ĐỒ THỊ PITCH GRAPHRAG (THỜI GIAN THỰC - CHỈ LẤY NODE ACTIVE)]:`;
+          if (pitchGraph.isPivotDetected) {
+            pitchGraphContextText += `\n⚠️ CỜ BẺ LÁI ĐỀ ÁN: [FLAG_MAJOR_PROPOSAL_PIVOT] (Bài nói khác biệt/phủ nhận > 80% so với bản Word)`;
+          }
+          if (refinedNodes.length > 0) {
+            pitchGraphContextText += `\n- CÁC ĐIỂM ĐÍNH CHÍNH / THAY ĐỔI TRỰC TIẾP TRONG BÀI PITCH:\n` +
+              refinedNodes.map((n) => `  + [${n.sectionType}] ${n.key}: "${n.value}"`).join('\n');
+          }
+          if (section6Nodes.length > 0) {
+            pitchGraphContextText += `\n- KHỐI 6 PHÁT SINH MỚI NGOÀI BẢN WORD: "${pitchGraph.section6Title || 'Ý tưởng mở rộng'}"\n` +
+              section6Nodes.map((n) => `  + [KHỐI 6] ${n.key}: "${n.value}"`).join('\n');
+          }
+        }
+      } else {
+        this.logger.log(
+          `[${sessionId}] [Graceful Fallback] Dữ liệu Pitch Graph chưa hoàn tất ở Turn 1 -> Khởi động bằng dữ liệu nền tảng bản Word.`
+        );
+      }
+    }
+
     const ragContext = `Tên đề án: ${doc?.filename || session.documentId}
 Chủ đề chất vấn hiện tại: ${session.currentTopic}
 ${foundationContext ? `${foundationContext}\n` : ''}
 DỮ LIỆU ĐÃ BÓC TÁCH TỪ ĐỀ MỤC TƯƠNG ỨNG TRONG BẢN WORD:
-${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
+${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}${pitchGraphContextText}`;
 
     let accumulatedQuestion = '';
 
@@ -945,6 +1006,7 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}`;
       isCoachingPivot: session.isCoachingPivot,
       preset: session.config.evaluationPreset,
       previousQuestions,
+      crossGroundingContext,
       onChunk: (chunk: string) => {
         accumulatedQuestion += chunk;
         // Tự động làm sạch tiền tố số thứ tự như "1. ", "1. Thầy/Cô: ", "Câu 1: " nếu AI vô tình sinh ra

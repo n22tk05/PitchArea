@@ -1,4 +1,4 @@
-import { JuryBossId, EvaluationPreset } from '@pitcharena/shared';
+import { JuryBossId, EvaluationPreset, CrossGroundingContext } from '@pitcharena/shared';
 
 export interface BossPersonaDefinition {
   id: JuryBossId;
@@ -180,12 +180,54 @@ export function buildQuestionPrompt(
   isFollowUp = false,
   followUpTopic?: string,
   preset?: EvaluationPreset,
-  previousQuestions?: string[]
+  previousQuestions?: string[],
+  crossGroundingContext?: CrossGroundingContext
 ): string {
   const presetInstruction =
     preset && PRESET_SYSTEM_INSTRUCTIONS[preset]
       ? `\n\n${PRESET_SYSTEM_INSTRUCTIONS[preset]}`
       : '';
+
+  // Xây dựng chỉ thị đối chiếu chéo giữa bài Pitch và tài liệu Word (Cross-Grounding Directive - FR-06)
+  let crossGroundingDirective = '';
+  if (crossGroundingContext) {
+    const { refinedNodes, section6Nodes, isPivotDetected, section6Title } = crossGroundingContext;
+    const hasRefined = refinedNodes && refinedNodes.length > 0;
+    const hasSec6 = section6Nodes && section6Nodes.length > 0;
+
+    if (hasRefined || hasSec6 || isPivotDetected) {
+      crossGroundingDirective = `\n[CHIẾN LƯỢC ĐỐI CHIẾU MÂU THUẪN PITCH vs WORD (PITCH-FIRST CROSS-GROUNDING)]:
+- BÀI THUYẾT MINH NÓI (PITCH) VỪA QUA ĐÃ CÓ NHỮNG ĐIỂM THAY ĐỔI / PHÁT SINH SO VỚI BẢN WORD NỘP TRƯỚC ĐÓ:`;
+
+      if (isPivotDetected) {
+        crossGroundingDirective += `\n  ⚠️ [CỜ BẺ LÁI ĐỀ ÁN: MAJOR PROPOSAL PIVOT]:
+  Thí sinh vừa thuyết trình đổi hướng chiến lược căn bản hoặc hơn 80% nội dung bài nói khác biệt/phủ nhận bản Word!
+  => CHỈ THỊ MỞ MÀN: Hãy ưu tiên chất vấn trực diện ngay vào việc tại sao nhóm lại thay đổi định hướng đề tài đột ngột so với bản Word đã nộp.`;
+      }
+
+      if (hasRefined) {
+        crossGroundingDirective += `\n  • CÁC ĐIỂM ĐÍNH CHÍNH / THAY ĐỔI TRỰC TIẾP SO VỚI BẢN WORD:
+${refinedNodes
+  .map(
+    (n, idx) =>
+      `    ${idx + 1}. [Đính chính ${n.sectionType || 'Đề mục'}]: ${n.key} -> "${n.value}"`
+  )
+  .join('\n')}`;
+      }
+
+      if (hasSec6) {
+        crossGroundingDirective += `\n  • KHỐI 6 PHÁT SINH MỚI NGOÀI BẢN WORD: "${section6Title || 'Ý tưởng mở rộng ngoài tài liệu'}"
+${section6Nodes
+  .map((n, idx) => `    ${idx + 1}. [Khối 6]: ${n.key} -> "${n.value}"`)
+  .join('\n')}`;
+      }
+
+      crossGroundingDirective += `\n=> QUY TẮC BẮT BUỘC: ƯU TIÊN SỐ 1 LÀ CHẤT VẤN ĐỐI CHIẾU SỰ KHÁC BIỆT NÀY:
+   * Nếu thí sinh đính chính số liệu (giá bán, chi phí, công nghệ...), hãy vặn hỏi tại sao trong bản Word viết một đằng mà lúc nói lại trình bày một nẻo, con số nào mới là số liệu thực?
+   * Nếu có Khối 6 mới phát sinh, hãy truy vấn cơ sở khả thi và nguồn lực để triển khai ý tưởng phát sinh này.
+   * TUYỆT ĐỐI KHÔNG trích xuất câu hỏi từ các số liệu cũ đã bị đính chính hoặc phủ nhận.`;
+    }
+  }
 
   const vocabularyWarning = `\n[LƯU Ý NGÔN TỪ]: Hãy đặt câu hỏi bằng tiếng Việt sắc bén, trực diện và tự nhiên như đang cầm micro nói trước hội trường. Các từ công nghệ thông dụng (như Token, Scalability, API, MVP, Latency/độ trễ) ĐƯỢC PHÉP SỬ DỤNG. Tuyệt đối KHÔNG dùng các từ kinh tế khó hiểu, trừu tượng hay viết tắt (như Moat, CAC, LTV, Unit Economics, Burn rate, Runway, Go-To-Market, Retention rate). Hãy hỏi thẳng vào bản chất: tình huống thực tế, chi phí thực, thói quen người dùng, hoặc tính tự chủ công nghệ.`;
 
@@ -234,7 +276,7 @@ ${previousQuestions.map((q, idx) => `  ${idx + 1}. "${q}"`).join('\n')}
   4. NẾU LÀ THS. ĐẶNG MAI LAN (CHIẾN LƯỢC & RỦI RO): Soi vào tính cam kết tiếp tục dự án khi ra trường, hoặc rào cản phòng thủ khi đối thủ lớn làm theo.`;
 
   if (isFollowUp && followUpTopic) {
-    return `${boss.systemPrompt}${presetInstruction}
+    return `${boss.systemPrompt}${presetInstruction}${crossGroundingDirective}
 
 BỐI CẢNH DỰ ÁN TỪ TÀI LIỆU (RAG):
 ${ragContext}
@@ -250,7 +292,7 @@ Nhặt ngay 1 chi tiết hoặc tính năng cụ thể trong tài liệu để �
 Độ dài: Tối đa 40 từ (1 đến 2 câu ngắn).`;
   }
 
-  return `${boss.systemPrompt}${presetInstruction}
+  return `${boss.systemPrompt}${presetInstruction}${crossGroundingDirective}
 
 BỐI CẢNH DỰ ÁN TỪ TÀI LIỆU (RAG):
 ${ragContext}

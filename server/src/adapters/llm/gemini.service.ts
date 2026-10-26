@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { streamText, generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
-import { JuryBossId, EvaluationPreset } from '@pitcharena/shared';
+import { JuryBossId, EvaluationPreset, CrossGroundingContext } from '@pitcharena/shared';
 import { GroqKeyManager } from './groq-key-manager';
 import {
   BOSS_PERSONAS,
@@ -20,6 +20,7 @@ export interface StreamQuestionOptions {
   candidateHistory?: string;
   preset?: EvaluationPreset;
   previousQuestions?: string[];
+  crossGroundingContext?: CrossGroundingContext;
   onChunk: (chunk: string) => void;
   onComplete: (fullText: string) => void;
   onError?: (err: any) => void;
@@ -70,7 +71,8 @@ export class GeminiService {
         isFollowUp,
         followUpTopic,
         preset,
-        previousQuestions
+        previousQuestions,
+        options.crossGroundingContext
       );
     }
 

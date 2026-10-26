@@ -4,8 +4,9 @@ import {
   LobbyConfig as LobbyConfigType,
   SessionFsmState,
   ArenaSessionState,
+  BusinessSectionType,
 } from '@pitcharena/shared';
-import { ArrowLeft, ArrowRight, ShieldCheck, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ShieldCheck, Wifi, WifiOff, Sparkles, AlertTriangle } from 'lucide-react';
 import { ArenaStage } from '../../components/ArenaStage';
 import { useArenaSocket } from '../../hooks/useArenaSocket';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
@@ -167,16 +168,49 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     }, 1500);
   };
 
+  // Xác định sự hiện diện của Khối 6 và cờ Bẻ lái Đề án (Major Pivot)
+  const hasSection6 = useMemo(() => {
+    if (sessionState?.hasSection6) return true;
+    return Boolean(
+      documentData?.sections?.some(
+        (sec) =>
+          (sec.type as string) === 'DYNAMIC_EXPANDED_SCOPE' ||
+          (sec.type as string) === 'PITCH_EXPANSION_SEC6'
+      )
+    );
+  }, [sessionState?.hasSection6, documentData?.sections]);
+
+  const isPivotDetected = Boolean(sessionState?.isPivotDetected);
+
   return (
     <div className="flex flex-col gap-6 animate-fadeIn pb-8">
       {/* Thanh Trạng Thái Đỉnh Sàn Đấu */}
       <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="bg-rose-600 text-white font-mono text-xs font-bold px-2 py-0.5 flex items-center gap-1.5 border border-rose-800">
             <span className="w-2 h-2 rounded-full bg-white animate-ping" />
             BƯỚC 04 // PHẢN BIỆN (COMBAT ARENA)
           </span>
 
+          {hasSection6 && (
+            <span
+              data-testid="section6-combat-badge"
+              className="bg-amber-400 text-black font-mono text-xs font-bold px-2.5 py-0.5 flex items-center gap-1.5 border border-black shadow-[2px_2px_0px_#000] animate-pulse"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              [KHỐI 6: Ý TƯỞNG MỞ RỘNG PHÁT SINH]
+            </span>
+          )}
+
+          {isPivotDetected && (
+            <span
+              data-testid="major-pivot-combat-badge"
+              className="bg-rose-700 text-white font-mono text-xs font-bold px-2.5 py-0.5 flex items-center gap-1.5 border border-black shadow-[2px_2px_0px_#000] animate-bounce"
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-300" />
+              [CỜ BẺ LÁI ĐỀ ÁN: MAJOR PIVOT]
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
