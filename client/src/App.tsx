@@ -7,9 +7,24 @@ import { Subsystems } from './components/Subsystems';
 import { Footer } from './components/Footer';
 import { ArenaPage } from './pages/ArenaPage';
 
+const getInitialView = (): 'landing' | 'arena' => {
+  if (typeof window !== 'undefined' && window.location.hash.startsWith('#arena')) {
+    return 'arena';
+  }
+  return 'landing';
+};
+
+const getInitialStep = (): 1 | 2 | 3 | 4 | 5 => {
+  if (typeof window !== 'undefined') {
+    const stepMatch = window.location.hash.match(/#arena-step-(\d)/);
+    if (stepMatch) return Number(stepMatch[1]) as 1 | 2 | 3 | 4 | 5;
+  }
+  return 1;
+};
+
 export default function App() {
-  const [currentView, setCurrentView] = useState<'landing' | 'arena'>('landing');
-  const [arenaStep, setArenaStep] = useState<1 | 2 | 3 | 4>(1);
+  const [currentView, setCurrentView] = useState<'landing' | 'arena'>(getInitialView);
+  const [arenaStep, setArenaStep] = useState<1 | 2 | 3 | 4 | 5>(getInitialStep);
 
   // Đồng bộ hash URL để hỗ trợ nút Back/Forward của trình duyệt và reload trang
   useEffect(() => {
@@ -17,7 +32,7 @@ export default function App() {
       const hash = window.location.hash;
       if (hash.startsWith('#arena')) {
         const stepMatch = hash.match(/#arena-step-(\d)/);
-        const step = stepMatch ? (Number(stepMatch[1]) as 1 | 2 | 3 | 4) : 1;
+        const step = stepMatch ? (Number(stepMatch[1]) as 1 | 2 | 3 | 4 | 5) : 1;
         setArenaStep(step);
         setCurrentView('arena');
       } else {
@@ -30,7 +45,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const openArena = (step: 1 | 2 | 3 | 4 = 1) => {
+  const openArena = (step: 1 | 2 | 3 | 4 | 5 = 1) => {
     setArenaStep(step);
     setCurrentView('arena');
     window.location.hash = `#arena-step-${step}`;

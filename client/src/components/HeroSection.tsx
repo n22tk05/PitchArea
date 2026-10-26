@@ -113,13 +113,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onExploreClick }) => {
           </p>
 
           <div className="flex flex-wrap items-center gap-4 pt-1">
-            <a
-              href="#uploader"
-              className="group inline-flex items-center gap-2 bg-black text-white font-bold font-mono text-xs px-6 py-3 rounded uppercase tracking-wider border-2 border-black arcade-shadow hover:arcade-shadow hover:bg-neutral-900 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all duration-150 select-none"
+            <button
+              type="button"
+              onClick={onExploreClick}
+              className="group inline-flex items-center gap-2 bg-black text-white font-bold font-mono text-xs px-6 py-3 rounded uppercase tracking-wider border-2 border-black arcade-shadow hover:arcade-shadow hover:bg-neutral-900 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all duration-150 select-none cursor-pointer"
             >
               <Play className="w-4 h-4 text-amber-400 fill-amber-400 animate-pulse group-hover:translate-x-1 group-hover:scale-110 transition-all duration-200" />
               <span>[ NẠP ĐỀ TÀI NGAY ]</span>
-            </a>
+            </button>
             <a
               href="#jury-council"
               className="inline-flex items-center gap-2 bg-white hover:bg-neutral-100 active:translate-y-0.5 active:translate-x-0.5 text-black border-2 border-black font-mono text-xs px-5 py-3 rounded uppercase tracking-wider arcade-shadow transition-all font-bold"

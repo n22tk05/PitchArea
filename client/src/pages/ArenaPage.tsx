@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   DocumentAnalysisResult,
   LobbyConfig as LobbyConfigType,
@@ -43,6 +43,15 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
   const [pitchTranscript, setPitchTranscript] = useState<string>('');
   const [combatSessionState, setCombatSessionState] =
     useState<ArenaSessionState | null>(null);
+
+  useEffect(() => {
+    setActiveStep(initialStep);
+  }, [initialStep]);
+
+  const changeStep = (step: 1 | 2 | 3 | 4 | 5) => {
+    setActiveStep(step);
+    window.location.hash = `#arena-step-${step}`;
+  };
 
   const sessionId = useMemo(() => {
     return documentData?.documentId ? `session-${documentData.documentId}` : 'arena-session-default';
@@ -135,7 +144,7 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
           <Step1Upload
             documentData={documentData}
             onDocumentAnalyzed={handleDocumentAnalyzed}
-            onNext={() => setActiveStep(2)}
+            onNext={() => changeStep(2)}
             onReset={() => setDocumentData(null)}
             onUseDemo={handleUseDemo}
           />
@@ -144,10 +153,10 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
         {activeStep === 2 && (
           <Step2Lobby
             documentData={documentData}
-            onBack={() => setActiveStep(1)}
+            onBack={() => changeStep(1)}
             onNext={(cfg) => {
               if (cfg) setLobbyConfig(cfg);
-              setActiveStep(3);
+              changeStep(3);
             }}
             onUseDemo={handleUseDemo}
           />
@@ -158,10 +167,10 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
             documentData={documentData}
             lobbyConfig={lobbyConfig}
             arenaSocket={arenaSocket}
-            onBack={() => setActiveStep(2)}
+            onBack={() => changeStep(2)}
             onNext={(transcript) => {
               if (transcript) setPitchTranscript(transcript);
-              setActiveStep(4);
+              changeStep(4);
             }}
           />
         )}
@@ -172,10 +181,10 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
             lobbyConfig={lobbyConfig}
             pitchTranscript={pitchTranscript}
             arenaSocket={arenaSocket}
-            onBack={() => setActiveStep(3)}
+            onBack={() => changeStep(3)}
             onNext={(finalSession) => {
               if (finalSession) setCombatSessionState(finalSession);
-              setActiveStep(5);
+              changeStep(5);
             }}
           />
         )}
@@ -188,12 +197,12 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
             onResetToStep1={() => {
               setDocumentData(null);
               setCombatSessionState(null);
-              setActiveStep(1);
+              changeStep(1);
             }}
             onRematch={() => {
               arenaSocket.requestRematch();
               setCombatSessionState(null);
-              setActiveStep(2);
+              changeStep(2);
             }}
           />
         )}
