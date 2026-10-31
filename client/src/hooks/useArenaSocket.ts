@@ -74,6 +74,22 @@ export function useArenaSocket(sessionId: string, documentId?: string) {
       if (data.report) {
         setReportData(data.report);
       }
+      setTimerData((prev) =>
+        prev
+          ? {
+              ...prev,
+              fsmState: data.fsmState,
+              isPaused: data.isPaused,
+              turnRemainingSeconds: data.turnRemainingSeconds,
+              prepRemainingSeconds: data.prepRemainingSeconds,
+            }
+          : {
+              fsmState: data.fsmState,
+              isPaused: data.isPaused,
+              turnRemainingSeconds: data.turnRemainingSeconds,
+              prepRemainingSeconds: data.prepRemainingSeconds,
+            }
+      );
       if (data.activeQuestion && !data.isStreamingQuestion) {
         setStreamingQuestion({
           bossId: data.activeBossId,

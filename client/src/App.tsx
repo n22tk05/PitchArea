@@ -68,7 +68,7 @@ export default function App() {
         <ArenaPage initialStep={arenaStep} onBackToHome={closeArena} />
       ) : (
         /* TRANG CHỦ SHOWCASE (LANDING PAGE) */
-        <div className="relative z-10 flex flex-col min-h-screen">
+        <div className="relative z-10 flex flex-col min-h-screen bg-[#F7F5F0] text-[#1C1917]">
           <Navbar onStartClick={() => openArena(1)} />
 
           <main className="flex-1">

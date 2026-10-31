@@ -139,24 +139,24 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
     if (estimatedWpm === 0) {
       return {
         text: 'CHỜ PHÁT ÂM',
-        color: 'bg-neutral-200 text-neutral-600 border-neutral-400',
+        color: 'bg-[#FAF8F5] text-[#78716C] border-[#D97706]/30',
       };
     }
     if (estimatedWpm < 110) {
       return {
         text: 'NÓI CHẬM',
-        color: 'bg-amber-400 text-black border-black shadow-[1px_1px_0px_#000]',
+        color: 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs',
       };
     }
     if (estimatedWpm <= 165) {
       return {
         text: 'CHUẨN',
-        color: 'bg-emerald-400 text-black border-black shadow-[1px_1px_0px_#000]',
+        color: 'bg-emerald-100 text-emerald-900 border-emerald-300 shadow-xs',
       };
     }
     return {
       text: 'NÓI NHANH',
-      color: 'bg-rose-500 text-white border-black shadow-[1px_1px_0px_#000]',
+      color: 'bg-rose-100 text-rose-900 border-rose-300 shadow-xs',
     };
   }, [estimatedWpm]);
 
@@ -267,31 +267,31 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
   const targetBoss = targetBossId ? JURY_BOSS_PROFILES[targetBossId] : null;
 
   return (
-    <div className="h-[calc(100vh-8rem)] min-h-[580px] flex flex-col justify-between gap-4 font-mono text-black animate-fadeIn w-full">
+    <div className="flex flex-col justify-between gap-3.5 sm:gap-4 font-mono text-[#1C1917] animate-fadeIn w-full">
       {/* ==================== TOP BAR: ĐIỀU HƯỚNG & THÔNG TIN ==================== */}
-      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 shrink-0">
         <button
           type="button"
           onClick={onBack}
-          className="h-9 px-3 border-2 border-black bg-white hover:bg-neutral-100 flex items-center gap-2 text-xs font-bold active:translate-x-0.5 active:translate-y-0.5 shadow-[2px_2px_0px_#000] transition-all shrink-0 cursor-pointer"
+          className="h-9 px-3.5 border border-[#D97706]/35 bg-[#FFFFFF] hover:bg-[#FEF3C7] text-[#92400E] hover:text-[#B45309] flex items-center gap-2 text-xs font-bold active:translate-x-0.5 shadow-xs transition-all shrink-0 cursor-pointer rounded-xl"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
+          <ArrowLeft className="w-3.5 h-3.5 text-[#D97706]" />
           <span>QUAY VỀ BƯỚC 02 (SẢNH ĐẤU)</span>
         </button>
 
-        <div className="h-9 border-2 border-black bg-white px-3.5 shadow-[2px_2px_0px_#000] flex-1 flex items-center justify-between gap-3 text-xs overflow-hidden">
-          <div className="flex items-center gap-2">
-            <span className="font-bold bg-amber-400 text-black px-1.5 py-0.5 text-[10px] border border-black">
+        <div className="h-9 border border-[#D97706]/30 bg-[#FFFFFF] px-3.5 shadow-xs flex-1 flex items-center justify-between gap-3 text-xs overflow-hidden rounded-xl">
+          <div className="flex items-center gap-2.5">
+            <span className="font-pixel text-[9px] bg-[#FEF3C7] text-[#92400E] px-2.5 py-0.5 rounded-full border border-[#F59E0B]/50 font-bold">
               BƯỚC 03 // THUYẾT MINH PITCHING
             </span>
-            <span className="text-neutral-600 hidden sm:inline text-[11px]">
-              ĐỀ TÀI: <strong className="text-black">{documentData?.filename || 'Đề tài Startup AI'}</strong>
+            <span className="text-[#78716C] hidden sm:inline text-xs font-mono">
+              ĐỀ TÀI: <strong className="text-[#1C1917] font-bold">{documentData?.filename || 'Đề tài Startup AI'}</strong>
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px]">
-            <span className="text-neutral-500 font-sans hidden md:inline">HỘI ĐỒNG:</span>
-            <span className="font-bold text-black border border-black/20 bg-neutral-100 px-1.5 py-0.5 text-[10px]">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-[#78716C] font-sans hidden md:inline font-bold">HỘI ĐỒNG:</span>
+            <span className="font-pixel text-[9px] text-[#B45309] border border-[#D97706]/30 bg-[#FAF8F5] px-2.5 py-0.5 rounded-lg font-bold">
               {targetBoss ? targetBoss.name : presetInfo?.name || 'SV-Startup'}
             </span>
           </div>
@@ -300,9 +300,9 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
 
       {/* ==================== CẢNH BÁO MICRO NẾU CÓ LỖI ==================== */}
       {speechError && (
-        <div className="border-2 border-amber-500 bg-amber-50 p-3 shadow-[3px_3px_0px_#000] text-amber-900 text-xs flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="border border-amber-300 bg-[#FEF3C7] p-3 shadow-xs text-amber-900 text-xs flex flex-wrap items-center justify-between gap-2.5 shrink-0 rounded-xl">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 animate-bounce" />
+            <AlertTriangle className="w-4 h-4 text-[#D97706] shrink-0" />
             <span>
               <strong>LƯU Ý MICRO:</strong> {speechError}
             </span>
@@ -314,7 +314,7 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
                 setInputMode('voice');
                 startRecording();
               }}
-              className="px-2.5 py-1 bg-amber-400 text-black border-2 border-black font-bold text-[11px] hover:bg-amber-300 active:translate-x-0.5 active:translate-y-0.5 shadow-[1px_1px_0px_#000] flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 bg-[#FFFFFF] text-[#92400E] border border-[#F59E0B]/60 font-bold text-[11px] hover:bg-[#FDE68A] active:translate-x-0.5 rounded-lg flex items-center gap-1 cursor-pointer"
             >
               <RefreshCw className="w-3 h-3" />
               <span>THỬ LẠI MICRO</span>
@@ -322,15 +322,15 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
             <button
               type="button"
               onClick={handleFillDemoPitch}
-              className="px-2.5 py-1 bg-black text-white border-2 border-black font-bold text-[11px] hover:bg-neutral-800 active:translate-x-0.5 active:translate-y-0.5 shadow-[1px_1px_0px_#000] flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 bg-[#B45309] text-white font-bold text-[11px] hover:bg-[#92400E] active:translate-x-0.5 rounded-lg flex items-center gap-1 cursor-pointer"
             >
-              <Sparkles className="w-3 h-3 text-amber-400" />
+              <Sparkles className="w-3 h-3 text-amber-300" />
               <span>DÙNG PITCH MẪU</span>
             </button>
             <button
               type="button"
               onClick={() => setInputMode('text')}
-              className="px-2.5 py-1 bg-white text-black border-2 border-black font-bold text-[11px] hover:bg-neutral-100 active:translate-x-0.5 active:translate-y-0.5 shadow-[1px_1px_0px_#000] flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 bg-[#FFFFFF] text-[#1C1917] border border-[#D97706]/30 font-bold text-[11px] hover:bg-[#FAF8F5] active:translate-x-0.5 rounded-lg flex items-center gap-1 cursor-pointer"
             >
               <Keyboard className="w-3 h-3" />
               <span>GÕ BÀN PHÍM</span>
@@ -339,120 +339,117 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
         </div>
       )}
 
-      {/* ==================== BỐ CỤC 2 CỘT NGANG (VỪA KHÍT CHIỀU CAO MÀN HÌNH) ==================== */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4 ">
-        {/* ==================== CỘT 1 (7 COLS): THỜI GIAN THUYẾT MINH (COUNTDOWN TIMER) ==================== */}
-        <div className="lg:col-span-8 flex flex-col justify-between border-2 border-black bg-white p-5 shadow-[4px_4px_0px_#000] gap-3 h-full">
+      {/* ==================== BỐ CỤC 2 CỘT NGANG ==================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 lg:gap-5 w-full items-stretch">
+        {/* ==================== CỘT 1 (8 COLS): THỜI GIAN THUYẾT MINH ==================== */}
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col justify-between p-4 sm:p-5 rounded-2xl bg-[#FFFFFF] border border-[#D97706]/30 shadow-xs gap-3">
           {/* Tiêu đề đồng hồ & Trạng thái chạy */}
-          <div className="w-full flex items-center justify-between text-xs pb-2 border-b-2 border-black/15 shrink-0">
+          <div className="w-full flex items-center justify-between text-xs pb-2.5 border-b border-[#D97706]/20 shrink-0">
             <div className="flex items-center gap-2">
-              <span className="p-1 bg-black text-white">
+              <span className="p-1 rounded-lg bg-[#FEF3C7] text-[#B45309] border border-[#D97706]/35">
                 <Clock className="w-3.5 h-3.5" />
               </span>
-              <span className="font-black uppercase tracking-wider text-xs sm:text-sm">
+              <span className="font-headline uppercase tracking-wider text-xs sm:text-sm text-[#1C1917] font-bold">
                 THỜI GIAN TRÌNH BÀY
               </span>
             </div>
 
             <span
-              className={`px-2 py-0.5 border-2 border-black text-[11px] font-black tracking-wide ${
+              className={`px-2.5 py-0.5 rounded-full border text-[9px] sm:text-[10px] font-pixel font-bold tracking-wide ${
                 remainingSeconds === 0
-                  ? 'bg-rose-500 text-white animate-pulse'
+                  ? 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
                   : isTimerRunning
-                  ? 'bg-emerald-400 text-black'
-                  : 'bg-amber-300 text-black'
+                  ? 'bg-[#FEF3C7] text-[#92400E] border-[#F59E0B]/50'
+                  : 'bg-[#FAF8F5] text-amber-800 border-amber-300'
               }`}
             >
               {remainingSeconds === 0 ? '● HẾT GIỜ PITCH' : isTimerRunning ? '● ĐANG ĐẾM LÙI' : '❚❚ TẠM DỪNG'}
             </span>
           </div>
 
-          {/* MÀN HÌNH ĐỒNG HỒ LCD ARCADE TO NHẤT (CO GIÃN CHIỀU CAO FLEX-1) */}
+          {/* MÀN HÌNH ĐỒNG HỒ LCD */}
           <div
-            className={`w-full flex-1 min-h-0 py-4 px-4 border-2 border-black flex flex-col items-center justify-center transition-colors relative overflow-hidden shadow-[inset_0_0_15px_rgba(0,0,0,0.6)] ${
+            className={`w-full flex-1 min-h-[110px] sm:min-h-[135px] py-3 sm:py-4 px-4 rounded-xl border-2 flex flex-col items-center justify-center transition-colors relative overflow-hidden shadow-inner ${
               remainingSeconds <= 15 && remainingSeconds > 0
-                ? 'bg-rose-950 text-rose-400 border-rose-600 animate-pulse'
+                ? 'bg-rose-50 text-rose-800 border-rose-400 animate-pulse'
                 : remainingSeconds === 0
-                ? 'bg-neutral-900 text-rose-500'
-                : 'bg-neutral-950 text-emerald-400'
+                ? 'bg-rose-50 text-rose-800 border-rose-300'
+                : 'bg-[#FAF8F5] text-[#1C1917] border-[#D97706]/35'
             }`}
           >
-            {/* CRT Scanline */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.35)_50%)] bg-[length:100%_4px] pointer-events-none opacity-40" />
-
-            {/* SỐ ĐỒNG HỒ KHỔ LỚN TO NHẤT */}
-            <div className="relative z-10 font-mono text-6xl sm:text-7xl lg:text-8xl xl:text-9xl font-black tracking-widest drop-shadow-[0_2px_10px_rgba(52,211,153,0.3)] select-none text-center leading-none">
+            {/* SỐ ĐỒNG HỒ KHỔ LỚN */}
+            <div className="relative z-10 font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-widest select-none text-center leading-none text-[#1C1917]">
               {formattedTime}
             </div>
 
-            <div className="relative z-10 text-[11px] font-mono text-neutral-400 mt-2 flex items-center gap-3">
+            <div className="relative z-10 text-[11px] font-mono text-[#78716C] mt-2 flex items-center gap-3 font-bold">
               <span>TỔNG: {pitchMinutes} PHÚT</span>
               <span>•</span>
-              <span>CÒN LẠI: {timeProgressPercent}%</span>
+              <span className="text-[#B45309]">CÒN LẠI: {timeProgressPercent}%</span>
             </div>
           </div>
 
-          {/* Thanh tiến trình Pixel */}
-          <div className="w-full bg-neutral-200 border-2 border-black h-2.5 overflow-hidden shrink-0">
+          {/* Thanh tiến trình */}
+          <div className="w-full bg-[#FAF8F5] border border-[#D97706]/20 h-2 rounded-full overflow-hidden shrink-0">
             <div
-              className={`h-full transition-all duration-500 ${
+              className={`h-full rounded-full transition-all duration-500 ${
                 remainingSeconds <= 15
                   ? 'bg-rose-500'
                   : remainingSeconds <= 40
-                  ? 'bg-amber-400'
-                  : 'bg-emerald-500'
+                  ? 'bg-amber-500'
+                  : 'bg-gradient-to-r from-[#D97706] to-[#B45309]'
               }`}
               style={{ width: `${timeProgressPercent}%` }}
             />
           </div>
 
           {/* Các nút điều khiển đồng hồ: Tạm dừng / Tiếp tục & Đặt lại */}
-          <div className="flex items-center gap-3 w-full shrink-0">
+          <div className="flex items-center gap-2.5 w-full shrink-0">
             <button
               type="button"
               onClick={handleToggleTimer}
-              className="flex-1 py-2 px-3 border-2 border-black text-xs font-black bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center gap-2 active:translate-x-0.5 active:translate-y-0.5 shadow-[2px_2px_0px_#000] cursor-pointer"
+              className="flex-1 py-2.5 px-3 border border-[#D97706]/35 rounded-xl text-xs font-pixel font-bold bg-[#FAF8F5] hover:bg-[#FEF3C7] text-[#1C1917] flex items-center justify-center gap-2 active:translate-x-0.5 shadow-xs transition-all cursor-pointer"
             >
-              {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-black" />}
+              {isTimerRunning ? <Pause className="w-3.5 h-3.5 text-[#D97706]" /> : <Play className="w-3.5 h-3.5 fill-[#D97706] text-[#D97706]" />}
               <span>{isTimerRunning ? 'TẠM DỪNG ĐỒNG HỒ' : 'TIẾP TỤC ĐẾM LÙI'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleResetTimer}
-              className="py-2 px-3 border-2 border-black text-xs font-black bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center gap-1.5 active:translate-x-0.5 active:translate-y-0.5 shadow-[2px_2px_0px_#000] cursor-pointer"
+              className="py-2.5 px-3.5 border border-[#D97706]/35 rounded-xl text-xs font-pixel font-bold bg-[#FAF8F5] hover:bg-[#FEF3C7] text-[#1C1917] flex items-center justify-center gap-1.5 active:translate-x-0.5 shadow-xs transition-all cursor-pointer"
               title="Đặt lại từ đầu"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3.5 h-3.5 text-[#D97706]" />
               <span>ĐẶT LẠI</span>
             </button>
           </div>
         </div>
 
-        {/* ==================== CỘT 2 (4 COLS): LỜI THOẠI ĐANG NÓI & SẴN SÀNG ĐỐI MẶT ==================== */}
-        <div className="lg:col-span-4 flex flex-col gap-4 ">
-          {/* PHẦN 1: LỜI THOẠI ĐANG NÓI / GÕ PHÍM + TAG NHỊP ĐỘ + ĐIỀU KHIỂN */}
-          <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] flex flex-col justify-between gap-3 flex-1 min-h-0">
+        {/* ==================== CỘT 2 (4 COLS): LỜI THOẠI ĐANG NÓI ==================== */}
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-3.5 justify-between">
+          {/* PHẦN 1: LỜI THOẠI ĐANG NÓI / GÕ PHÍM */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#FFFFFF] border border-[#D97706]/30 shadow-xs flex flex-col justify-between gap-3 flex-1 min-h-0 relative">
             {/* Header: Tiêu đề, Tag Nhịp độ, Nút Mic & Nút Chế độ */}
-            <div className="flex flex-col gap-2 pb-2 border-b border-black/15 text-xs shrink-0">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-col gap-2 pb-2.5 border-b border-[#D97706]/20 text-xs shrink-0">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
-                  <Volume2 className="w-4 h-4 text-black" />
-                  <span className="font-black uppercase tracking-wider text-xs">
+                  <Volume2 className="w-3.5 h-3.5 text-[#D97706]" />
+                  <span className="font-headline font-bold uppercase tracking-wider text-xs text-[#1C1917]">
                     LỜI THOẠI PITCH:
                   </span>
                 </div>
 
                 {/* Chuyển đổi tab: NÓI MICRO vs GÕ BÀN PHÍM */}
-                <div className="flex items-center border border-black p-0.5 bg-neutral-100 text-[10px]">
+                <div className="flex items-center border border-[#D97706]/25 p-0.5 bg-[#FAF8F5] rounded-lg text-[10px]">
                   <button
                     type="button"
                     onClick={() => {
                       setInputMode('voice');
                       if (!isRecording) startRecording();
                     }}
-                    className={`px-2 py-0.5 font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                      inputMode === 'voice' ? 'bg-black text-white shadow-[1px_1px_0px_#000]' : 'text-neutral-600 hover:text-black'
+                    className={`px-2.5 py-1 font-headline text-xs font-bold flex items-center gap-1 transition-all cursor-pointer rounded-md ${
+                      inputMode === 'voice' ? 'bg-[#B45309] text-white shadow-xs' : 'text-[#78716C] hover:text-[#1C1917]'
                     }`}
                   >
                     <Mic className="w-3 h-3" />
@@ -460,9 +457,12 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setInputMode('text')}
-                    className={`px-2 py-0.5 font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                      inputMode === 'text' ? 'bg-black text-white shadow-[1px_1px_0px_#000]' : 'text-neutral-600 hover:text-black'
+                    onClick={() => {
+                      setInputMode('text');
+                      if (isRecording) stopRecording();
+                    }}
+                    className={`px-2.5 py-1 font-headline text-xs font-bold flex items-center gap-1 transition-all cursor-pointer rounded-md ${
+                      inputMode === 'text' ? 'bg-[#B45309] text-white shadow-xs' : 'text-[#78716C] hover:text-[#1C1917]'
                     }`}
                   >
                     <Keyboard className="w-3 h-3" />
@@ -471,86 +471,139 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
                 </div>
               </div>
 
-              {/* Dòng điều khiển phụ: Tag Nhịp độ, Sóng âm, Bật/Tắt Mic, Nạp Demo */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                {/* Tag nhịp độ nói: CHẬM / CHUẨN / NHANH */}
+              {/* Dòng điều khiển phụ: Nhịp độ & Nạp nhanh Pitch mẫu */}
+              <div className="flex items-center justify-between gap-2">
+                {/* Tag nhịp độ nói */}
                 <div className="flex items-center gap-1.5">
-                  <span className={`px-1.5 py-0.5 border text-[10px] font-black tracking-wide ${pacingTag.color}`}>
+                  <span className={`px-2 py-0.5 border text-[9px] font-mono font-bold tracking-wide rounded-full ${pacingTag.color}`}>
                     {pacingTag.text}
                   </span>
-
-                  {/* Sóng âm Audio Wave động phản hồi âm thanh thực tế */}
-                  {isRecording && (
-                    <div className="flex items-end gap-0.5 h-3.5 px-1 bg-neutral-900 border border-black" title={`Âm lượng: ${audioLevel}%`}>
-                      <span className="w-1 bg-emerald-400 rounded-xs transition-all duration-75" style={{ height: `${Math.max(3, (audioLevel / 100) * 12)}px` }} />
-                      <span className="w-1 bg-emerald-400 rounded-xs transition-all duration-75" style={{ height: `${Math.max(4, (audioLevel / 100) * 14)}px` }} />
-                      <span className="w-1 bg-emerald-400 rounded-xs transition-all duration-75" style={{ height: `${Math.max(2, (audioLevel / 100) * 10)}px` }} />
-                    </div>
+                  {estimatedWpm > 0 && (
+                    <span className="text-[10px] font-mono text-[#78716C] font-bold">
+                      {estimatedWpm} từ/p
+                    </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   {/* Nút nạp nhanh bài Pitch mẫu */}
                   <button
                     type="button"
                     onClick={handleFillDemoPitch}
-                    className="px-2 py-0.5 border border-black bg-neutral-100 hover:bg-amber-300 text-[10px] font-bold flex items-center gap-1 active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer shadow-[1px_1px_0px_#000]"
+                    className="px-2.5 py-0.5 border border-[#D97706]/35 bg-[#FAF8F5] hover:bg-[#FEF3C7] text-[#92400E] text-[11px] font-headline font-bold flex items-center gap-1 active:translate-x-0.5 transition-all cursor-pointer rounded-lg shadow-xs"
                     title="Nạp bài thuyết trình mẫu từ hồ sơ đề tài"
                   >
-                    <Sparkles className="w-3 h-3 text-amber-600" />
-                    <span className="hidden sm:inline">PITCH MẪU</span>
-                  </button>
-
-                  {/* Nút bật/tắt Micro */}
-                  <button
-                    type="button"
-                    onClick={handleToggleRecord}
-                    className={`px-2 py-0.5 border-2 border-black text-[10px] font-bold flex items-center gap-1 shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer ${
-                      isRecording ? 'bg-rose-500 text-white animate-pulse' : 'bg-emerald-400 text-black hover:bg-emerald-300'
-                    }`}
-                  >
-                    {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                    <span>{isRecording ? 'DỪNG MIC' : 'BẬT MIC'}</span>
+                    <Sparkles className="w-3 h-3 text-[#D97706]" />
+                    <span>PITCH MẪU</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Nội dung: Hiển thị 2 dòng LCD hoặc Textarea gõ phím tùy chế độ */}
+            {/* BẢNG ĐIỀU KHIỂN & TRẠNG THÁI MICROPHONE TRỰC QUAN */}
+            <div
+              className={`p-2.5 rounded-xl border transition-all duration-200 flex items-center justify-between gap-2 shrink-0 ${
+                isRecording
+                  ? 'bg-emerald-50/80 border-emerald-400 shadow-xs ring-1 ring-emerald-300/40'
+                  : 'bg-[#FAF8F5] border-[#D97706]/25'
+              }`}
+            >
+              {/* Bên trái: Trạng thái tức thời & Thanh âm lượng */}
+              <div className="flex items-center gap-2">
+                <div
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-headline font-bold transition-all ${
+                    isRecording
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs'
+                      : 'bg-[#FEF3C7] text-[#92400E] border border-[#F59E0B]/50'
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      isRecording ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-300' : 'bg-stone-400'
+                    }`}
+                  />
+                  <span>{isRecording ? '● MICRO: BẬT' : '○ MICRO: TẮT'}</span>
+                </div>
+
+                {/* Sóng âm thanh năng lượng */}
+                {isRecording && (
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-[#FFFFFF] border border-emerald-200 rounded-lg shadow-xs">
+                    <div className="flex items-end gap-0.5 h-3">
+                      {[1, 2, 3, 4, 5].map((bar) => (
+                        <span
+                          key={bar}
+                          className={`w-1 rounded-full transition-all duration-75 ${
+                            (audioLevel / 100) * 5 >= bar ? 'bg-emerald-500' : 'bg-stone-200'
+                          }`}
+                          style={{ height: `${bar * 2.4}px` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bên phải: Nút Bật/Tắt Micro to, nổi bật */}
+              <button
+                type="button"
+                onClick={handleToggleRecord}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-headline font-black flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:translate-x-0.5 shrink-0 ${
+                  isRecording
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 shadow-sm'
+                    : 'bg-[#B45309] hover:bg-[#92400E] text-white border border-[#B45309]'
+                }`}
+              >
+                {isRecording ? (
+                  <>
+                    <MicOff className="w-3.5 h-3.5 text-white" />
+                    <span>TẮT MICRO</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-3.5 h-3.5 text-white" />
+                    <span>BẬT MICRO</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Nội dung */}
             {inputMode === 'text' ? (
-              <div className="relative w-full flex-1 min-h-[90px] flex flex-col">
+              <div className="relative w-full flex-1 min-h-[65px] max-h-[105px] flex flex-col">
                 <textarea
                   value={manualText}
                   onChange={handleManualTextChange}
                   placeholder="Gõ hoặc dán nội dung bài thuyết minh Pitch của bạn vào đây (hệ thống sẽ tự động phân tích đồ thị cho vòng chất vấn)..."
-                  className="w-full flex-1 p-2.5 bg-neutral-950 border-2 border-black text-emerald-400 font-mono text-xs leading-5 resize-none focus:outline-none focus:border-amber-400 shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] placeholder:text-neutral-600"
+                  className="w-full h-full p-2.5 bg-[#FAF8F5] border border-[#D97706]/25 rounded-xl text-[#1C1917] font-mono text-xs leading-relaxed resize-none focus:outline-none focus:border-[#B45309] placeholder:text-[#A8A29E]"
                 />
               </div>
             ) : (
               <div
                 onClick={() => setInputMode('text')}
-                className="relative w-full flex-1 min-h-[75px] max-h-[140px] bg-neutral-950 border-2 border-black px-3.5 py-2 text-emerald-400 font-mono text-xs sm:text-sm leading-6 overflow-hidden flex items-start select-none cursor-text"
+                className="relative w-full flex-1 min-h-[65px] max-h-[105px] bg-[#FAF8F5] border border-[#D97706]/25 rounded-xl px-3 py-2 text-[#1C1917] font-mono text-xs leading-relaxed overflow-hidden flex items-start select-none cursor-text"
                 title="Bấm vào để chuyển sang chế độ gõ phím / chỉnh sửa"
               >
-                {/* CRT scanline mỏng */}
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.3)_50%)] bg-[length:100%_4px] pointer-events-none opacity-25" />
-
                 {fullText ? (
-                  <div className="relative z-10 w-full max-h-[120px] overflow-y-auto leading-6 pr-1 font-mono">
+                  <div className="relative z-10 w-full max-h-[90px] overflow-y-auto leading-relaxed pr-1 font-mono text-xs">
                     {transcript && (
-                      <span className="text-emerald-300">
+                      <span className="text-[#1C1917]">
                         {transcript}{' '}
                       </span>
                     )}
                     {interimTranscript && (
-                      <span className="text-amber-300 underline decoration-dotted font-bold animate-pulse">
+                      <span className="text-[#B45309] underline decoration-dotted font-bold animate-pulse">
                         {interimTranscript}
                       </span>
                     )}
                   </div>
+                ) : !isRecording ? (
+                  <div className="relative z-10 text-[#92400E] text-[11px] font-headline font-semibold flex items-center gap-1.5 my-auto bg-[#FEF3C7] p-2 rounded-lg border border-[#F59E0B]/50 w-full">
+                    <MicOff className="w-3.5 h-3.5 text-[#B45309] shrink-0" />
+                    <span>Micro đang tắt. Bấm nút [BẬT MICRO] ở trên để nói hoặc chuyển sang [GÕ PHÍM].</span>
+                  </div>
                 ) : (
-                  <div className="relative z-10 text-neutral-500 text-xs italic flex items-center gap-2 my-auto">
-                    <Mic className="w-3.5 h-3.5 text-neutral-400 animate-pulse" />
+                  <div className="relative z-10 text-emerald-800 text-[11px] font-headline font-semibold flex items-center gap-1.5 my-auto">
+                    <Mic className="w-3.5 h-3.5 text-emerald-600 animate-pulse shrink-0" />
                     <span>Đang lắng nghe... Nói vào micro hoặc bấm [GÕ PHÍM] / [PITCH MẪU].</span>
                   </div>
                 )}
@@ -558,31 +611,31 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
             )}
 
             {/* Footer của khung lời thoại */}
-            <div className="text-[10px] text-neutral-500 font-sans flex items-center justify-between pt-1 shrink-0 border-t border-black/10">
-              <span className="text-neutral-600">
+            <div className="text-[10px] text-[#78716C] font-sans flex items-center justify-between pt-1.5 shrink-0 border-t border-[#D97706]/15">
+              <span className="truncate max-w-[220px]">
                 {inputMode === 'text'
                   ? `* Đang ở chế độ gõ phím (${fullText.split(/\s+/).filter(Boolean).length} từ). Bấm [NÓI MICRO] để bật mic.`
                   : '* Tự động chuyển batch 2 dòng mới khi nói tiếp. Bấm vào khung để chỉnh sửa.'}
               </span>
               {fullText && (
-                <span className="font-mono text-neutral-700 font-bold">
+                <span className="font-mono text-[#B45309] font-bold text-[10px] shrink-0">
                   {inputMode === 'voice' ? `BATCH #${String(currentBatch.batchNumber).padStart(2, '0')}` : `${fullText.length} ký tự`}
                 </span>
               )}
             </div>
           </div>
 
-          {/* PHẦN 2: SẴN SÀNG ĐỐI MẶT HỘI ĐỒNG PHẢN BIỆN (NÚT HOÀN TẤT) */}
-          <div className="border-2 border-black bg-neutral-900 text-white p-4 shadow-[4px_4px_0px_#000] flex flex-col gap-3 shrink-0">
+          {/* PHẦN 2: SẴN SÀNG ĐỐI MẶT HỘI ĐỒNG PHẢN BIỆN */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FFFFFF] border border-[#D97706]/30 shadow-xs flex flex-col gap-2.5 shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-amber-400 text-black flex items-center justify-center border-2 border-black shrink-0">
-                <Flame className="w-4 h-4 fill-black" />
+              <div className="w-8 h-8 rounded-lg bg-[#FEF3C7] text-[#B45309] border border-[#D97706]/35 flex items-center justify-center shrink-0 shadow-xs">
+                <Flame className="w-4 h-4 fill-[#B45309]" />
               </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-xs uppercase tracking-wide text-amber-300">
+              <div className="flex flex-col min-w-0">
+                <span className="font-headline font-bold text-xs uppercase tracking-wide text-[#1C1917] truncate">
                   SẴN SÀNG ĐỐI MẶT HỘI ĐỒNG PHẢN BIỆN
                 </span>
-                <span className="text-[10px] font-sans text-neutral-400">
+                <span className="text-[10px] font-sans text-[#78716C] truncate">
                   Kết thúc bài thuyết trình để bước vào phòng chất vấn đối đầu giám khảo AI.
                 </span>
               </div>
@@ -591,10 +644,10 @@ export const Step3Pitching: React.FC<Step3PitchingProps> = ({
             <button
               type="button"
               onClick={handleFinishPitch}
-              className="w-full py-3 bg-amber-400 text-black font-mono font-black text-xs border-2 border-black shadow-[3px_3px_0px_#fff] hover:bg-amber-300 active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 uppercase tracking-wider transition-all cursor-pointer"
+              className="w-full py-2.5 sm:py-3 bg-[#B45309] hover:bg-[#92400E] text-white rounded-xl shadow-xs font-pixel font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-x-0.5"
             >
               <span>HOÀN THÀNH PITCHING → BƯỚC 04: CHẤT VẤN</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

@@ -368,6 +368,7 @@ export class ArenaGateway
       session.transcriptHistory.push({
         sender: 'CANDIDATE',
         text: defenseText,
+        topicId: session.currentTopicId,
         timestamp: new Date().toLocaleTimeString(),
       });
 
@@ -449,11 +450,22 @@ export class ArenaGateway
         },
         session.activeBossId,
         session.availableBossIds,
-        session.isCoachingPivot
+        session.isCoachingPivot,
+        undefined,
+        session.usedTopicIds || []
       );
 
       session.followUpCount = decision.followUpCount;
       session.currentTopic = decision.topic;
+      if (decision.topicId) {
+        session.currentTopicId = decision.topicId;
+        if (!session.usedTopicIds) {
+          session.usedTopicIds = [];
+        }
+        if (!session.usedTopicIds.includes(decision.topicId)) {
+          session.usedTopicIds.push(decision.topicId);
+        }
+      }
 
       // 4. Kiểm tra xem trận đấu đã hết lượt hay chưa
       // Nếu là câu hỏi mới (NEW_QUESTION) hoặc đã qua Coaching Pivot:
@@ -694,6 +706,8 @@ export class ArenaGateway
       session.currentTurn = 1;
       session.followUpCount = 0;
       session.currentTopic = undefined;
+      session.currentTopicId = undefined;
+      session.usedTopicIds = [];
       session.isCoachingPivot = false;
       session.lastVerdict = undefined;
       session.verdictHistory = [];
@@ -757,6 +771,7 @@ export class ArenaGateway
           session.transcriptHistory.push({
             sender: 'CANDIDATE',
             text: defenseText,
+        topicId: session.currentTopicId,
             timestamp: new Date().toLocaleTimeString(),
           });
           if (verdict.prosecutorArgument) {
@@ -849,7 +864,18 @@ export class ArenaGateway
 
     // Đảm bảo chủ đề hiện tại luôn khớp với chuyên môn của Boss và đa dạng ngẫu nhiên giữa các phiên
     if (!session.currentTopic) {
-      session.currentTopic = this.followUpEngine.getRandomTopicForBoss(session.activeBossId);
+      const initialTopic = this.followUpEngine.getTopicForBoss(
+        session.activeBossId,
+        session.usedTopicIds || []
+      );
+      session.currentTopic = initialTopic.topic;
+      session.currentTopicId = initialTopic.topicId;
+      if (!session.usedTopicIds) {
+        session.usedTopicIds = [];
+      }
+      if (!session.usedTopicIds.includes(initialTopic.topicId)) {
+        session.usedTopicIds.push(initialTopic.topicId);
+      }
     }
 
     // Đóng băng đồng hồ khi Boss đang đặt câu hỏi (Time Freeze)
@@ -997,16 +1023,38 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}${pitchGraphConte
       .map((t) => t.text.trim());
     const previousQuestions = Array.from(new Set([...priorMatchQuestions, ...currentMatchQuestions]));
 
+    // Trích xuất các cặp [Hỏi - Đáp] đã hoàn tất từ lịch sử transcript để cấm AI hỏi lặp lại các vấn đề thí sinh đã giải trình
+    const resolvedQAPairs: Array<{ bossName?: string; question: string; candidateAnswer: string }> = [];
+    for (let i = 0; i < session.transcriptHistory.length; i++) {
+      const item = session.transcriptHistory[i];
+      if (item.sender === 'BOSS' && item.text?.trim()) {
+        for (let j = i + 1; j < session.transcriptHistory.length; j++) {
+          const nextItem = session.transcriptHistory[j];
+          if (nextItem.sender === 'CANDIDATE' && nextItem.text?.trim()) {
+            resolvedQAPairs.push({
+              bossName: item.agentName || (item.bossId ? JURY_BOSS_PROFILES[item.bossId]?.name : undefined) || 'Giám khảo',
+              question: item.text.trim(),
+              candidateAnswer: nextItem.text.trim(),
+            });
+            break;
+          }
+          if (nextItem.sender === 'BOSS') break;
+        }
+      }
+    }
+
     await this.geminiService.streamBossQuestion({
       bossId: session.activeBossId,
       ragContext,
       candidateSpeech: candidateLastSpeech,
       isFollowUp: (session.followUpCount || 0) > 0,
       followUpTopic: session.currentTopic,
+      topicId: session.currentTopicId,
       isCoachingPivot: session.isCoachingPivot,
       preset: session.config.evaluationPreset,
       previousQuestions,
       crossGroundingContext,
+      resolvedQAPairs,
       onChunk: (chunk: string) => {
         accumulatedQuestion += chunk;
         // Tự động làm sạch tiền tố số thứ tự như "1. ", "1. Thầy/Cô: ", "Câu 1: " nếu AI vô tình sinh ra
@@ -1046,8 +1094,9 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}${pitchGraphConte
           sender: 'BOSS',
           bossId: session.activeBossId,
           agentName: bossName,
-          text: fullText,
+          text: cleanedFullText,
           timestamp: new Date().toLocaleTimeString(),
+          topicId: session.currentTopicId,
           isCoachingPivot: session.isCoachingPivot,
         });
 
@@ -1069,7 +1118,18 @@ ${docContext || 'Chưa tìm thấy đoạn trích chi tiết.'}${pitchGraphConte
           this.logger.warn(
             `[${sessionId}] ⚠️ [FR-5 Filter] Phát hiện câu hỏi tương đồng cao (${(similarityCheck.similarity * 100).toFixed(1)}% >= 80%) so với câu hỏi cũ: "${similarityCheck.matchedQuestion?.slice(0, 60)}...". Điều hướng chủ đề tiếp theo.`
           );
-          session.currentTopic = this.followUpEngine.getRandomTopicForBoss(session.activeBossId);
+          const initialTopic = this.followUpEngine.getTopicForBoss(
+        session.activeBossId,
+        session.usedTopicIds || []
+      );
+      session.currentTopic = initialTopic.topic;
+      session.currentTopicId = initialTopic.topicId;
+      if (!session.usedTopicIds) {
+        session.usedTopicIds = [];
+      }
+      if (!session.usedTopicIds.includes(initialTopic.topicId)) {
+        session.usedTopicIds.push(initialTopic.topicId);
+      }
         }
 
         // Bổ sung khoảng nghỉ 1.8s (tầm 1-2s) sau khi render câu hỏi xong để thí sinh đọc và chuẩn bị

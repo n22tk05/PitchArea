@@ -173,7 +173,7 @@ export const ArenaMode = {
 export type ArenaMode = (typeof ArenaMode)[keyof typeof ArenaMode];
 
 /**
- * Định danh 3 Giám khảo Solo Boss
+ * Định danh 4 Giám khảo Solo Boss
  */
 export const JuryBossId = {
   MARKET_SHARK: 'MARKET_SHARK',         // Shark Trần Nam - Nhóm 1: Vấn đề & Thị trường
@@ -377,6 +377,16 @@ export type SessionFsmState =
   (typeof SessionFsmState)[keyof typeof SessionFsmState];
 
 /**
+ * Định nghĩa chủ đề chuyên môn có cấu trúc (Topic Definition)
+ */
+export interface TopicDefinition {
+  id: string;
+  name: string;
+  focus: string;
+  sectionTarget?: BusinessSectionType;
+}
+
+/**
  * Trạng thái phiên đấu thời gian thực (Arena Session State)
  */
 export interface ArenaSessionState {
@@ -397,6 +407,8 @@ export interface ArenaSessionState {
   isStreamingQuestion?: boolean;
   followUpCount?: number;
   currentTopic?: string;
+  currentTopicId?: string;
+  usedTopicIds?: string[];
   isCoachingPivot?: boolean;
   lastVerdict?: VerdictResult;
   streak?: {
@@ -411,6 +423,7 @@ export interface ArenaSessionState {
     timestamp: string;
     penaltyApplied?: number;
     isCoachingPivot?: boolean;
+    topicId?: string;
     score?: number;
   }>;
   verdictHistory?: VerdictResult[];
@@ -626,6 +639,10 @@ export interface AppendixItem {
   hpImpact: number;
   score: VerdictScore;
   severity: 'CRITICAL' | 'WARNING' | 'GOOD';
+  juryIntent?: string;
+  slideStructureBullets?: string[];
+  winningResponse?: string;
+  actionSteps?: string[];
 }
 
 /**

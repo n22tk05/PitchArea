@@ -4,6 +4,8 @@ import {
   Mic,
   Swords,
   FileSpreadsheet,
+  ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 import { DocumentAnalysisResult } from '@pitcharena/shared';
 
@@ -66,37 +68,67 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
     },
   ];
 
+  const activeStepNum = hoveredStep !== null ? hoveredStep : autoStep;
+
   return (
-    <section id="uploader" className="w-full max-w-6xl mx-auto px-6 py-12 scroll-mt-24">
-      {/* Workflow Header */}
-      <div className="text-center mb-8">
-        <h2 className="font-headline text-2xl md:text-3xl font-bold text-black mb-2">
+    <section id="uploader" className="w-full max-w-7xl mx-auto px-6 py-14 scroll-mt-24">
+      {/* Workflow Header (Centered & Warm Bronze) */}
+      <div className="text-center max-w-3xl mx-auto mb-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FEF3C7] border border-[#F59E0B]/50 mb-3 shadow-xs">
+          <Sparkles className="w-3.5 h-3.5 text-[#D97706]" />
+          <span className="font-pixel text-[10px] text-[#92400E] uppercase tracking-wider font-bold">
+            PIPELINE ARCHITECTURE // 4 PHASES
+          </span>
+        </div>
+        <h2 className="font-headline text-2xl md:text-4xl font-black text-[#1C1917] uppercase tracking-tight">
           Quy Trình 4 Giai Đoạn Tôi Luyện Trước Hội Đồng
         </h2>
-        <p className="font-sans text-xs md:text-sm text-neutral-600 max-w-2xl mx-auto leading-relaxed">
-          Mô phỏng chân thực quy trình bảo vệ đề tài: từ nạp tài liệu trích xuất dữ liệu, thuyết trình trực tiếp bằng giọng nói, đối chất sinh tử với 3 Giám khảo đến nhận báo cáo nội dung đối chất.
+        <p className="font-sans text-xs md:text-sm text-[#57534E] mt-2 leading-relaxed">
+          Mô phỏng chân thực quy trình bảo vệ đề tài: từ nạp tài liệu trích xuất dữ liệu, thuyết trình trực tiếp bằng giọng nói, đối chất sinh tử với 4 Giám khảo đến nhận báo cáo nội dung đối chất.
         </p>
       </div>
 
-      {/* Retro Pipeline Connector Track (Progress between 4 steps) */}
-      <div className="relative mb-6 hidden lg:block select-none">
-        <div className="flex items-center justify-between text-neutral-500 font-mono text-[10px] font-bold uppercase tracking-wider mb-2">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-black animate-pulse" />
-            <span>PIPELINE_TRACK: DATA FLOW CONNECTOR</span>
-          </span>
-          <span className="text-black bg-neutral-200 px-2 py-0.5 rounded border border-black/20 font-bold">
-            BƯỚC {String(hoveredStep !== null ? hoveredStep : autoStep).padStart(2, '0')}/04 ACTIVE
+      {/* Sleek Progression Dock Connector Bar */}
+      <div className="relative mb-6 hidden lg:block select-none bg-[#FFFFFF] border border-[#D97706]/25 rounded-xl p-3 shadow-sm">
+        <div className="flex items-center justify-between text-[#B45309] font-mono text-[11px] font-bold uppercase tracking-wider">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#D97706] animate-pulse" />
+            <span className="text-[#1C1917]">TIẾN TRÌNH TÁC CHIẾN TỰ ĐỘNG</span>
+          </div>
+
+          {/* Stepper Dots Track */}
+          <div className="flex items-center gap-6">
+            {steps.map((s) => (
+              <div
+                key={s.step}
+                className={`flex items-center gap-2 cursor-pointer transition-colors ${
+                  activeStepNum === s.step ? 'text-[#B45309]' : 'text-[#78716C]'
+                }`}
+                onClick={() => onStepClick?.(s.step as 1 | 2 | 3 | 4)}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    activeStepNum === s.step
+                      ? 'bg-[#D97706] shadow-[0_0_8px_rgba(217,119,6,0.8)]'
+                      : 'bg-[#F5EFEB] border border-[#D97706]/40'
+                  }`}
+                />
+                <span className="font-pixel text-[9px]">{s.tag}</span>
+              </div>
+            ))}
+          </div>
+
+          <span className="text-[#92400E] bg-[#FEF3C7] px-3 py-1 rounded border border-[#F59E0B]/50 font-pixel text-[10px] font-bold">
+            GIAI ĐOẠN 0{activeStepNum}/04 ĐANG CHẠY
           </span>
         </div>
       </div>
 
-      {/* 4 Step Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {/* 4 Step Cards Seamless Flush-Fit Row (Sáp vách nhau) */}
+      <div className="w-full bg-[#FFFFFF] border border-[#D97706]/30 rounded-2xl shadow-[0_12px_40px_rgba(217,119,6,0.06)] overflow-hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#D97706]/20">
         {steps.map((item) => {
           const Icon = item.icon;
-          const isCurrentActive =
-            hoveredStep !== null ? hoveredStep === item.step : autoStep === item.step;
+          const isCurrentActive = activeStepNum === item.step;
 
           return (
             <div
@@ -104,34 +136,32 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
               onMouseEnter={() => setHoveredStep(item.step)}
               onMouseLeave={() => setHoveredStep(null)}
               onClick={() => onStepClick?.(item.step as 1 | 2 | 3 | 4)}
-              className={`group relative cursor-pointer rounded-lg border-2 border-black p-4 flex flex-col justify-between gap-3 select-none overflow-hidden transition-all duration-300 ${
+              className={`group relative cursor-pointer p-5 flex flex-col justify-between gap-4 select-none transition-all duration-200 ${
                 isCurrentActive
-                  ? 'bg-white arcade-shadow -translate-y-1 translate-x-0.5 ring-2 ring-black scale-[1.01]'
-                  : 'bg-surface-container-low opacity-85 hover:opacity-100 hover:bg-white arcade-shadow-sm'
+                  ? 'bg-[#FAF8F5] ring-2 ring-[#D97706] ring-inset'
+                  : 'bg-[#FFFFFF] hover:bg-[#FAF8F5]/60'
               }`}
             >
-              <div className="relative z-10 flex flex-col gap-2.5">
+              <div className="relative z-10 flex flex-col gap-3">
                 {/* Step Pill & Badge */}
                 <div className="flex items-center justify-between">
                   <span
-                    className={`inline-flex items-center gap-1.5 font-mono text-[10px] px-2 py-0.5 rounded font-bold uppercase transition-colors duration-200 ${
+                    className={`inline-flex items-center gap-1.5 font-pixel text-[10px] px-2.5 py-1 rounded font-bold uppercase transition-colors duration-200 ${
                       isCurrentActive
-                        ? 'bg-black text-white'
-                        : 'bg-neutral-200 text-neutral-800'
+                        ? 'bg-[#D97706] text-white shadow-xs'
+                        : 'bg-[#F5EFEB] text-[#57534E] border border-[#D97706]/30'
                     }`}
                   >
                     <span
                       className={`w-1.5 h-1.5 rounded-full transition-colors duration-200 ${
-                        isCurrentActive
-                          ? 'bg-white animate-ping'
-                          : 'bg-black opacity-60'
+                        isCurrentActive ? 'bg-white animate-ping' : 'bg-[#D97706]'
                       }`}
                     />
                     {item.tag}
                   </span>
                   <span
-                    className={`font-mono text-[9px] font-bold uppercase tracking-wider transition-colors duration-200 ${
-                      isCurrentActive ? 'text-black' : 'text-neutral-500'
+                    className={`font-mono text-[10px] font-bold uppercase tracking-wider transition-colors duration-200 ${
+                      isCurrentActive ? 'text-[#B45309]' : 'text-[#78716C]'
                     }`}
                   >
                     {item.badge}
@@ -139,37 +169,37 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
                 </div>
 
                 {/* Step Title & Icon */}
-                <div className="flex items-center gap-2.5 mt-1">
+                <div className="flex items-center gap-3 mt-1">
                   <div
-                    className={`w-9 h-9 rounded border-2 border-black flex items-center justify-center shrink-0 arcade-shadow-sm transition-all duration-200 ${
+                    className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 transition-all duration-200 ${
                       isCurrentActive
-                        ? 'bg-black text-white scale-105 -rotate-2'
-                        : 'bg-surface-container text-black'
+                        ? 'bg-[#D97706] text-white border-[#D97706] shadow-[0_0_12px_rgba(217,119,6,0.3)] scale-105'
+                        : 'bg-[#F5EFEB] text-[#B45309] border-[#D97706]/40'
                     }`}
                   >
-                    <Icon className="w-4 h-4 transition-transform duration-200" />
+                    <Icon className="w-5 h-5 transition-transform duration-200" />
                   </div>
-                  <h3 className="font-headline text-sm font-bold text-black leading-snug">
+                  <h3 className="font-headline text-base font-bold text-[#1C1917] leading-snug">
                     {item.title}
                   </h3>
                 </div>
 
                 {/* Step Description */}
-                <p className="font-sans text-[11px] text-neutral-600 leading-relaxed line-clamp-3">
+                <p className="font-sans text-xs text-[#57534E] leading-relaxed">
                   {item.desc}
                 </p>
               </div>
 
-              {/* Bottom Retro Status Indicator */}
+              {/* Bottom Status Indicator */}
               <div
-                className={`relative z-10 pt-2 border-t border-black/10 flex items-center justify-between font-mono text-[10px] font-bold transition-colors duration-200 ${
-                  isCurrentActive ? 'text-black' : 'text-neutral-500'
+                className={`relative z-10 pt-3 border-t border-[#D97706]/15 flex items-center justify-between font-pixel text-[10px] font-bold transition-colors duration-200 ${
+                  isCurrentActive ? 'text-[#B45309]' : 'text-[#78716C]'
                 }`}
               >
-                <span className="flex items-center gap-1 tracking-tight">
+                <span className="flex items-center gap-1.5 tracking-tight">
                   <span
-                    className={`text-black transition-opacity duration-150 ${
-                      isCurrentActive ? 'opacity-100 animate-pulse' : 'opacity-0'
+                    className={`transition-opacity duration-150 ${
+                      isCurrentActive ? 'opacity-100 animate-pulse text-[#D97706]' : 'opacity-0'
                     }`}
                   >
                     ▶
@@ -179,11 +209,11 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
                 <span
                   className={`transition-all duration-200 ${
                     isCurrentActive
-                      ? 'animate-pixel-nudge text-black font-bold'
-                      : 'text-neutral-400'
+                      ? 'text-[#B45309] font-bold translate-x-1'
+                      : 'text-[#A8A29E]'
                   }`}
                 >
-                  →
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </span>
               </div>
             </div>
@@ -193,4 +223,3 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
     </section>
   );
 };
-

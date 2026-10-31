@@ -141,35 +141,35 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   };
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-5">
       {/* 1. WARNING BANNER: NO SCREENSHOT IMAGES */}
-      <div className="rounded border-2 border-black bg-amber-50 p-3 shadow-[2px_2px_0px_#000] flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="rounded-xl border border-[#F59E0B]/40 bg-[#FEF3C7]/60 p-4 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2.5">
-          <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
-          <span className="font-mono text-amber-950 font-bold uppercase tracking-wide">
+          <AlertTriangle className="w-4 h-4 text-[#D97706] shrink-0" />
+          <span className="font-mono text-[#92400E] font-bold uppercase tracking-wide">
             LƯU Ý ĐỊNH DẠNG:
           </span>
-          <span className="text-neutral-700 font-sans">
+          <span className="text-[#57534E] font-sans">
             PitchArena bóc tách văn bản chuẩn mực để lập mảng số liệu Whitelist. Vui lòng{' '}
-            <strong className="text-black font-semibold">không dùng ảnh chụp màn hình</strong> để chứa số liệu tài chính hay mô hình.
+            <strong className="text-[#1C1917] font-semibold">không dùng ảnh chụp màn hình</strong> để chứa số liệu tài chính hay mô hình.
           </span>
         </div>
       </div>
 
       {/* 2. BỐ CỤC 2 CỘT: NƠI UPLOAD NẰM CẠNH DANH SÁCH 5 KHỐI ĐỀ MỤC */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        {/* CỘT TRÁI (5 COLS): NƠI UPLOAD / THẺ FILE ĐÃ NẠP */}
-        <div className="lg:col-span-4 flex flex-col justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* CỘT TRÁI (4 COLS): NƠI UPLOAD / THẺ FILE ĐÃ NẠP */}
+        <div className="lg:col-span-5 flex flex-col justify-between">
           {!analysisResult ? (
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`h-full min-h-[380px] cursor-pointer rounded border-2 border-dashed p-6 text-center transition-all duration-200 shadow-[3px_3px_0px_#000] flex flex-col items-center justify-center space-y-4 ${
+              className={`h-full min-h-[380px] cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all duration-200 shadow-xs flex flex-col items-center justify-center space-y-4 ${
                 isDragging
-                  ? 'border-black bg-neutral-100 scale-[1.01]'
-                  : 'border-black bg-white hover:bg-neutral-50'
+                  ? 'border-[#B45309] bg-[#FEF3C7]/40 scale-[1.01]'
+                  : 'border-[#D97706]/40 bg-[#FAF8F5] hover:border-[#B45309] hover:bg-[#FFFFFF]'
               }`}
             >
               <input
@@ -180,89 +180,89 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                 className="hidden"
               />
 
-              <div className="w-14 h-14 rounded bg-neutral-100 border-2 border-black flex items-center justify-center text-black shadow-[2px_2px_0px_#000]">
+              <div className="w-14 h-14 rounded-xl bg-[#FFFFFF] border border-[#D97706]/40 flex items-center justify-center text-[#B45309] shadow-xs group-hover:scale-105 transition-all">
                 {isUploading ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-black" />
+                  <Loader2 className="w-6 h-6 animate-spin text-[#B45309]" />
                 ) : (
                   <Upload className="w-6 h-6" />
                 )}
               </div>
 
-              <div className="space-y-1">
-                <p className="font-mono text-xs sm:text-sm text-black font-bold uppercase tracking-wider">
+              <div className="space-y-1.5">
+                <p className="font-headline text-sm text-[#1C1917] font-bold uppercase tracking-wider">
                   {isUploading
                     ? `ĐANG BÓC TÁCH... ${uploadProgress > 0 ? `[${uploadProgress}%]` : ''}`
                     : 'KÉO THẢ TỆP WORD (.DOCX) HOẶC BẤM ĐỂ CHỌN'}
                 </p>
-                <p className="font-sans text-[11px] text-neutral-500">
+                <p className="font-sans text-xs text-[#78716C]">
                   Mô tả đề tài / Slide thuyết trình Word (Tối đa 20MB)
                 </p>
               </div>
 
               {errorMessage && (
-                <div className="p-2 border border-dashed border-rose-400 bg-rose-50 text-rose-600 font-mono text-[11px] flex items-center gap-1.5 max-w-full">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <div className="p-3 border border-rose-300 bg-rose-50 text-rose-800 font-mono text-xs flex items-center gap-2 max-w-full rounded-xl">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
                   <span>{errorMessage}</span>
                 </div>
               )}
 
               <div className="pt-2">
-                <span className="font-mono text-[10px] bg-neutral-100 border border-black/30 px-2 py-1 text-neutral-600">
+                <span className="font-pixel text-[9px] bg-[#FEF3C7] border border-[#F59E0B]/50 px-3 py-1 text-[#92400E] font-bold rounded-full shadow-xs">
                   ĐỊNH DẠNG: .DOCX • KHÔNG CHỨA ẢNH
                 </span>
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-[380px] rounded border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-4">
-              <div className="space-y-3.5">
+            <div className="h-full min-h-[380px] rounded-2xl bg-[#FFFFFF] p-6 border border-[#D97706]/30 shadow-xs flex flex-col justify-between space-y-4">
+              <div className="space-y-4">
                 {/* Header Thẻ File */}
-                <div className="flex items-center justify-between border-b-2 border-black pb-2.5">
+                <div className="flex items-center justify-between border-b border-[#D97706]/20 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-mono text-xs font-bold bg-black text-white px-2 py-0.5">
+                    <span className="font-pixel text-[10px] font-bold bg-[#FEF3C7] text-[#92400E] px-2.5 py-1 rounded-full border border-[#F59E0B]/50">
                       TÀI LIỆU HIỆN HÀNH
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="font-mono text-[11px] font-bold px-2 py-1 rounded border border-black bg-neutral-100 hover:bg-neutral-200 text-black flex items-center gap-1 active:translate-x-0.5 active:translate-y-0.5"
+                    className="font-pixel text-[10px] font-bold px-3 py-1.5 rounded-lg border border-[#D97706]/35 bg-[#FAF8F5] hover:bg-[#FEF3C7] text-[#92400E] hover:text-[#B45309] flex items-center gap-1.5 active:translate-x-0.5 transition-all cursor-pointer shadow-xs"
                   >
-                    <RefreshCw className="w-3 h-3" />
+                    <RefreshCw className="w-3 h-3 text-[#D97706]" />
                     <span>[NẠP LẠI]</span>
                   </button>
                 </div>
 
                 {/* Chi tiết Tệp */}
-                <div className="p-3 border-2 border-black bg-neutral-50 space-y-2.5">
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-8 h-8 rounded border border-black bg-amber-400 flex items-center justify-center shrink-0 mt-0.5 shadow-[1px_1px_0px_#000]">
-                      <FileText className="w-4 h-4 text-black" />
+                <div className="p-4 border border-[#D97706]/20 bg-[#FAF8F5] rounded-xl space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-lg border border-[#D97706]/35 bg-[#FFFFFF] flex items-center justify-center shrink-0 text-[#B45309] shadow-xs">
+                      <FileText className="w-5 h-5 text-[#B45309]" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4
-                        className="font-mono font-bold text-xs sm:text-sm text-black truncate"
+                        className="font-headline font-bold text-sm text-[#1C1917] truncate"
                         title={fixMojibake(analysisResult.filename)}
                       >
                         {fixMojibake(analysisResult.filename)}
                       </h4>
-                      <p className="font-sans text-[11px] text-neutral-500 mt-0.5">
+                      <p className="font-sans text-xs text-[#78716C] mt-0.5">
                         Dung lượng: {(analysisResult.fileSizeBytes / 1024).toFixed(1)} KB
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-black/15 font-mono text-[11px]">
-                    <div className="bg-white p-2 border border-black/20">
-                      <span className="text-neutral-500 block text-[10px]">ĐIỂM MÙ PHÁT HIỆN:</span>
-                      <span className="font-bold text-black text-xs flex items-center gap-1 mt-0.5">
+                  <div className="grid grid-cols-2 gap-2.5 pt-2.5 border-t border-[#D97706]/15 font-mono text-xs">
+                    <div className="bg-[#FFFFFF] p-2.5 border border-[#D97706]/20 rounded-lg">
+                      <span className="text-[#78716C] block font-pixel text-[8px] font-bold uppercase">ĐIỂM MÙ PHÁT HIỆN:</span>
+                      <span className="font-bold text-amber-700 font-pixel text-[10px] flex items-center gap-1 mt-0.5">
                         <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
                         {analysisResult.blindSpots.length} ĐIỂM RỦI RO
                       </span>
                     </div>
-                    <div className="bg-white p-2 border border-black/20">
-                      <span className="text-neutral-500 block text-[10px]">SỐ LIỆU WHITELIST:</span>
-                      <span className="font-bold text-black text-xs flex items-center gap-1 mt-0.5">
+                    <div className="bg-[#FFFFFF] p-2.5 border border-[#D97706]/20 rounded-lg">
+                      <span className="text-[#78716C] block font-pixel text-[8px] font-bold uppercase">SỐ LIỆU WHITELIST:</span>
+                      <span className="font-bold text-emerald-700 font-pixel text-[10px] flex items-center gap-1 mt-0.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                         {analysisResult.entityWhitelist.length} CHỈ SỐ
                       </span>
@@ -270,7 +270,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                   </div>
                 </div>
 
-                <p className="font-sans text-xs text-neutral-600 leading-relaxed">
+                <p className="font-sans text-xs text-[#57534E] leading-relaxed">
                   Tài liệu đã được bóc tách và nạp vào bộ nhớ In-Memory RAG. Kiểm tra các khối đề mục bên cạnh trước khi vào Đấu trường.
                 </p>
               </div>
@@ -280,10 +280,10 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                 <button
                   type="button"
                   onClick={onNext}
-                  className="w-full py-3 px-4 bg-black text-white font-mono font-bold text-xs border-2 border-black shadow-[3px_3px_0px_#eab308] hover:bg-neutral-800 active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 uppercase tracking-wider"
+                  className="w-full py-3 px-4 bg-[#B45309] hover:bg-[#92400E] text-[#FFFFFF] font-pixel font-bold text-xs rounded-xl shadow-xs active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 uppercase tracking-wider transition-all cursor-pointer"
                 >
                   <span>[ TIẾN VÀO ĐẤU TRƯỜNG (BƯỚC 02) ]</span>
-                  <ArrowRight className="w-4 h-4 text-amber-400" />
+                  <ArrowRight className="w-4 h-4 text-[#FFFFFF]" />
                 </button>
               )}
             </div>
@@ -291,14 +291,14 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
         </div>
 
         {/* CỘT PHẢI (7 COLS): DANH SÁCH 5 KHỐI ĐỀ MỤC DẠNG LIST */}
-        <div className="lg:col-span-8 rounded border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-3">
+        <div className="lg:col-span-7 rounded-2xl bg-[#FFFFFF] p-6 border border-[#D97706]/30 shadow-xs flex flex-col justify-between space-y-4">
           {/* Header List */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b-2 border-black">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold bg-black text-white px-2 py-0.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#D97706]/20">
+            <div className="flex items-center gap-2.5">
+              <span className="font-pixel text-[10px] font-bold bg-[#FEF3C7] text-[#92400E] px-2.5 py-1 rounded-full border border-[#F59E0B]/50 shadow-xs">
                 5 KHỐI ĐỀ MỤC
               </span>
-              <h3 className="font-headline font-black text-sm text-black uppercase tracking-tight">
+              <h3 className="font-headline font-black text-sm text-[#1C1917] uppercase tracking-tight">
                 TRỌNG YẾU TỪ TÀI LIỆU
               </h3>
             </div>
@@ -313,18 +313,18 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
                 return (
                   <span
-                    className={`font-mono text-[11px] font-bold flex items-center gap-1 ${
+                    className={`font-pixel text-[10px] font-bold flex items-center gap-1.5 ${
                       isFull ? 'text-emerald-700' : 'text-amber-700'
                     }`}
                   >
                     {isFull ? (
                       <>
-                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                         <span>{found}/{total} KHỐI HOÀN TẤT</span>
                       </>
                     ) : (
                       <>
-                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                         <span>{found}/{total} KHỐI ({total - found} THIẾU)</span>
                       </>
                     )}
@@ -332,14 +332,14 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                 );
               })()
             ) : (
-              <span className="font-mono text-[11px] text-neutral-500 font-bold">
+              <span className="font-pixel text-[10px] text-[#78716C] font-bold">
                 [ CHỜ NẠP TÀI LIỆU ]
               </span>
             )}
           </div>
 
           {/* Danh sách List Items siêu gọn */}
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {(analysisResult ? analysisResult.sections : DEFAULT_PREVIEW_SECTIONS).map(
               (sec: any, idx: number) => {
                 const isResultMode = !!analysisResult;
@@ -352,23 +352,23 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                 return (
                   <div
                     key={sec.id || idx}
-                    className={`rounded border-2 p-2.5 transition-all flex items-center justify-between gap-3 text-xs ${
+                    className={`rounded-xl border p-3.5 transition-all flex items-center justify-between gap-3 text-xs ${
                       !isResultMode
-                        ? 'border-dashed border-neutral-300 bg-neutral-50/60 opacity-60'
+                        ? 'border-dashed border-[#D97706]/30 bg-[#FAF8F5]/60'
                         : isNotFound
-                        ? 'border-dashed border-rose-400 bg-rose-50/50'
-                        : 'border-black bg-neutral-50 hover:bg-white shadow-[2px_2px_0px_#000]'
+                        ? 'border-dashed border-rose-300 bg-rose-50/70'
+                        : 'border-[#D97706]/25 bg-[#FAF8F5] hover:border-[#D97706] shadow-xs'
                     }`}
                   >
                     {/* Bên trái: Mã khối + Tiêu đề + Cảnh báo */}
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <span
-                        className={`font-mono text-[10px] font-bold px-1.5 py-0.5 border shrink-0 ${
+                        className={`font-pixel text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
                           !isResultMode
-                            ? 'border-neutral-400 bg-neutral-200 text-neutral-600'
+                            ? 'border-[#D97706]/25 bg-[#FFFFFF] text-[#78716C]'
                             : isNotFound
-                            ? 'border-rose-400 bg-rose-100 text-rose-700'
-                            : 'border-black bg-black text-white'
+                            ? 'border-rose-300 bg-rose-100 text-rose-800'
+                            : 'border-[#F59E0B]/50 bg-[#FEF3C7] text-[#92400E]'
                         }`}
                       >
                         0{idx + 1}
@@ -378,13 +378,13 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className={`font-bold font-mono text-xs truncate ${
-                              isNotFound ? 'text-neutral-600' : 'text-black'
+                              isNotFound ? 'text-[#78716C]' : 'text-[#1C1917]'
                             }`}
                           >
                             {sec.title}
                           </span>
                           {isNotFound && (
-                            <span className="text-[10px] font-mono font-bold text-rose-600 bg-rose-100/80 px-1.5 py-0.2 border border-rose-300 inline-flex items-center gap-1">
+                            <span className="text-[10px] font-mono font-bold text-rose-700 bg-rose-100 px-2 py-0.5 border border-rose-300 rounded-md inline-flex items-center gap-1">
                               <AlertTriangle className="w-2.5 h-2.5" />
                               Chưa tìm thấy nội dung
                             </span>
@@ -398,7 +398,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                       {isResultMode ? (
                         <span
                           className={`text-[10px] ${
-                            isNotFound ? 'text-rose-500 font-bold' : 'text-neutral-500'
+                            isNotFound ? 'text-rose-600 font-bold' : 'text-[#78716C]'
                           }`}
                         >
                           {isNotFound
@@ -406,21 +406,21 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                             : `${sec.wordCount} TỪ • ${sec.charCount} KÝ TỰ`}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-neutral-400">---</span>
+                        <span className="text-[10px] text-[#A8A29E]">---</span>
                       )}
 
                       {isResultMode ? (
                         isNotFound ? (
-                          <span className="font-bold text-[10px] text-rose-700 bg-rose-100 px-2 py-0.5 border border-rose-300">
+                          <span className="font-pixel text-[9px] text-rose-700 bg-rose-100 px-2.5 py-1 border border-rose-300 rounded-full font-bold">
                             CHƯA TÌM THẤY
                           </span>
                         ) : (
-                          <span className="font-bold text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 border border-emerald-400">
+                          <span className="font-pixel text-[9px] text-emerald-800 bg-emerald-100 px-2.5 py-1 border border-emerald-300 rounded-full font-bold shadow-xs">
                             ĐÃ BÓC TÁCH
                           </span>
                         )
                       ) : (
-                        <span className="font-mono text-[10px] text-neutral-500 bg-neutral-100 px-2 py-0.5 border border-neutral-300">
+                        <span className="font-pixel text-[9px] text-[#78716C] bg-[#FAF8F5] px-2.5 py-1 border border-[#D97706]/20 rounded-full font-bold">
                           CHỜ NẠP
                         </span>
                       )}
@@ -431,9 +431,9 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             )}
           </div>
 
-          <div className="pt-2 border-t border-black/10 flex items-center justify-between text-[11px] font-mono text-neutral-500">
+          <div className="pt-3 border-t border-[#D97706]/20 flex items-center justify-between text-[11px] font-mono text-[#78716C]">
             <span>RAG IN-MEMORY • TỰ ĐỘNG CHUẨN HOÁ HEURISTIC</span>
-            <span className="text-[10px]">CHẤP NHẬN FILE .DOCX</span>
+            <span className="text-[10px] font-bold text-[#B45309]">CHẤP NHẬN FILE .DOCX</span>
           </div>
         </div>
       </div>

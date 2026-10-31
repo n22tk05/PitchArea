@@ -72,6 +72,8 @@ export class ArenaFsmService {
         activeQuestion: undefined,
         followUpCount: 0,
         currentTopic: undefined,
+        currentTopicId: undefined,
+        usedTopicIds: [],
         isCoachingPivot: false,
         transcriptHistory: [],
       };

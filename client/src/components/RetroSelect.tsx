@@ -68,10 +68,10 @@ export function RetroSelect<T extends string | number>({
   return (
     <div
       ref={containerRef}
-      className={`relative font-mono ${className} ${isOpen ? 'z-50' : 'z-auto'}`}
+      className={`relative font-sans ${className} ${isOpen ? 'z-50' : 'z-auto'}`}
     >
       {label && (
-        <label className="block text-[11px] font-bold text-neutral-800 mb-1">
+        <label className="block text-xs font-headline font-bold text-[#1C1917] mb-1">
           {label}
         </label>
       )}
@@ -81,27 +81,25 @@ export function RetroSelect<T extends string | number>({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full border-2 border-black bg-white px-3 py-2 text-left font-mono text-xs font-bold shadow-[2px_2px_0px_#000] hover:bg-neutral-50 active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-between gap-2 cursor-pointer ${
-          isOpen ? 'ring-2 ring-amber-400 bg-neutral-50' : ''
+        className={`w-full border border-[#D97706]/35 bg-[#FFFFFF] px-3.5 py-2.5 text-left font-sans text-xs font-semibold shadow-xs hover:border-[#B45309] hover:bg-[#FAF8F5] active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-between gap-2 cursor-pointer rounded-xl ${
+          isOpen ? 'ring-2 ring-[#D97706]/50 border-[#B45309] bg-[#FEF3C7]/20' : ''
         } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {selectedOption?.icon && (
-            <span className="shrink-0 text-black">{selectedOption.icon}</span>
+            <span className="shrink-0 text-[#B45309]">{selectedOption.icon}</span>
           )}
-          <span className="truncate text-black">{selectedOption?.label}</span>
+          <span className="truncate text-[#1C1917] font-bold text-xs">{selectedOption?.label}</span>
           {selectedOption?.badge && (
             <span
-              className={`shrink-0 text-[10px] px-1 py-0.2 border border-black font-mono font-bold ${
-                selectedOption.badgeColor || 'bg-neutral-100 text-black'
-              }`}
+              className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border border-[#F59E0B]/50 font-mono font-bold bg-[#FEF3C7] text-[#92400E] shadow-xs`}
             >
               {selectedOption.badge}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0 text-black">
+        <div className="flex items-center gap-1.5 shrink-0 text-[#B45309]">
           <ChevronDown
             className={`w-4 h-4 transition-transform duration-200 ${
               isOpen ? 'rotate-180' : ''
@@ -110,9 +108,9 @@ export function RetroSelect<T extends string | number>({
         </div>
       </button>
 
-      {/* Retro Pixel Floating Dropdown Menu */}
+      {/* Retro Floating Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 border-2 border-black bg-white shadow-[4px_4px_0px_#000] max-h-64 overflow-y-auto divide-y-2 divide-black/10">
+        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-[#D97706]/35 bg-[#FFFFFF] shadow-[0_12px_36px_rgba(217,119,6,0.14)] max-h-64 overflow-y-auto divide-y divide-[#D97706]/15 font-sans">
           {options.map((opt) => {
             const isSelected = opt.value === value;
             return (
@@ -125,19 +123,19 @@ export function RetroSelect<T extends string | number>({
                   handleSelect(opt.value);
                 }}
                 onClick={() => handleSelect(opt.value)}
-                className={`w-full px-3 py-2 text-left text-xs font-mono transition-all flex items-center justify-between gap-2.5 cursor-pointer ${
+                className={`w-full px-3.5 py-2.5 text-left text-xs font-sans transition-all flex items-center justify-between gap-2.5 cursor-pointer ${
                   isSelected
-                    ? 'bg-neutral-100 font-bold border-l-4 border-black text-black'
-                    : 'hover:bg-amber-100/70 text-neutral-800'
+                    ? 'bg-[#FEF3C7] font-bold border-l-4 border-l-[#B45309] text-[#92400E]'
+                    : 'hover:bg-[#FAF8F5] text-[#57534E] hover:text-[#1C1917]'
                 }`}
               >
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    {opt.icon && <span className="shrink-0">{opt.icon}</span>}
-                    <span className="truncate">{opt.label}</span>
+                    {opt.icon && <span className="shrink-0 text-[#B45309]">{opt.icon}</span>}
+                    <span className="truncate font-headline font-semibold text-xs">{opt.label}</span>
                   </div>
                   {opt.subLabel && (
-                    <span className="text-[10px] text-neutral-500 font-sans truncate mt-0.5">
+                    <span className="text-[11px] text-[#78716C] font-sans truncate mt-0.5">
                       {opt.subLabel}
                     </span>
                   )}
@@ -146,13 +144,12 @@ export function RetroSelect<T extends string | number>({
                 <div className="flex items-center gap-2 shrink-0">
                   {opt.badge && (
                     <span
-                      className={`text-[9px] px-1.5 py-0.5 border border-black font-mono font-bold ${
-                        opt.badgeColor || 'bg-neutral-100 text-black'
-                      }`}
+                      className={`text-[9px] px-2 py-0.5 rounded-full border border-[#F59E0B]/50 font-mono font-bold bg-[#FEF3C7] text-[#92400E]`}
                     >
                       {opt.badge}
                     </span>
                   )}
+                  {isSelected && <Check className="w-3.5 h-3.5 text-[#B45309]" />}
                 </div>
               </button>
             );

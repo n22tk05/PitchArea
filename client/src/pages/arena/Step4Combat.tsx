@@ -4,9 +4,8 @@ import {
   LobbyConfig as LobbyConfigType,
   SessionFsmState,
   ArenaSessionState,
-  BusinessSectionType,
 } from '@pitcharena/shared';
-import { ArrowLeft, ArrowRight, ShieldCheck, Wifi, WifiOff, Sparkles, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, AlertTriangle } from 'lucide-react';
 import { ArenaStage } from '../../components/ArenaStage';
 import { useArenaSocket } from '../../hooks/useArenaSocket';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
@@ -33,7 +32,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     return documentData?.documentId ? `session-${documentData.documentId}` : 'arena-session-default';
   }, [documentData?.documentId]);
 
-  // Hook kết nối WebSocket Sàn Đấu (dùng hook truyền vào hoặc tự khởi tạo)
+  // Hook kết nối WebSocket Sàn Đấu
   const defaultSocket = useArenaSocket(sessionId, documentData?.documentId);
   const activeSocket = arenaSocket || defaultSocket;
 
@@ -72,7 +71,9 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     resetTranscript();
   }, [sessionState?.currentTurn, resetTranscript]);
 
-  // Khi vào Step 4: Cập nhật cấu hình và bắt đầu trận đấu nếu đang ở LOBBY
+  const hasCombatStartedRef = useRef<boolean>(false);
+
+  // Khi vào Step 4: Cập nhật cấu hình và bắt đầu trận đấu
   useEffect(() => {
     if (isConnected && lobbyConfig) {
       updateConfig(lobbyConfig);
@@ -80,12 +81,26 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
   }, [isConnected, lobbyConfig, updateConfig]);
 
   useEffect(() => {
-    if (isConnected && sessionState?.fsmState === SessionFsmState.LOBBY_READY) {
-      startCombat();
+    if (isConnected) {
+      if (
+        sessionState?.fsmState === SessionFsmState.LOBBY_READY ||
+        (!hasCombatStartedRef.current && sessionState?.fsmState === SessionFsmState.EVALUATION_REPORT)
+      ) {
+        startCombat();
+      }
     }
   }, [isConnected, sessionState?.fsmState, startCombat]);
 
-  // TỰ ĐỘNG BẬT MICRO: Sau mỗi lần hết thời gian chuẩn bị và bước vào đối chất (COMBAT_ACTIVE)
+  useEffect(() => {
+    if (
+      sessionState?.fsmState === SessionFsmState.PREP_BUFFER ||
+      sessionState?.fsmState === SessionFsmState.COMBAT_ACTIVE
+    ) {
+      hasCombatStartedRef.current = true;
+    }
+  }, [sessionState?.fsmState]);
+
+  // TỰ ĐỘNG BẬT MICRO
   const isCombatActiveAndUnfrozen =
     (timerData?.fsmState ?? sessionState?.fsmState) === SessionFsmState.COMBAT_ACTIVE &&
     !(timeFreezeInfo?.isFrozen || sessionState?.isTimeFrozen) &&
@@ -100,14 +115,14 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
     prevActiveRef.current = isCombatActiveAndUnfrozen;
   }, [isCombatActiveAndUnfrozen, startRecording]);
 
-  // Gửi transcript tạm thời lên server khi có phát biểu
+  // Gửi transcript tạm thời lên server
   useEffect(() => {
     if (interimTranscript) {
       submitTranscript(interimTranscript, false);
     }
   }, [interimTranscript, submitTranscript]);
 
-  // KHI HẾT GIỜ (turnRemainingSeconds === 0): Lập tức ngắt micro, server timer sẽ tự động tiếp nhận bản ghi và phán quyết
+  // KHI HẾT GIỜ (turnRemainingSeconds === 0)
   useEffect(() => {
     const remaining = timerData?.turnRemainingSeconds ?? sessionState?.turnRemainingSeconds;
     const currentState = timerData?.fsmState ?? sessionState?.fsmState;
@@ -149,7 +164,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
 
   // Tự động chuyển sang Báo cáo khi trận đấu kết thúc (FSM EVALUATION_REPORT)
   useEffect(() => {
-    if (sessionState?.fsmState === SessionFsmState.EVALUATION_REPORT) {
+    if (hasCombatStartedRef.current && sessionState?.fsmState === SessionFsmState.EVALUATION_REPORT) {
       if (isRecording) {
         stopRecording();
       }
@@ -158,11 +173,11 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
   }, [sessionState?.fsmState, sessionState, isRecording, stopRecording, onNext]);
 
   const handleEndCombat = () => {
+    hasCombatStartedRef.current = true;
     if (isRecording) {
       stopRecording();
     }
     finishCombat();
-    // Chờ server đồng bộ phán quyết và tạo báo cáo qua FSM EVALUATION_REPORT, dự phòng tối đa 1.5s
     setTimeout(() => {
       onNext(sessionState);
     }, 1500);
@@ -185,17 +200,17 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
   return (
     <div className="flex flex-col gap-6 animate-fadeIn pb-8">
       {/* Thanh Trạng Thái Đỉnh Sàn Đấu */}
-      <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] flex flex-wrap items-center justify-between gap-4">
+      <div className="border-2 border-black bg-white rounded-2xl p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="bg-rose-600 text-white font-mono text-xs font-bold px-2 py-0.5 flex items-center gap-1.5 border border-rose-800">
-            <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+          <span className="bg-[#FEF3C7] text-[#92400E] font-pixel text-xs font-bold px-3 py-1.5 flex items-center gap-2 border border-[#F59E0B]/50 rounded-full shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
             BƯỚC 04 // PHẢN BIỆN (COMBAT ARENA)
           </span>
 
           {hasSection6 && (
             <span
               data-testid="section6-combat-badge"
-              className="bg-amber-400 text-black font-mono text-xs font-bold px-2.5 py-0.5 flex items-center gap-1.5 border border-black shadow-[2px_2px_0px_#000] animate-pulse"
+              className="bg-[#FEF3C7] text-[#92400E] font-pixel text-xs font-bold px-3 py-1.5 flex items-center gap-1.5 border border-[#F59E0B]/50 rounded-full shadow-xs animate-pulse"
             >
               <Sparkles className="w-3.5 h-3.5" />
               [KHỐI 6: Ý TƯỞNG MỞ RỘNG PHÁT SINH]
@@ -205,9 +220,9 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
           {isPivotDetected && (
             <span
               data-testid="major-pivot-combat-badge"
-              className="bg-rose-700 text-white font-mono text-xs font-bold px-2.5 py-0.5 flex items-center gap-1.5 border border-black shadow-[2px_2px_0px_#000] animate-bounce"
+              className="bg-rose-100 text-rose-800 font-pixel text-xs font-bold px-3 py-1.5 flex items-center gap-1.5 border border-rose-300 rounded-full shadow-xs animate-bounce"
             >
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-300" />
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
               [CỜ BẺ LÁI ĐỀ ÁN: MAJOR PIVOT]
             </span>
           )}
@@ -218,16 +233,16 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
             <button
               type="button"
               onClick={skipPrep}
-              className="px-3 py-1 bg-amber-400 text-black border border-black font-mono text-xs font-bold hover:bg-amber-300 animate-pulse"
+              className="px-3.5 py-2 bg-[#FEF3C7] text-[#92400E] border border-[#F59E0B]/60 font-pixel text-xs font-bold hover:bg-[#FDE68A] animate-pulse rounded-xl cursor-pointer shadow-xs"
             >
-              VUI LÒNG CHỜ 
+              VUI LÒNG CHỜ
             </button>
           )}
 
           <button
             type="button"
             onClick={handleEndCombat}
-            className="px-3.5 py-1 bg-black text-white font-mono text-xs font-bold hover:bg-neutral-800 flex items-center gap-1.5"
+            className="px-5 py-2.5 bg-[#B45309] hover:bg-[#92400E] text-white font-headline text-xs font-bold flex items-center gap-2 cursor-pointer shadow-xs rounded-xl transition-all"
           >
             <span>KẾT THÚC ĐỐI CHẤT →</span>
           </button>
@@ -235,15 +250,15 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
       </div>
 
       {connectionError && (
-        <div className="p-3 bg-rose-50 border-2 border-rose-500 text-rose-700 font-mono text-xs">
+        <div className="p-3.5 bg-rose-50 border border-rose-300 text-rose-800 font-mono text-xs rounded-xl">
           Lưu ý kết nối: {connectionError}. Hệ thống đang hoạt động ở chế độ mô phỏng phản xạ nhanh tại chỗ.
         </div>
       )}
 
       {speechError && (
-        <div className="p-3 bg-amber-50 border-2 border-amber-500 text-amber-900 font-mono text-xs flex items-center justify-between">
+        <div className="p-3.5 bg-[#FAF8F5] border border-amber-300 text-amber-900 font-mono text-xs flex items-center justify-between rounded-xl">
           <span>⚠️ {speechError}</span>
-          <span className="text-[10px] text-neutral-600">Bạn vẫn có thể gõ trực tiếp luận điểm phản biện vào khung chat bên dưới.</span>
+          <span className="text-[10px] text-[#78716C]">Bạn vẫn có thể gõ trực tiếp luận điểm phản biện vào khung chat bên dưới.</span>
         </div>
       )}
 
@@ -271,22 +286,23 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="px-4 py-2 border-2 border-black font-mono text-xs font-bold hover:bg-neutral-100 flex items-center gap-1.5 active:translate-x-0.5 active:translate-y-0.5 shadow-[2px_2px_0px_#000]"
+          className="px-4 py-2.5 border border-[#D97706]/35 rounded-xl bg-[#FFFFFF] text-[#1C1917] font-mono text-xs font-bold hover:bg-[#FEF3C7] hover:text-[#92400E] flex items-center gap-2 transition-all shadow-xs cursor-pointer"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
+          <ArrowLeft className="w-3.5 h-3.5 text-[#D97706]" />
           <span>QUAY LẠI PITCHING (BƯỚC 03)</span>
         </button>
 
         <button
           type="button"
           onClick={handleEndCombat}
-          className="px-5 py-2.5 bg-black text-white font-mono font-bold text-xs border-2 border-black shadow-[3px_3px_0px_#eab308] hover:bg-neutral-800 active:translate-x-0.5 active:translate-y-0.5 flex items-center gap-2"
+          className="px-5 py-2.5 bg-[#B45309] hover:bg-[#92400E] text-white font-headline font-bold text-xs flex items-center gap-2 cursor-pointer shadow-xs rounded-xl transition-all"
         >
           <span>XEM BÁO CÁO PHỤ LỤC (BƯỚC 05)</span>
-          <ArrowRight className="w-4 h-4 text-amber-400" />
+          <ArrowRight className="w-4 h-4 text-white" />
         </button>
       </div>
     </div>
   );
 };
+
 export const Step3Combat = Step4Combat;

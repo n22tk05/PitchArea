@@ -21,15 +21,15 @@ export const Step1Upload: React.FC<Step1UploadProps> = ({
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
       {/* Banner Tiêu đề Bước 01 */}
-      <div className="border-2 border-black bg-white p-5 shadow-[4px_4px_0px_#000] flex flex-wrap items-center justify-between gap-4">
+      <div className="p-6 rounded-2xl bg-[#FAF8F5] border border-[#D97706]/30 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span className="font-mono text-xs font-bold bg-black text-white px-2 py-0.5">
+          <span className="font-pixel text-[10px] font-bold bg-[#FEF3C7] text-[#92400E] px-2.5 py-1 rounded-full border border-[#F59E0B]/50 inline-block shadow-xs">
             BƯỚC 01 // KHỞI TẠO DỮ LIỆU
           </span>
-          <h2 className="font-headline text-2xl font-black text-black tracking-tight mt-1">
+          <h2 className="font-headline text-2xl font-black text-[#1C1917] tracking-tight mt-2">
             NẠP TÀI LIỆU THUYẾT MINH (.DOCX)
           </h2>
-          <p className="font-sans text-xs text-neutral-600 mt-0.5">
+          <p className="font-sans text-xs text-[#57534E] mt-1">
             Hệ thống tự động lọc bỏ hình ảnh rác, bóc tách 5 khối chuyên môn và nhận diện 3 điểm mù rủi ro.
           </p>
         </div>
@@ -38,10 +38,10 @@ export const Step1Upload: React.FC<Step1UploadProps> = ({
           <button
             type="button"
             onClick={onUseDemo}
-            className="px-3.5 py-2 bg-amber-400 border-2 border-black font-mono text-xs font-bold shadow-[3px_3px_0px_#000] hover:bg-amber-300 active:translate-x-0.5 active:translate-y-0.5 flex items-center gap-1.5"
+            className="px-4 py-2.5 bg-[#FEF3C7] hover:bg-[#FDE68A] text-[#92400E] font-pixel text-xs font-bold border border-[#F59E0B]/60 rounded-xl shadow-xs active:translate-x-0.5 active:translate-y-0.5 flex items-center gap-2 transition-all cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 fill-black" />
-            [ THỬ NGHIỆM VỚI ĐỀ TÀI MẪU ]
+            <Sparkles className="w-4 h-4 fill-[#92400E]" />
+            <span>[ THỬ NGHIỆM VỚI ĐỀ TÀI MẪU ]</span>
           </button>
         )}
       </div>

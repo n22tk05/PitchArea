@@ -27,9 +27,6 @@ import {
   ShieldCheck,
   AlertTriangle,
   Flame,
-  History,
-  ChevronDown,
-  ChevronUp,
   Clock,
   SkipForward,
 } from 'lucide-react';
@@ -116,7 +113,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
       if (lastProcessedVerdictKey.current !== verdictKey) {
         lastProcessedVerdictKey.current = verdictKey;
 
-        // Nếu là hồi máu (isHeal = true hoặc hpDelta > 0): Luôn hiển thị hiệu ứng HỒI MÁU (ngọc lục bảo Emerald)
+        // Nếu là hồi máu (isHeal = true hoặc hpDelta > 0): Luôn hiển thị hiệu ứng HỒI MÁU
         if (effectiveVerdict.isHeal || effectiveVerdict.hpDelta > 0) {
           setHpDelta(Math.abs(effectiveVerdict.hpDelta) || 5);
           setHpFlashType('heal');
@@ -137,7 +134,6 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
     // Trường hợp biến động HP ngoài phán quyết (hoặc fallback)
     if (prevHpRef.current !== null && prevHpRef.current !== hp) {
       const diff = hp - prevHpRef.current;
-      // Chỉ kích hoạt nếu không có phán quyết vừa xử lý
       if (!lastProcessedVerdictKey.current || !effectiveVerdict) {
         setHpDelta(Math.abs(diff));
         if (diff > 0) {
@@ -155,10 +151,9 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
     prevHpRef.current = hp;
   }, [hp, effectiveVerdict]);
 
-  // Kiểm tra phán quyết gần nhất để duy trì hiệu ứng xanh khi phản biện thực sự xuất sắc (được hồi máu)
+  // Kiểm tra phán quyết gần nhất
   const isAnswerCorrect = useMemo(() => {
     if (!effectiveVerdict) return false;
-    // Điểm chất lượng tổng hợp Q >= 65 VÀ được thưởng hồi máu thực sự (hpDelta > 0 hoặc isHeal), không phải do sàn tân thủ giữ máu
     return (
       (effectiveVerdict.isHeal || effectiveVerdict.hpDelta > 0) &&
       effectiveVerdict.score.overallScore >= 65 &&
@@ -166,7 +161,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
     );
   }, [effectiveVerdict]);
 
-  // Thông tin chuỗi phản biện (Streak) - Đồng bộ chặt chẽ với Server Session
+  // Thông tin chuỗi phản biện (Streak)
   const streakInfo = useMemo(() => {
     if (sessionState?.streak) {
       return sessionState.streak;
@@ -184,11 +179,31 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
     return { count: 0, type: 'NEUTRAL' as const };
   }, [sessionState?.streak, effectiveVerdict]);
 
+  const [localIsPaused, setLocalIsPaused] = useState<boolean | null>(null);
+
   const isFrozen = timeFreezeInfo.isFrozen || sessionState?.isTimeFrozen;
-  const isPaused = timerData?.isPaused || sessionState?.isPaused;
+  const isPaused =
+    localIsPaused !== null
+      ? localIsPaused
+      : sessionState?.isPaused !== undefined
+      ? sessionState.isPaused
+      : (timerData?.isPaused ?? false);
   const fsmState = timerData?.fsmState || sessionState?.fsmState;
 
-  // Đếm ngược Tổng thời gian Q&A theo giây: chỉ đếm khi đang trong lượt đối chất (COMBAT_ACTIVE)
+  const handleTogglePauseClick = () => {
+    setLocalIsPaused((prev) => {
+      const current =
+        prev !== null
+          ? prev
+          : sessionState?.isPaused !== undefined
+          ? sessionState.isPaused
+          : (timerData?.isPaused ?? false);
+      return !current;
+    });
+    onTogglePause();
+  };
+
+  // Đếm ngược Tổng thời gian Q&A theo giây
   useEffect(() => {
     if (isPaused || isFrozen) return;
     if (fsmState !== SessionFsmState.COMBAT_ACTIVE) {
@@ -214,7 +229,7 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Lọc chỉ những Giám khảo có khối đề mục tồn tại trong tài liệu
+  // Lọc Giám khảo có khối đề mục tồn tại trong tài liệu
   const availableBosses = useMemo(() => {
     if (sessionState?.availableBossIds && sessionState.availableBossIds.length > 0) {
       return sessionState.availableBossIds;
@@ -226,15 +241,6 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
       JuryBossId.RISK_STRATEGIST,
     ];
   }, [sessionState?.availableBossIds]);
-
-  const gridColsClass =
-    availableBosses.length === 1
-      ? 'grid-cols-1 max-w-md mx-auto'
-      : availableBosses.length === 2
-      ? 'grid-cols-1 md:grid-cols-2'
-      : availableBosses.length === 3
-      ? 'grid-cols-1 md:grid-cols-3'
-      : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
 
   const turnRemaining =
     timerData?.turnRemainingSeconds ??
@@ -252,123 +258,99 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-5 w-full">
+    <div className="flex flex-col gap-6 w-full font-mono text-[#1C1917]">
       {/* 2. KHUNG ĐẤU TRƯỜNG CHÍNH (Arena Viewport) */}
       <div
-        className={`relative border-2 text-white p-5 shadow-[6px_6px_0px_#000] flex flex-col gap-4 overflow-hidden font-mono transition-all duration-300 ${
+        className={`relative border p-6 rounded-2xl flex flex-col gap-5 overflow-hidden transition-all duration-300 ${
           hpFlashType === 'damage'
-            ? 'border-rose-500 bg-rose-950/70 shadow-[0_0_35px_rgba(225,29,72,0.7)]'
+            ? 'border-rose-400 bg-rose-50 shadow-[0_0_35px_rgba(225,29,72,0.25)]'
             : hpFlashType === 'heal'
-            ? 'border-emerald-400 bg-emerald-950/70 shadow-[0_0_35px_rgba(16,185,129,0.7)]'
+            ? 'border-emerald-400 bg-emerald-50 shadow-[0_0_35px_rgba(16,185,129,0.25)]'
             : isAnswerCorrect
-            ? 'border-emerald-500 bg-neutral-900 animate-correct-pulse'
-            : 'border-black bg-neutral-900'
+            ? 'border-emerald-400 bg-[#FFFFFF] shadow-[0_0_25px_rgba(16,185,129,0.15)]'
+            : 'bg-[#FFFFFF] border-[#D97706]/30 shadow-xs'
         }`}
       >
-        {/* HP Change Flash Overlay Background */}
-        {hpFlashType === 'damage' && (
-          <div className="absolute inset-0 pointer-events-none z-0 animate-hp-damage" />
-        )}
-        {hpFlashType === 'heal' && (
-          <div className="absolute inset-0 pointer-events-none z-0 animate-hp-heal" />
-        )}
-
-        {/* Hiệu ứng viền phát sáng xanh báo hiệu câu trả lời đúng trọng tâm */}
-        {isAnswerCorrect && !hpFlashType && (
-          <div className="absolute inset-0 pointer-events-none z-0 bg-emerald-950/20 border-2 border-emerald-500/40" />
-        )}
-
-        {/* CRT Scanline Retro Effect */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.35)_50%)] bg-[length:100%_4px] pointer-events-none opacity-30 z-0" />
-
         {/* Header Sàn Đấu */}
-        <div className="relative z-10 flex flex-wrap items-center justify-between pb-3 border-b border-neutral-700 gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-neutral-300">
-              GIÁM KHẢO: <span className="text-amber-400 font-bold">{JURY_BOSS_PROFILES[activeBossId].name}</span>
+        <div className="relative z-10 flex flex-wrap items-center justify-between pb-4 border-b border-[#D97706]/20 gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-xs text-[#57534E] font-sans font-bold">
+              GIÁM KHẢO: <span className="text-[#B45309] font-headline font-black text-sm uppercase">{JURY_BOSS_PROFILES[activeBossId].name}</span>
             </span>
 
             {streakInfo.count >= 2 && (
               <span
-                className={`px-2 py-0.5 text-black font-extrabold text-xs flex items-center gap-1 border shadow-[2px_2px_0px_#000] ${
+                className={`px-2.5 py-0.5 text-xs font-pixel font-bold flex items-center gap-1.5 rounded-full border shadow-xs ${
                   streakInfo.type === 'WIN'
-                    ? 'bg-amber-400 border-amber-300 animate-streak-fire'
-                    : 'bg-rose-400 border-rose-300'
+                    ? 'bg-[#FEF3C7] border-[#F59E0B]/60 text-[#92400E]'
+                    : 'bg-rose-100 border-rose-300 text-rose-800'
                 }`}
               >
-                <Flame className="w-3.5 h-3.5 text-rose-700" />
+                <Flame className="w-3.5 h-3.5 text-[#D97706]" />
                 <span>Streak {streakInfo.count}</span>
               </span>
             )}
           </div>
 
-          {/* Cụm đồng hồ: Tổng quỹ Q&A đã set & Thời gian đối chất lượt này */}
-          {/* Cụm đồng hồ: Tổng quỹ Q&A đã set & Thời gian đối chất lượt này (Đồng bộ chiều cao h-9) */}
+          {/* Cụm đồng hồ */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* 1. Tổng Quỹ Thời Gian Q&A đã cấu hình */}
-            <div className="h-9 flex items-center gap-2 px-3 bg-neutral-950 border border-neutral-700 text-xs font-bold shadow-[2px_2px_0px_#000]">
-              <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="text-neutral-400">Thời gian Q&A:</span>
-              <span className="text-base text-amber-400 font-extrabold tracking-wider">
+            {/* 1. Tổng Quỹ Thời Gian Q&A */}
+            <div className="h-10 flex items-center gap-2 px-3.5 bg-[#FAF8F5] border border-[#D97706]/25 rounded-xl text-xs font-bold shadow-xs">
+              <Clock className="w-4 h-4 text-[#D97706] shrink-0" />
+              <span className="text-[#78716C]">Thời gian Q&A:</span>
+              <span className="text-sm text-[#1C1917] font-headline font-black tracking-wider">
                 {formatQaTime(qaRemainingSeconds)}
               </span>
-              <span className="text-[10px] text-neutral-500 font-normal">
+              <span className="text-[10px] text-[#A8A29E] font-normal">
                 / {configuredQaMinutes.toString().padStart(2, '0')}:00
               </span>
             </div>
 
-            {/* Tag Đánh Giá Câu Trả Lời Trước (Tốt / Bình thường / Tệ) */}
+            {/* Tag Đánh Giá Câu Trả Lời Trước */}
             {effectiveVerdict && (
               <div
-                className={`h-9 flex items-center gap-1.5 px-2.5 border text-xs font-extrabold shadow-[2px_2px_0px_#000] transition-all duration-200 animate-fadeIn ${
+                className={`h-10 flex items-center gap-2 px-3 border text-xs font-pixel font-bold rounded-xl shadow-xs transition-all duration-200 ${
                   effectiveVerdict.score.overallScore >= 65 || effectiveVerdict.hpDelta > 0
-                    ? 'bg-emerald-950/90 border-emerald-400 text-emerald-300'
+                    ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
                     : effectiveVerdict.score.overallScore >= 50 || effectiveVerdict.hpDelta === 0
-                    ? 'bg-amber-950/90 border-amber-400 text-amber-300'
-                    : 'bg-rose-950/90 border-rose-500 text-rose-300'
+                    ? 'bg-[#FAF8F5] border-[#D97706]/25 text-[#57534E]'
+                    : 'bg-rose-100 border-rose-300 text-rose-800'
                 }`}
-                title={`Điểm câu trước: Q=${effectiveVerdict.score.overallScore} (Trọng tâm: ${effectiveVerdict.score.directness}, Căn cứ: ${effectiveVerdict.score.factualBacking}, Trung thực: ${effectiveVerdict.score.intellectualHonesty}) | ${effectiveVerdict.reason}`}
               >
                 {effectiveVerdict.score.overallScore >= 65 || effectiveVerdict.hpDelta > 0 ? (
-                  <>
-                    <span>CÂU TRƯỚC: TỐT</span>
-                  </>
+                  <span>CÂU TRƯỚC: TỐT</span>
                 ) : effectiveVerdict.score.overallScore >= 50 || effectiveVerdict.hpDelta === 0 ? (
-                  <>
-                    <span>CÂU TRƯỚC: BÌNH THƯỜNG</span>
-                  </>
+                  <span>CÂU TRƯỚC: BÌNH THƯỜNG</span>
                 ) : (
-                  <>
-                    <span>CÂU TRƯỚC: TỆ</span>
-                  </>
+                  <span>CÂU TRƯỚC: TỆ</span>
                 )}
               </div>
             )}
 
-            {/* 2. Đồng hồ đối chất lượt (30s) kèm hiệu ứng Time Freeze */}
-            {isFrozen ? (
-              <div className="h-9 flex items-center gap-1.5 px-3 bg-cyan-950 border border-cyan-400 text-cyan-300 text-xs font-bold animate-pulse shadow-[2px_2px_0px_#000]">
-                {timeFreezeInfo.reason === 'READING_BUFFER' ? (
+            {/* 2. Đồng hồ đối chất lượt (30s) */}
+            {isPaused ? (
+              <div className="h-10 flex items-center gap-2 px-3.5 bg-[#FEF3C7] border border-[#F59E0B]/50 text-[#92400E] text-xs font-pixel font-bold rounded-xl shadow-xs">
+                <Pause className="w-3.5 h-3.5" />
+                <span>TẠM DỪNG</span>
+              </div>
+            ) : isFrozen ? (
+              <div className="h-10 flex items-center gap-2 px-3.5 bg-cyan-100 border border-cyan-300 text-cyan-800 text-xs font-pixel font-bold animate-pulse rounded-xl shadow-xs">
+                {timeFreezeInfo.reason === 'READING_BUFFER' || fsmState === SessionFsmState.PREP_BUFFER ? (
                   <>
-                    <Clock className="w-3.5 h-3.5 text-cyan-300 animate-spin" />
+                    <Clock className="w-3.5 h-3.5 text-cyan-700 animate-spin" />
                     <span>CHUẨN BỊ (2S)</span>
                   </>
                 ) : (
                   <>
-                    <Snowflake className="w-3.5 h-3.5 animate-spin" />
+                    <Snowflake className="w-3.5 h-3.5 text-cyan-700 animate-spin" />
                     <span>THINKING</span>
                   </>
                 )}
               </div>
-            ) : isPaused ? (
-              <div className="h-9 flex items-center gap-1.5 px-3 bg-amber-950 border border-amber-400 text-amber-300 text-xs font-bold shadow-[2px_2px_0px_#000]">
-                <Pause className="w-3.5 h-3.5" />
-                <span>TẠM DỪNG</span>
-              </div>
             ) : (
-              <div className="h-9 flex items-center gap-2 px-3 text-rose-400 font-bold text-xs bg-neutral-950 border border-neutral-700 shadow-[2px_2px_0px_#000]">
-                <span className="text-neutral-400">LƯỢT NÓI:</span>
-                <span className="text-base text-rose-500 font-extrabold tracking-wider">
+              <div className="h-10 flex items-center gap-2 px-3.5 text-rose-700 font-bold text-xs bg-rose-50 border border-rose-200 rounded-xl shadow-xs">
+                <span className="text-[#78716C] font-sans">LƯỢT NÓI:</span>
+                <span className="text-sm text-rose-700 font-headline font-black tracking-wider">
                   00:{turnRemaining.toString().padStart(2, '0')}
                 </span>
               </div>
@@ -376,112 +358,101 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
 
             <button
               type="button"
-              onClick={onTogglePause}
-              className="h-9 w-9 flex items-center justify-center bg-neutral-800 border border-neutral-600 hover:bg-neutral-700 text-neutral-200 shadow-[2px_2px_0px_#000]"
+              onClick={handleTogglePauseClick}
+              className="h-10 w-10 flex items-center justify-center bg-[#FAF8F5] border border-[#D97706]/35 hover:bg-[#FEF3C7] text-[#1C1917] rounded-xl transition-all cursor-pointer shadow-xs"
               title="Tạm dừng / Tiếp tục"
             >
-              {isPaused ? <Play className="w-4 h-4 fill-white" /> : <Pause className="w-4 h-4" />}
+              {isPaused ? <Play className="w-4 h-4 fill-[#1C1917]" /> : <Pause className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
-        {/* Thanh Máu Thí Sinh (20 Pixel Blocks) */}
-        <div className="relative z-10 flex flex-col gap-1.5 bg-neutral-950/80 p-3 border border-neutral-800">
+        {/* Thanh Máu Thí Sinh */}
+        <div className="relative z-10 flex flex-col gap-2 bg-[#FAF8F5] p-4 border border-[#D97706]/20 rounded-xl">
           <div className="flex items-center justify-between text-xs">
-            <span className="flex items-center gap-1.5 font-bold text-neutral-300">
-              <ShieldAlert className="w-3.5 h-3.5 text-emerald-400" />
-              <span>THANH MÁU THÍ SINH: {hp}%</span>
+            <span className="flex items-center gap-2 font-bold text-[#1C1917]">
+              <ShieldAlert className="w-4 h-4 text-[#D97706]" />
+              <span className="font-headline tracking-wide uppercase">THANH MÁU THÍ SINH: <span className="text-[#B45309] font-black">{hp}%</span></span>
               {hpFlashType === 'damage' && (
-                <span className="ml-2 px-1.5 py-0.5 bg-rose-600 text-white font-extrabold text-[10px] animate-bounce border border-rose-400 shadow-[2px_2px_0px_#000]">
+                <span className="ml-2 px-2 py-0.5 bg-rose-600 text-white font-pixel text-[10px] animate-bounce rounded-full shadow-xs">
                   -{hpDelta} HP (BỊ TRỪ MÁU)
                 </span>
               )}
               {hpFlashType === 'heal' && (
-                <span className="ml-2 px-1.5 py-0.5 bg-emerald-500 text-black font-extrabold text-[10px] animate-bounce border border-emerald-300 shadow-[2px_2px_0px_#000]">
+                <span className="ml-2 px-2 py-0.5 bg-emerald-600 text-white font-pixel text-[10px] animate-bounce rounded-full shadow-xs">
                   +{hpDelta} HP (HỒI MÁU)
                 </span>
               )}
             </span>
 
-            {/* Trạng thái Khiên tân thủ 20% (Chỉ bảo vệ trong 3 lượt đầu, lượt 4 trở đi khiên bị phá vỡ) */}
-            <div className="flex items-center gap-1.5 text-[10px] font-bold">
+            {/* Trạng thái Khiên tân thủ 20% */}
+            <div className="flex items-center gap-2 text-[10px] font-bold">
               {(sessionState?.currentTurn ?? 1) <= 3 ? (
-                <span className="px-2 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-700 shadow-[1px_1px_0px_#000] flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                <span className="px-2.5 py-1 bg-[#FEF3C7] text-[#92400E] border border-[#F59E0B]/50 rounded-full shadow-xs flex items-center gap-1.5 font-pixel">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#D97706]" />
                   KHIÊN TÂN THỦ: SÀN {sessionState?.config?.pedagogicalShieldFloor ?? 20}% (LƯỢT {sessionState?.currentTurn ?? 1}/3)
                 </span>
               ) : hp <= 20 ? (
-                <span className="px-2 py-0.5 bg-rose-950 text-rose-300 border border-rose-600 animate-pulse shadow-[1px_1px_0px_#000] flex items-center gap-1">
-                  <ShieldAlert className="w-3 h-3 text-rose-400" />
+                <span className="px-2.5 py-1 bg-rose-100 text-rose-800 border border-rose-300 animate-pulse rounded-full flex items-center gap-1.5 font-pixel">
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
                   KHIÊN ĐÃ VỠ (SÀN 0% - NGUY HIỂM)
                 </span>
               ) : (
-                <span className="px-2 py-0.5 bg-neutral-900 text-neutral-400 border border-neutral-700 shadow-[1px_1px_0px_#000]">
+                <span className="px-2.5 py-1 bg-[#FFFFFF] text-[#78716C] border border-[#D97706]/20 rounded-full font-pixel">
                   KHIÊN ĐÃ HẾT HIỆU LỰC
                 </span>
               )}
             </div>
           </div>
 
-          {/* Thanh Máu Liên Tục Chuẩn Xác 0 - 100% (Hiển thị chính xác từng % với vạch phân chia Retro) */}
-          <div className="relative w-full h-4 bg-neutral-900 border border-neutral-700 p-0.5 overflow-hidden">
-            {/* Lớp thanh máu chạy chuẩn xác theo hp% */}
+          {/* Thanh Máu Liên Tục */}
+          <div className="relative w-full h-4 bg-[#FFFFFF] border border-[#D97706]/30 p-0.5 overflow-hidden rounded-full shadow-inner">
             <div
-              className={`h-full transition-all duration-300 ease-out ${
+              className={`h-full transition-all duration-300 ease-out rounded-full ${
                 hp <= 20
-                  ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]'
+                  ? 'bg-rose-500'
                   : hp <= 50
-                  ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]'
-                  : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]'
+                  ? 'bg-amber-500'
+                  : 'bg-gradient-to-r from-[#D97706] to-emerald-600'
               }`}
               style={{ width: `${Math.max(0, Math.min(100, hp))}%` }}
             />
-
-            {/* Vạch kẻ phân đoạn Retro (Ticks mỗi 10%) giữ trọn chất Arcade */}
-            <div className="absolute inset-0 flex pointer-events-none px-0.5 py-0.5">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex-1 border-r border-black/30 last:border-r-0 h-full"
-                />
-              ))}
-            </div>
           </div>
         </div>
 
         {/* Coaching Pivot Alert Banner (Strike 2) */}
         {coachingAlert && (
-          <div className="relative z-10 bg-amber-950/90 border-2 border-amber-500 p-3.5 flex items-start gap-3 animate-fadeIn">
-            <Sparkles className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 animate-bounce" />
+          <div className="relative z-10 bg-[#FEF3C7] border border-[#F59E0B]/60 p-4 flex items-start gap-3 animate-fadeIn rounded-xl shadow-xs">
+            <Sparkles className="w-5 h-5 text-[#D97706] shrink-0 mt-0.5 animate-bounce" />
             <div className="flex flex-col gap-1 text-xs">
               <div className="flex items-center gap-2">
-                <span className="bg-amber-400 text-black font-bold px-1.5 py-0.2">
+                <span className="bg-[#92400E] text-white font-pixel font-bold px-2 py-0.5 rounded-full text-[9px]">
                   STRIKE 2 // COACHING PIVOT
                 </span>
-                <span className="text-amber-300 font-bold">
+                <span className="text-[#92400E] font-bold font-sans">
                   Hội đồng chuyển hướng sư phạm hỗ trợ
                 </span>
               </div>
-              <p className="text-neutral-200 leading-relaxed">
+              <p className="text-[#57534E] leading-relaxed font-sans mt-0.5">
                 {coachingAlert.message}
               </p>
             </div>
           </div>
         )}
 
-        {/* Khung Câu Hỏi Giám Khảo (Boss Dialogue Stream) */}
-        <div className="relative z-10 bg-black/90 border border-neutral-700 p-4 flex flex-col gap-2 min-h-[110px]">
-          <div className="text-sm text-neutral-100 leading-relaxed font-sans mt-1">
+        {/* Khung Câu Hỏi Giám Khảo */}
+        <div className="relative z-10 bg-[#FAF8F5] border border-[#D97706]/25 rounded-xl p-5 flex flex-col gap-2 min-h-[110px] shadow-xs">
+          <div className="text-sm text-[#1C1917] leading-relaxed font-sans font-medium">
             {streamingQuestion?.accumulatedText ? (
               <span>
                 "{streamingQuestion.accumulatedText}"
                 {!streamingQuestion.isComplete && (
-                  <span className="inline-block w-2 h-4 bg-amber-400 ml-1 animate-pulse" />
+                  <span className="inline-block w-2 h-4 bg-[#D97706] ml-1 animate-pulse" />
                 )}
               </span>
             ) : (
-              <span className="text-neutral-500 italic flex items-center gap-2">
-                <HelpCircle className="w-4 h-4 text-neutral-500 animate-spin" />
+              <span className="text-[#78716C] italic flex items-center gap-2">
+                <HelpCircle className="w-4 h-4 text-[#D97706] animate-spin" />
                 <span>Giám khảo đang xem xét hồ sơ và chuẩn bị đưa ra câu hỏi...</span>
               </span>
             )}
@@ -489,23 +460,23 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
         </div>
 
         {/* Khung Thí Sinh Phản Biện & Thu Âm */}
-        <form onSubmit={handleDefenseSubmit} className="relative z-10 flex flex-col gap-2.5">
-          <div className="flex items-center justify-between text-xs text-neutral-300">
+        <form onSubmit={handleDefenseSubmit} className="relative z-10 flex flex-col gap-3">
+          <div className="flex items-center justify-between text-xs text-[#57534E]">
             <span className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${isRecording ? 'bg-rose-500 animate-ping' : 'bg-neutral-600'}`} />
-              <span className="font-bold">THÍ SINH:</span>
+              <span className={`w-2.5 h-2.5 rounded-full ${isRecording ? 'bg-rose-500 animate-ping' : 'bg-[#78716C]'}`} />
+              <span className="font-headline font-bold tracking-wider text-[#1C1917]">THÍ SINH PHẢN BIỆN:</span>
             </span>
 
             <button
               type="button"
               onClick={onToggleRecord}
-              className={`px-3 py-1 text-xs font-bold border flex items-center gap-1.5 transition-all ${
+              className={`px-3.5 py-1.5 text-xs font-pixel font-bold border rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
                 isRecording
-                  ? 'bg-rose-600 border-rose-400 text-white animate-pulse'
-                  : 'bg-neutral-800 border-neutral-600 text-neutral-200 hover:bg-neutral-700'
+                  ? 'bg-rose-600 border-rose-500 text-white animate-pulse shadow-sm'
+                  : 'bg-[#FAF8F5] border-[#D97706]/35 text-[#1C1917] hover:bg-[#FEF3C7] shadow-xs'
               }`}
             >
-              <Mic className="w-3.5 h-3.5" />
+              <Mic className="w-4 h-4 text-[#D97706]" />
               <span>{isRecording ? 'DỪNG THU ÂM' : 'BẬT MIC NÓI'}</span>
             </button>
           </div>
@@ -517,35 +488,35 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
               value={manualDefenseText}
               onChange={(e) => setManualDefenseText(e.target.value)}
               placeholder="Nói vào micro hoặc gõ luận điểm phản biện trực tiếp vào đây..."
-              className="w-full bg-neutral-950 border border-neutral-700 p-3 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-400 resize-none font-sans"
+              className="w-full bg-[#FAF8F5] border border-[#D97706]/30 rounded-xl p-3.5 text-xs text-[#1C1917] placeholder-[#A8A29E] focus:outline-none focus:border-[#B45309] resize-none font-sans shadow-xs"
             />
             {interimTranscript && (
-              <div className="text-[11px] text-amber-300 italic px-3 pb-2 bg-neutral-950 border-x border-b border-neutral-700">
+              <div className="text-xs text-[#B45309] italic px-3.5 pb-2.5 bg-[#FAF8F5] border-x border-b border-[#D97706]/30 rounded-b-xl">
                 Đang nhận diện giọng nói: {interimTranscript}...
               </div>
             )}
           </div>
 
           {/* Thanh Nút Hành Động */}
-          <div className="flex items-center justify-between pt-1 gap-2">
+          <div className="flex items-center justify-between pt-1 gap-3">
             <button
               type="button"
               onClick={onRequestNextQuestion}
               disabled={isFrozen || isPaused}
-              className="px-3 py-2 bg-neutral-800 hover:bg-rose-950 border border-neutral-600 hover:border-rose-500 text-neutral-300 hover:text-rose-300 font-bold text-xs flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed shadow-[2px_2px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
+              className="px-4 py-2.5 bg-[#FAF8F5] hover:bg-rose-50 border border-[#D97706]/30 hover:border-rose-300 text-[#78716C] hover:text-rose-700 font-bold text-xs flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all cursor-pointer shadow-xs"
               title="Bỏ qua câu hỏi này và chấp nhận bị phán quyết trừ điểm máu (HP)"
             >
-              <SkipForward className="w-3.5 h-3.5 text-rose-400" />
+              <SkipForward className="w-4 h-4 text-rose-600" />
               <span>BỎ QUA CÂU NÀY (-HP)</span>
             </button>
 
             <button
               type="submit"
               disabled={isFrozen || isPaused || (!manualDefenseText.trim() && !interimTranscript.trim())}
-              className="px-5 py-2 bg-amber-400 text-black border-2 border-black font-bold text-xs hover:bg-amber-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-[2px_2px_0px_#fff]"
+              className="px-6 py-2.5 bg-[#B45309] hover:bg-[#92400E] text-white font-pixel font-bold text-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer shadow-xs rounded-xl transition-all"
             >
               <span>NỘP BÀI PHẢN BIỆN (SUBMIT)</span>
-              <Send className="w-3.5 h-3.5" />
+              <Send className="w-4 h-4 text-white" />
             </button>
           </div>
         </form>

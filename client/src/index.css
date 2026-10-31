@@ -3,15 +3,89 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --pf-bg-main: #08050D;
+    --pf-bg-secondary: #12081F;
+    --pf-bg-surface: #1B0A2D;
+    --pf-bg-card: #150924;
+    --pf-purple-primary: #8B20F5;
+    --pf-purple-bright: #B14DFF;
+    --pf-purple-deep: #4C087B;
+    --pf-lime-accent: #D6FF32;
+    --pf-lime-hover: #E2FF5E;
+    --pf-lime-glow: rgba(214, 255, 50, 0.25);
+    --pf-border-purple: rgba(139, 32, 245, 0.45);
+  }
+
   html, body {
     margin: 0;
     padding: 0;
     overscroll-behavior: none;
+    background-color: #08050D;
+    color: #FFFFFF;
   }
 }
 
 ::-webkit-scrollbar {
   display: none;
+}
+
+/* PixelForge 3D Space Background */
+.pf-space-bg {
+  background-color: #08050D;
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(139, 32, 245, 0.15) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(214, 255, 50, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(76, 8, 123, 0.12) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+/* PixelForge Unified Card System */
+.pf-card {
+  background: linear-gradient(180deg, rgba(26, 12, 44, 0.94) 0%, rgba(18, 8, 31, 0.98) 100%);
+  border: 1px solid rgba(139, 32, 245, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(139, 32, 245, 0.07);
+}
+
+.pf-card-hover {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.pf-card-hover:hover {
+  transform: translateY(-4px);
+  border-color: #D6FF32;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8),
+              0 0 24px rgba(139, 32, 245, 0.3),
+              0 0 10px rgba(214, 255, 50, 0.2);
+}
+
+.pf-btn-lime {
+  background-color: #D6FF32;
+  color: #08050D;
+  font-weight: 700;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 0 12px rgba(214, 255, 50, 0.35);
+}
+
+.pf-btn-lime:hover {
+  background-color: #E2FF5E;
+  box-shadow: 0 0 22px rgba(214, 255, 50, 0.6);
+  transform: translateY(-1px);
+}
+
+.pf-btn-purple {
+  background: rgba(139, 32, 245, 0.18);
+  border: 1px solid rgba(139, 32, 245, 0.6);
+  color: #FFFFFF;
+  transition: all 0.15s ease-in-out;
+}
+
+.pf-btn-purple:hover {
+  background: rgba(139, 32, 245, 0.35);
+  border-color: #D6FF32;
+  box-shadow: 0 0 15px rgba(139, 32, 245, 0.4);
 }
 
 /* Retro CRT Overlay */
@@ -24,25 +98,25 @@
 
 /* Mechanical Arcade Shadows */
 .arcade-shadow {
-  box-shadow: 4px 4px 0px 0px #0a0b0e;
+  box-shadow: 4px 4px 0px 0px #000000;
 }
 
 .arcade-shadow-sm {
-  box-shadow: 2px 2px 0px 0px #0a0b0e;
+  box-shadow: 2px 2px 0px 0px #000000;
 }
 
 .arcade-shadow-hover:hover {
-  box-shadow: 2px 2px 0px 0px #0a0b0e;
+  box-shadow: 2px 2px 0px 0px #000000;
   transform: translate(2px, 2px);
 }
 
 .arcade-shadow-hover:active {
-  box-shadow: 0px 0px 0px 0px #0a0b0e;
+  box-shadow: 0px 0px 0px 0px #000000;
   transform: translate(4px, 4px);
 }
 
 .pixel-grid-bg {
-  background-image: radial-gradient(#d1d5db 1px, transparent 1px);
+  background-image: radial-gradient(rgba(139, 32, 245, 0.25) 1px, transparent 1px);
   background-size: 16px 16px;
 }
 
@@ -184,6 +258,24 @@
 
 .animate-streak-fire {
   animation: streak-fire 1.2s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-scaleUp {
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 

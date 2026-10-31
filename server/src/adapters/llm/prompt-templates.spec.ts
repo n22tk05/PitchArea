@@ -109,4 +109,32 @@ describe('Phase 6: Jury Cross-Grounding Prompt Templates', () => {
     assert.ok(prompt.includes('[CỜ BẺ LÁI ĐỀ ÁN: MAJOR PROPOSAL PIVOT]'));
     assert.ok(prompt.includes('CHỈ THỊ MỞ MÀN: Hãy ưu tiên chất vấn trực diện ngay vào việc tại sao nhóm lại thay đổi định hướng'));
   });
+
+  it('phải tiêm chỉ thị chống lặp ý sâu sắc khi có danh sách resolvedQAPairs', () => {
+    const resolvedQAPairs = [
+      {
+        bossName: 'GS. Vũ Hoàng',
+        question: 'Chi phí máy chủ và vận hành hàng tháng của nhóm là bao nhiêu?',
+        candidateAnswer: 'Dạ chi phí máy chủ là 5 triệu/tháng và nhóm có quỹ dự phòng 30 triệu từ giải thưởng NCKH.',
+      },
+    ];
+
+    const prompt = buildQuestionPrompt(
+      boss,
+      ragContext,
+      'Thí sinh phản biện vòng trước',
+      false,
+      undefined,
+      EvaluationPreset.SV_STARTUP,
+      ['Chi phí máy chủ là bao nhiêu?'],
+      undefined,
+      resolvedQAPairs
+    );
+
+    assert.ok(prompt.includes('CÁC NỘI DUNG VÀ CÂU HỎI ĐÃ ĐƯỢC THÍ SINH GIẢI TRÌNH XONG'));
+    assert.ok(prompt.includes('GS. Vũ Hoàng chất vấn'));
+    assert.ok(prompt.includes('5 triệu/tháng và nhóm có quỹ dự phòng 30 triệu'));
+    assert.ok(prompt.includes('CHỈ THỊ BẮT BUỘC VỀ TÍNH MỚI & CHỦ ĐỀ'));
+    assert.ok(prompt.includes('chuyển sang một khía cạnh hoặc chủ đề hoàn toàn mới'));
+  });
 });

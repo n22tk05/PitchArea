@@ -171,6 +171,15 @@ YÊU CẦU:
 }
 
 /**
+ * Cấu trúc một cặp [Hỏi - Đáp] đã được thí sinh giải trình xong
+ */
+export interface ResolvedQAPair {
+  bossName?: string;
+  question: string;
+  candidateAnswer: string;
+}
+
+/**
  * Prompt Template cho chất vấn thông thường hoặc follow-up lần 1
  */
 export function buildQuestionPrompt(
@@ -181,7 +190,8 @@ export function buildQuestionPrompt(
   followUpTopic?: string,
   preset?: EvaluationPreset,
   previousQuestions?: string[],
-  crossGroundingContext?: CrossGroundingContext
+  crossGroundingContext?: CrossGroundingContext,
+  resolvedQAPairs?: ResolvedQAPair[]
 ): string {
   const presetInstruction =
     preset && PRESET_SYSTEM_INSTRUCTIONS[preset]
@@ -247,6 +257,23 @@ ${previousQuestions.map((q, idx) => `  ${idx + 1}. "${q}"`).join('\n')}
 => YÊU CẦU BẮT BUỘC: Bạn PHẢI chọn một khía cạnh hoàn toàn MỚI CHƯA TỪNG ĐƯỢC HỎI ở trên, đổi cách dùng từ và góc tiếp cận khác biệt để tạo sự bất ngờ và thực tế cho thí sinh.`
       : '';
 
+  const resolvedQADirective =
+    resolvedQAPairs && resolvedQAPairs.length > 0
+      ? `\n\n[CÁC NỘI DUNG VÀ CÂU HỎI ĐÃ ĐƯỢC THÍ SINH GIẢI TRÌNH XONG - TUYỆT ĐỐI CẤM HỎI LẠI HOẶC LẶP Ý]:
+${resolvedQAPairs
+  .map((qa, idx) => {
+    const ansSnippet =
+      qa.candidateAnswer.length > 200
+        ? qa.candidateAnswer.slice(0, 200) + '...'
+        : qa.candidateAnswer;
+    return `  ${idx + 1}. [${qa.bossName || 'Giám khảo'} chất vấn]: "${qa.question}"\n     -> Thí sinh ĐÃ GIẢI TRÌNH: "${ansSnippet}"`;
+  })
+  .join('\n')}
+=> ⚠️ CHỈ THỊ BẮT BUỘC VỀ TÍNH MỚI & CHỦ ĐỀ:
+   - Thí sinh đã giải trình xong các nội dung trên. Bạn TUYỆT ĐỐI KHÔNG ĐƯỢC lặp lại cùng một câu hỏi, cùng một ý niệm hoặc truy vấn lại cùng con số đã được trả lời.
+   - Bạn BẮT BUỘC PHẢI chuyển sang một khía cạnh hoặc chủ đề hoàn toàn mới để khai thác góc nhìn khác của đề án!`
+      : '';
+
   const speechDeliveryRules = `
 [QUY TẮC PHÁT NGÔN BẮT BUỘC TRÊN SÀN ĐẤU]:
 - TUYỆT ĐỐI CẤM PHÁT NGÔN KIỂU TRỢ LÝ AI:
@@ -285,7 +312,7 @@ LỜI PHẢN BIỆN GẦN NHẤT CỦA THÍ SINH:
 "${candidateSpeech}"
 
 CHỦ ĐỀ ĐANG ĐÀO SÂU: "${followUpTopic}"
-${previousQuestionsConstraint}
+${previousQuestionsConstraint}${resolvedQADirective}
 
 NHIỆM VỤ:
 Nhặt ngay 1 chi tiết hoặc tính năng cụ thể trong tài liệu để đặt 1 câu hỏi đào sâu trực diện vào chủ đề "${followUpTopic}".${vocabularyWarning}${foundationFactGuideline}${questionDiversityGuideline}${speechDeliveryRules}
@@ -299,7 +326,7 @@ ${ragContext}
 
 LỜI THUYẾT TRÌNH / PHẢN BIỆN CỦA THÍ SINH:
 "${candidateSpeech || 'Thí sinh đã trình bày xong dự án và chuẩn bị vào phần phản biện.'}"
-${previousQuestionsConstraint}
+${previousQuestionsConstraint}${resolvedQADirective}
 
 NHIỆM VỤ:
 Đọc kỹ đoạn trích trong BỐI CẢNH DỰ ÁN (RAG) ở trên. Nhặt ra đúng 1 tính năng, giải pháp, số liệu hoặc quy trình cụ thể mà nhóm nêu, gọi tên trực tiếp tính năng đó (KHÔNG cần đọc tên số mục) và đặt DUY NHẤT 1 câu hỏi sắc bén theo đúng chuyên môn của bạn để kiểm chứng tính xác thực hoặc cơ chế vận hành thực tế.${vocabularyWarning}${foundationFactGuideline}${questionDiversityGuideline}${speechDeliveryRules}
