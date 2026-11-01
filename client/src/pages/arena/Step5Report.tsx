@@ -70,7 +70,7 @@ export const Step5Report: React.FC<Step5ReportProps> = ({
           'Bước 2 (Tính điểm hòa vốn): Tính toán số lượng khách hàng trả phí tối thiểu cần đạt để doanh thu tự bù đắp toàn bộ chi phí vận hành hàng tháng.',
           'Bước 3 (Đóng gói Slide F1): Lập bảng chi phí vs doanh thu và vẽ biểu đồ điểm hòa vốn đưa vào Slide Phụ lục F1 sẵn sàng phản biện.',
         ],
-        winningResponse: 'Thưa Thầy/Cô, chi phí vận hành tối thiểu 6 tháng đầu là 45 triệu VNĐ. Nhóm đã nhận gói tài trợ Cloud Credits 10.000$ từ chương trình ươm tạo, đủ duy trì máy chủ cho 1.000 người dùng đầu tiên mà không chịu áp lực dòng tiền.',
+        winningResponse: 'Dạ thưa Thầy/Cô, chi phí vận hành tối thiểu 6 tháng đầu là 45 triệu VNĐ. Nhóm đã nhận gói tài trợ Cloud Credits 10.000$ từ chương trình ươm tạo, đủ duy trì máy chủ cho 1.000 người dùng đầu tiên mà không chịu áp lực dòng tiền. Nhóm xin phép mời Thầy/Cô cùng nhìn lên Slide Phụ lục F1 để theo dõi bảng dự toán chi tiết ạ.',
       },
       {
         turnIndex: 2,
@@ -97,7 +97,7 @@ export const Step5Report: React.FC<Step5ReportProps> = ({
           'Bước 2 (Đo lường thông số): Chạy thử nghiệm đo lường độ trễ phản hồi (P95 < 220ms), tải RAM và tỷ lệ thành công của API để có số liệu thực nghiệm.',
           'Bước 3 (Đóng gói Slide T2): Đưa sơ đồ kiến trúc dự phòng và bảng kết quả đo lường độ trễ thực tế vào Slide Phụ lục T2.',
         ],
-        winningResponse: 'Thưa Thầy/Cô, hệ thống được thiết kế kiến trúc Fallback 2 tầng: khi mạng ngắt quãng, Engine cục bộ trên thiết bị sẽ kích hoạt cơ chế Local Cache dưới 5ms để bảo đảm trải nghiệm của người dùng hoàn toàn liền mạch.',
+        winningResponse: 'Dạ thưa Thầy/Cô, hệ thống được thiết kế kiến trúc Fallback 2 tầng: khi mạng ngắt quãng, Engine cục bộ trên thiết bị sẽ kích hoạt cơ chế Local Cache dưới 5ms để bảo đảm trải nghiệm của người dùng hoàn toàn liền mạch. Nhóm xin phép mời Thầy/Cô xem sơ đồ kiến trúc tại Slide Phụ lục T2.',
       },
       {
         turnIndex: 3,
@@ -124,7 +124,7 @@ export const Step5Report: React.FC<Step5ReportProps> = ({
           'Bước 2 (Lấy cam kết thử nghiệm): Ký kết hoặc xin tối thiểu 3 Thư xác nhận quan tâm (LOI / Pilot Agreement) có điều khoản trả phí thử nghiệm danh nghĩa.',
           'Bước 3 (Đóng gói Slide M1): Đưa hình ảnh phỏng vấn, logo đối tác pilot và tỷ lệ chuyển đổi thực tế vào Slide Phụ lục M1.',
         ],
-        winningResponse: 'Thưa Thầy/Cô, thay vì chỉ dừng ở phiếu khảo sát, nhóm đã tiến hành phỏng vấn sâu 15 khách hàng đại diện và ký kết 3 Thư xác nhận quan tâm (LOI) có cam kết trả phí pilot danh nghĩa khi bản MVP vận hành thử nghiệm.',
+        winningResponse: 'Dạ thưa Shark và Ban giám khảo, thay vì chỉ dừng ở phiếu khảo sát, nhóm đã tiến hành phỏng vấn sâu 15 khách hàng đại diện và ký kết 3 Thư xác nhận quan tâm (LOI) có cam kết trả phí pilot danh nghĩa khi bản MVP vận hành thử nghiệm. Xin phép mời Hội đồng theo dõi chi tiết trên Slide Phụ lục M1.',
       },
     ];
 

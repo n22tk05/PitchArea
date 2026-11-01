@@ -503,7 +503,7 @@ export class AppendixGeneratorService {
   /**
    * Phân loại bám sát Word:
    * TRƯỜNG HỢP 1: Trong Word ĐÃ CÓ dữ liệu/ý tưởng -> Gợi ý câu trả lời mẫu bám sát đề án, làm rõ và phát triển mở rộng ý tưởng để giải đáp cho Giám khảo.
-   * TRƯỜNG HỢP 2: Trong Word CHƯA CÓ dữ liệu -> Đề xuất tìm kiếm, khảo sát & câu trả lời cầu thị tránh bị trừ điểm.
+   * TRƯỜNG HỢP 2: Trong Word CHƯA CÓ dữ liệu -> Trả lời phản biện chủ động, tự tin, dẫn chứng ngay số liệu/kịch bản dự phòng đã lường trước tại Slide Phụ lục.
    */
   private generateGroundingAndSampleAnswer(
     bossId: JuryBossId,
@@ -532,19 +532,19 @@ export class AppendixGeneratorService {
       if (bossId === JuryBossId.FINANCE_DRAGON) {
         slideTitle = 'Slide Phụ lục F1: Bảng Dữ Liệu Chi Phí & Điểm Hòa Vốn (Từ Đề Án)';
         proposalText = `Bổ sung bảng phân bổ chi phí cố định (API, Server, Vận hành) 6 tháng đầu và điểm hòa vốn dựa trên số liệu tại mục "${evidence.sectionTitle}" vào Slide Phụ lục F1.`;
-        sampleText = `Thưa Thầy/Cô, trong bản thuyết minh tại mục "${evidence.sectionTitle}", nhóm đã nêu rõ: "${compactEvidence}". Về cơ chế tài chính, nhóm tối ưu hóa chi phí vận hành ở mức tối thiểu để bảo toàn dòng tiền qua 6 tháng đầu. Khi đạt mốc người dùng thử nghiệm ổn định, nhóm sẽ kích hoạt gói dịch vụ nâng cao để tự chủ dòng tiền mà không phụ thuộc nguồn tài trợ bên ngoài.`;
+        sampleText = `Dạ thưa Thầy/Cô, trong bản thuyết minh tại mục "${evidence.sectionTitle}", nhóm đã nêu rõ: "${compactEvidence}". Về cơ chế tài chính, nhóm đã tính toán chi phí vận hành ở mức tối thiểu để bảo toàn dòng tiền qua 6 tháng đầu. Xin phép mời Thầy/Cô cùng nhìn lên Slide Phụ lục F1: nhóm đã lượng hóa điểm hòa vốn và lộ trình kích hoạt gói dịch vụ tự chủ dòng tiền mà không phụ thuộc nguồn tài trợ bên ngoài.`;
       } else if (bossId === JuryBossId.MARKET_SHARK) {
         slideTitle = 'Slide Phụ lục M1: Dữ Liệu Khảo Sát & Xác Thực Nhu Cầu Người Dùng (Từ Đề Án)';
         proposalText = `Đưa số liệu khảo sát và trích dẫn trực tiếp từ ${targetCustomer} tại mục "${evidence.sectionTitle}" vào Slide Phụ lục M1 để chứng minh nhu cầu thực tế.`;
-        sampleText = `Thưa Thầy/Cô, về nhu cầu của ${targetCustomer}, tại mục "${evidence.sectionTitle}" nhóm đã chỉ ra: "${compactEvidence}". Giải pháp của nhóm giải quyết trực diện điểm nghẽn thực tế so với cách làm thủ công cũ. Nhóm bắt đầu từ nhóm 20 khách hàng hạt giống thân thiết nhất để hoàn thiện trải nghiệm và xác thực hành vi chi trả trước khi mở rộng.`;
+        sampleText = `Dạ thưa Shark và Ban giám khảo, về nhu cầu của ${targetCustomer}, tại mục "${evidence.sectionTitle}" nhóm đã chỉ ra: "${compactEvidence}". Giải pháp của nhóm giải quyết trực diện điểm nghẽn thực tế so với cách làm thủ công cũ. Xin phép mời Hội đồng xem Slide Phụ lục M1: nhóm đã triển khai từ nhóm khách hàng hạt giống để hoàn thiện trải nghiệm và xác thực hành vi chi trả trước khi mở rộng.`;
       } else if (bossId === JuryBossId.TECH_SENTINEL) {
         slideTitle = 'Slide Phụ lục T2: Sơ Đồ Kiến Trúc & Cơ Chế Vận Hành Kỹ Thuật (Từ Đề Án)';
         proposalText = `Vẽ sơ đồ luồng dữ liệu 2 tầng và cơ chế dự phòng Offline dựa trên thiết kế tại mục "${evidence.sectionTitle}" vào Slide Phụ lục T2.`;
-        sampleText = `Thưa Thầy/Cô, về mặt kỹ thuật, tại mục "${evidence.sectionTitle}" nhóm đã thiết kế: "${compactEvidence}". Hệ thống kết hợp cơ chế xử lý cục bộ và đồng bộ nền (Background Sync) để khi mạng chập chờn, trải nghiệm người dùng vẫn thông suốt dưới 5ms và tự động đẩy dữ liệu lên máy chủ ngay khi có kết nối trở lại.`;
+        sampleText = `Dạ thưa Thầy/Cô, về mặt kỹ thuật, tại mục "${evidence.sectionTitle}" nhóm đã thiết kế: "${compactEvidence}". Hệ thống kết hợp cơ chế xử lý cục bộ và đồng bộ nền (Background Sync). Xin phép mời Thầy/Cô theo dõi Slide Phụ lục T2: khi mạng chập chờn, trải nghiệm người dùng vẫn thông suốt dưới 5ms và tự động đẩy dữ liệu lên máy chủ ngay khi có kết nối trở lại.`;
       } else {
         slideTitle = 'Slide Phụ lục R3: Ma Trận Cạnh Tranh & Kế Hoạch Triển Khai (Từ Đề Án)';
         proposalText = `Lập bảng ma trận so sánh 3 tiêu chí vượt trội và lộ trình phân công nhiệm vụ dựa trên mục "${evidence.sectionTitle}" vào Slide Phụ lục R3.`;
-        sampleText = `Thưa Thầy/Cô, về định hướng cạnh tranh, tại mục "${evidence.sectionTitle}" nhóm đã nêu: "${compactEvidence}". Điểm khác biệt cốt lõi là giải pháp tập trung sâu vào bài toán bản địa và sự linh hoạt của đội ngũ. Nhóm đã phân công rõ ràng từng mốc KPI trong lộ trình 6 tháng để bảo đảm tốc độ triển khai vượt trội hơn các giải pháp cồng kềnh trên thị trường.`;
+        sampleText = `Dạ thưa Thầy/Cô, về định hướng cạnh tranh, tại mục "${evidence.sectionTitle}" nhóm đã nêu rõ: "${compactEvidence}". Điểm khác biệt cốt lõi là giải pháp tập trung sâu vào bài toán bản địa và sự linh hoạt của đội ngũ. Nhóm xin phép chuyển sang Slide Phụ lục R3 để trình bày ma trận so sánh 3 tính năng phòng thủ cùng mốc KPI 6 tháng đã phân công cụ thể.`;
       }
 
       return {
@@ -565,19 +565,19 @@ export class AppendixGeneratorService {
     if (bossId === JuryBossId.FINANCE_DRAGON) {
       missingSlideTitle = 'Slide Phụ lục F1: Dự Toán Ngân Sách Vận Hành & Điểm Hòa Vốn (Bổ Sung)';
       missingProposal = `Lập bảng Excel dự toán chi phí cố định (API, Server, Domain) 6 tháng đầu và tính mốc người dùng hòa vốn đưa vào Slide Phụ lục F1.`;
-      missingAnswer = `Thưa Thầy/Cô, hiện đề án đang ở giai đoạn thử nghiệm nên nhóm đang tạm ước tính chi phí tối thiểu theo quy mô sinh viên (dưới 10 triệu/tháng). Nhóm xin tiếp thu góp ý của Thầy/Cô và đã chuẩn bị bảng dự toán chi tiết cùng điểm hòa vốn tại 50 khách hàng trả phí trong Slide Phụ lục F1 để Hội đồng thẩm định.`;
+      missingAnswer = `Dạ thưa Thầy/Cô, bài toán duy trì dòng tiền khi chưa có doanh thu đột biến là rủi ro sống còn mà nhóm đã dự toán chi tiết. Trong 6 tháng đầu thử nghiệm, nhóm tối ưu hóa chi phí cố định ở mức dưới 8.5 triệu/tháng theo mô hình tự thân (Bootstrapping). Xin phép mời Thầy/Cô cùng nhìn lên Slide Phụ lục F1: nhóm đã tính toán sẵn bảng ngân sách chi tiết và điểm hòa vốn tại mốc 45 khách hàng trả phí để Hội đồng thẩm định.`;
     } else if (bossId === JuryBossId.MARKET_SHARK) {
       missingSlideTitle = 'Slide Phụ lục M1: Dữ Liệu Khảo Sát & Xác Thực Chi Trả Người Dùng (Bổ Sung)';
       missingProposal = `Phỏng vấn sâu 10-15 khách hàng mục tiêu và thu thập tối thiểu 3 Thư quan tâm (LOI) có cam kết thử nghiệm đưa vào Slide Phụ lục M1.`;
-      missingAnswer = `Thưa Thầy/Cô, thay vì chỉ dừng ở phiếu khảo sát, nhóm đã tiến hành phỏng vấn sâu 15 khách hàng đại diện và ghi nhận 12 người sẵn sàng trải nghiệm trả phí pilot. Nhóm xin tiếp thu góp ý của Thầy/Cô và đã tổng hợp phản hồi thực tế cùng 3 thư xác nhận quan tâm vào Slide Phụ lục M1.`;
+      missingAnswer = `Dạ thưa Shark và Ban giám khảo, câu hỏi của Shark rất đúng trọng tâm vì khảo sát lý thuyết thường không phản ánh hành vi mua. Thay vì chỉ dựa vào biểu mẫu, nhóm đã phỏng vấn sâu 15 khách hàng đại diện và ghi nhận 12 người sẵn sàng tham gia thử nghiệm pilot có thu phí. Xin phép mời Hội đồng theo dõi Slide Phụ lục M1 với đầy đủ trích dẫn phỏng vấn sâu và 3 thư quan tâm (LOI) cam kết thực tế.`;
     } else if (bossId === JuryBossId.TECH_SENTINEL) {
       missingSlideTitle = 'Slide Phụ lục T2: Quy Trình Xử Lý Ngoại Lệ & Dự Phòng Kỹ Thuật (Bổ Sung)';
       missingProposal = `Thiết kế sơ đồ kiến trúc dự phòng ngoại lệ (Local Cache Fallback) và bảng đo lường độ trễ thực nghiệm đưa vào Slide Phụ lục T2.`;
-      missingAnswer = `Thưa Thầy/Cô, giải pháp hiện tại đã tích hợp cơ chế lưu tạm dữ liệu tại chỗ (Local Cache) để bảo đảm khi mạng gián đoạn, người dùng vẫn thao tác bình thường. Nhóm xin tiếp thu và đã chuẩn bị sơ đồ xử lý ngoại lệ chi tiết tại Slide Phụ lục T2 để trình bày cùng Thầy/Cô.`;
+      missingAnswer = `Dạ thưa Thầy/Cô, đây chính là kịch bản ngoại lệ mà nhóm đã đặt ra ngay khi thiết kế kiến trúc. Ứng dụng tích hợp cơ chế bộ đệm cục bộ (Local Cache Fallback) giúp người dùng tiếp tục thao tác không bị gián đoạn màn hình khi mạng rớt. Xin phép mời Thầy/Cô cùng nhìn lên Slide Phụ lục T2: nhóm đã chuẩn bị sẵn sơ đồ luồng dữ liệu 2 tầng và thông số độ trễ thực nghiệm để trình bày cùng Thầy/Cô.`;
     } else {
       missingSlideTitle = 'Slide Phụ lục R3: Ma Trận Khác Biệt & Lộ Trình Triển Khai (Bổ Sung)';
       missingProposal = `Lập ma trận so sánh 3 cột với 2 đối thủ lớn nhất và vạch lộ trình 3 mốc KPI định lượng 6 tháng tới đưa vào Slide Phụ lục R3.`;
-      missingAnswer = `Thưa Thầy/Cô, điểm khác biệt cốt lõi của giải pháp nằm ở khả năng tối ưu hóa trải nghiệm bản địa và chi phí tiếp cận rẻ hơn 60% so với đối thủ ngoại. Nhóm xin tiếp thu và đã lượng hóa ma trận so sánh 3 tính năng vượt trội cùng lộ trình 6 tháng tại Slide Phụ lục R3 để Thầy/Cô thẩm định.`;
+      missingAnswer = `Dạ thưa Thầy/Cô, sự thấu hiểu thị trường bản địa và tối ưu chi phí tiếp cận rẻ hơn 60% so với đối thủ ngoại chính là phòng tuyến của nhóm. Để chứng minh cụ thể, xin phép mời Thầy/Cô theo dõi Slide Phụ lục R3: nhóm đã lượng hóa ma trận so sánh 3 tính năng cốt lõi cùng lộ trình 6 tháng với các mốc định lượng rõ ràng.`;
     }
 
     return {
@@ -672,7 +672,7 @@ export class AppendixGeneratorService {
     const goodItems = items.filter((it) => it.severity === 'GOOD');
     if (goodItems.length > 0) {
       goodItems.slice(0, 3).forEach((it) => {
-        strengths.push(`Lượt ${it.turnIndex} (${it.topic}): Luận cứ có cơ sở dữ liệu thuyết phục, thái độ tiếp thu tốt (+${it.hpImpact} HP).`);
+        strengths.push(`Lượt ${it.turnIndex} (${it.topic}): Luận cứ chặt chẽ, số liệu minh chứng rõ ràng và phản biện chủ động (+${it.hpImpact} HP).`);
       });
     } else {
       strengths.push('Thí sinh kiên trì bảo vệ luận điểm xuyên suốt các đợt chất vấn của Hội đồng.');
@@ -718,7 +718,7 @@ export class AppendixGeneratorService {
           fallacyType: 'Kỳ vọng ngân sách quá lạc quan',
           slideActionProposal: `Bổ sung bảng dự toán ngân sách tối thiểu (chi phí máy chủ, vận hành hạt giống) bảo đảm dự án duy trì được 6 tháng với nguồn lực sinh viên hiện có.`,
           recommendedSlideTitle: 'Slide Phụ lục F1: Dự Toán Ngân Sách Tối Thiểu 6 Tháng Đầu',
-          sampleDefenseArgument: `Thưa Thầy/Cô, trong 6 tháng đầu chưa có doanh thu đột biến, nhóm áp dụng chiến lược tự thân (Bootstrapping) với chi phí máy chủ và vận hành tối thiểu 5 triệu/tháng. Đội ngũ đã chuẩn bị quỹ dự phòng tự thân 30 triệu, bảo đảm hệ thống duy trì liên tục 6 tháng mà không chịu áp lực cạn kiệt ngân sách.`,
+          sampleDefenseArgument: `Dạ thưa Thầy/Cô, trong 6 tháng đầu chưa có doanh thu đột biến, nhóm áp dụng chiến lược tự thân (Bootstrapping) với chi phí máy chủ và vận hành tối thiểu 5 triệu/tháng. Đội ngũ đã chuẩn bị quỹ dự phòng tự thân 30 triệu, bảo đảm hệ thống duy trì liên tục 6 tháng mà không chịu áp lực cạn kiệt ngân sách. Xin phép mời Thầy/Cô cùng nhìn lên Slide Phụ lục F1 để theo dõi bảng dự toán chi tiết ạ.`,
           isDocxGrounded: false,
           hpImpact: -15,
           score: { directness: 40, factualBacking: 35, intellectualHonesty: 50, overallScore: 42 },
@@ -735,7 +735,7 @@ export class AppendixGeneratorService {
           fallacyType: 'Thiếu tư duy xử lý ngoại lệ cơ bản',
           slideActionProposal: 'Bổ sung lưu đồ xử lý lỗi ngoại lệ và lưu tạm thông tin người dùng cục bộ khi mất kết nối.',
           recommendedSlideTitle: 'Slide Phụ lục T2: Quy Trình Xử Lý Ngoại Lệ & Trải Nghiệm Offline',
-          sampleDefenseArgument: 'Thưa Thầy/Cô, khi mạng chập chờn hoặc API bên ngoài bị lỗi, hệ thống sẽ kích hoạt cơ chế lưu tạm dữ liệu cục bộ (Local Cache) trên thiết bị để người dùng tiếp tục thao tác bình thường, sau đó âm thầm tự động đồng bộ khi có kết nối trở lại mà không gián đoạn trải nghiệm.',
+          sampleDefenseArgument: 'Dạ thưa Thầy/Cô, khi mạng chập chờn hoặc API bên ngoài bị lỗi, hệ thống kích hoạt ngay cơ chế lưu tạm dữ liệu cục bộ (Local Cache) trên thiết bị để người dùng tiếp tục thao tác bình thường, sau đó âm thầm tự động đồng bộ khi có kết nối trở lại. Xin phép mời Thầy/Cô xem sơ đồ xử lý ngoại lệ chi tiết tại Slide Phụ lục T2.',
           isDocxGrounded: false,
           hpImpact: -10,
           score: { directness: 55, factualBacking: 50, intellectualHonesty: 60, overallScore: 55 },
@@ -752,7 +752,7 @@ export class AppendixGeneratorService {
           fallacyType: undefined,
           slideActionProposal: `Đưa các hình ảnh trải nghiệm và trích dẫn trực tiếp từ ${targetCustomer} dùng thử vào slide để tăng độ tin cậy trước Ban giám khảo.`,
           recommendedSlideTitle: 'Slide Phụ lục M1: Dữ Liệu Phỏng Vấn Sâu & Danh Sách Đăng Ký Trải Nghiệm',
-          sampleDefenseArgument: `Thưa Ban giám khảo, theo kết quả phỏng vấn trực tiếp 15 ${targetCustomer}, có 12 người mong muốn dùng thử bản MVP ngay khi ra mắt và sẵn sàng đóng góp ý kiến hoàn thiện tính năng.`,
+          sampleDefenseArgument: `Dạ thưa Ban giám khảo, theo kết quả phỏng vấn trực tiếp 15 ${targetCustomer}, có 12 người mong muốn dùng thử bản MVP ngay khi ra mắt và sẵn sàng đóng góp ý kiến hoàn thiện tính năng. Nhóm xin phép chuyển sang Slide Phụ lục M1 để trình chiếu trích dẫn thực tế từ người dùng ạ.`,
           isDocxGrounded: true,
           hpImpact: 5,
           score: { directness: 85, factualBacking: 80, intellectualHonesty: 90, overallScore: 85 },
@@ -774,7 +774,7 @@ export class AppendixGeneratorService {
           fallacyType: 'Ảo tưởng dòng tiền ngoại sinh',
           slideActionProposal: 'Bổ sung bảng phân bổ chi phí tối thiểu theo tháng (Bootstrapping Burn Rate) bảo đảm dự án duy trì 6 tháng.',
           recommendedSlideTitle: 'Slide Phụ lục F1: Kế Hoạch Sinh Tồn Tự Lực (Bootstrapping Runway)',
-          sampleDefenseArgument: `Thưa Thầy/Cô, trong 6 tháng đầu chưa có doanh thu đột biến, dự án áp dụng chiến lược sinh tồn tự lực (Bootstrapping Runway) với chi phí vận hành tối thiểu 5 triệu/tháng cho API và máy chủ. Đội ngũ đã trích lập quỹ dự phòng 30 triệu bảo đảm duy trì 6 tháng độc lập, không phụ thuộc vào các nguồn tài trợ chưa cam kết bên ngoài.`,
+          sampleDefenseArgument: `Dạ thưa Thầy/Cô, trong 6 tháng đầu chưa có doanh thu đột biến, dự án áp dụng chiến lược sinh tồn tự lực (Bootstrapping Runway) với chi phí vận hành tối thiểu 5 triệu/tháng cho API và máy chủ. Đội ngũ đã trích lập quỹ dự phòng 30 triệu bảo đảm duy trì 6 tháng độc lập, không phụ thuộc vào các nguồn tài trợ chưa cam kết bên ngoài. Xin kính mời Thầy/Cô xem bảng tính dòng tiền chi tiết tại Slide Phụ lục F1.`,
           isDocxGrounded: false,
           hpImpact: -15,
           score: { directness: 40, factualBacking: 35, intellectualHonesty: 50, overallScore: 42 },
@@ -791,7 +791,7 @@ export class AppendixGeneratorService {
           fallacyType: 'Thiếu tư duy phòng thủ phần mềm (Defensive Design Gap)',
           slideActionProposal: 'Thiết kế cơ chế lưu trữ đệm tại thiết bị đầu cuối và tự động đồng bộ khi có kết nối trở lại.',
           recommendedSlideTitle: 'Slide Phụ lục T2: Sơ đồ Khối Cơ chế Dự phòng Offline & Tái kết nối',
-          sampleDefenseArgument: 'Thưa Thầy/Cô, khi mạng chập chờn hoặc API bên thứ ba mất kết nối, hệ thống kích hoạt cơ chế 2 tầng: bộ đệm Local Cache tại thiết bị đầu cuối xử lý phản hồi tức thì dưới 5ms, sau đó âm thầm tự động đồng bộ dữ liệu ngay khi mạng khôi phục, giúp người dùng không bao giờ gặp lỗi đứt gãy màn hình.',
+          sampleDefenseArgument: 'Dạ thưa Thầy/Cô, khi mạng chập chờn hoặc API bên thứ ba mất kết nối, hệ thống kích hoạt cơ chế 2 tầng: bộ đệm Local Cache tại thiết bị đầu cuối xử lý phản hồi tức thì dưới 5ms, sau đó âm thầm tự động đồng bộ dữ liệu ngay khi mạng khôi phục, giúp người dùng không bao giờ gặp lỗi đứt gãy màn hình. Xin phép mời Thầy/Cô cùng xem sơ đồ kiến trúc tại Slide Phụ lục T2.',
           isDocxGrounded: false,
           hpImpact: -10,
           score: { directness: 55, factualBacking: 50, intellectualHonesty: 60, overallScore: 55 },
@@ -808,7 +808,7 @@ export class AppendixGeneratorService {
           fallacyType: undefined,
           slideActionProposal: 'Đưa số liệu chuyển đổi và phản hồi từ nhóm người dùng dùng thử có thu phí vào slide để tăng độ tin cậy trước Ban giám khảo.',
           recommendedSlideTitle: 'Slide Phụ lục M1: Dữ Liệu Thử Nghiệm Thu Phí Danh Nghĩa & Tỷ Lệ Chuyển Đổi',
-          sampleDefenseArgument: `Thưa Ban giám khảo, theo kết quả triển khai thử nghiệm trên 20 ${targetCustomer}, nhóm đã ghi nhận 6 người chấp nhận trả phí danh nghĩa để tiếp tục sử dụng dịch vụ, chứng minh tính khả thi chuyển đổi thương mại.`,
+          sampleDefenseArgument: `Dạ thưa Ban giám khảo, theo kết quả triển khai thử nghiệm trên 20 ${targetCustomer}, nhóm đã ghi nhận 6 người chấp nhận trả phí danh nghĩa để tiếp tục sử dụng dịch vụ, chứng minh tính khả thi chuyển đổi thương mại. Xin phép mời Ban giám khảo theo dõi dữ liệu chi tiết trên Slide Phụ lục M1.`,
           isDocxGrounded: true,
           hpImpact: 5,
           score: { directness: 85, factualBacking: 80, intellectualHonesty: 90, overallScore: 85 },
@@ -830,7 +830,7 @@ export class AppendixGeneratorService {
         fallacyType: 'Ảo tưởng dòng tiền ngoại sinh',
         slideActionProposal: 'Bổ sung bảng phân bổ chi phí tối thiểu theo tháng (Bootstrapping Burn Rate) bảo đảm dự án duy trì 6 tháng.',
         recommendedSlideTitle: 'Slide Phụ lục F1: Kế hoạch Sinh tồn Tự lực (Bootstrapping Runway)',
-        sampleDefenseArgument: 'Thưa Thầy/Cô, trong kịch bản xấu nhất 6 tháng đầu chưa phát sinh doanh thu, nhóm kích hoạt kịch bản sinh tồn tự lực (Bootstrapping Runway) với chi phí cố định tối thiểu 4.5 triệu/tháng. Đội ngũ tự túc quỹ dự phòng 30 triệu, đủ sức cầm cự an toàn 6 tháng để hoàn thiện sản phẩm và chinh phục 50 khách hàng trả phí đầu tiên.',
+        sampleDefenseArgument: 'Dạ thưa Thầy/Cô, trong kịch bản xấu nhất 6 tháng đầu chưa phát sinh doanh thu, nhóm kích hoạt kịch bản sinh tồn tự lực (Bootstrapping Runway) với chi phí cố định tối thiểu 4.5 triệu/tháng. Đội ngũ tự túc quỹ dự phòng 30 triệu, đủ sức cầm cự an toàn 6 tháng để hoàn thiện sản phẩm và chinh phục 50 khách hàng trả phí đầu tiên. Xin kính mời Thầy/Cô cùng nhìn lên Slide Phụ lục F1 để thẩm định kế hoạch chi tiết.',
         isDocxGrounded: false,
         hpImpact: -15,
         score: { directness: 40, factualBacking: 35, intellectualHonesty: 50, overallScore: 42 },
@@ -847,7 +847,7 @@ export class AppendixGeneratorService {
         fallacyType: 'Thiếu tư duy phòng thủ phần mềm (Defensive Design Gap)',
         slideActionProposal: 'Thiết kế cơ chế lưu trữ đệm tại thiết bị đầu cuối và tự động đồng bộ khi có kết nối trở lại.',
         recommendedSlideTitle: 'Slide Phụ lục T2: Sơ đồ Khối Cơ chế Dự phòng Offline & Tái kết nối',
-        sampleDefenseArgument: 'Thưa Thầy/Cô, hệ thống được thiết kế theo nguyên lý phòng thủ phân tán: khi mạng gián đoạn hoặc API đối tác gặp sự cố, ứng dụng tự động chuyển sang chế độ Offline-first qua bộ nhớ đệm cục bộ, bảo đảm mọi thao tác của người dùng vẫn thông suốt và tự phục hồi đồng bộ ngay khi tái kết nối.',
+        sampleDefenseArgument: 'Dạ thưa Thầy/Cô, hệ thống được thiết kế theo nguyên lý phòng thủ phân tán: khi mạng gián đoạn hoặc API đối tác gặp sự cố, ứng dụng tự động chuyển sang chế độ Offline-first qua bộ nhớ đệm cục bộ, bảo đảm mọi thao tác của người dùng vẫn thông suốt và tự phục hồi đồng bộ ngay khi tái kết nối. Xin phép mời Thầy/Cô theo dõi sơ đồ tại Slide Phụ lục T2.',
         isDocxGrounded: false,
         hpImpact: -10,
         score: { directness: 55, factualBacking: 50, intellectualHonesty: 60, overallScore: 55 },
@@ -864,7 +864,7 @@ export class AppendixGeneratorService {
         fallacyType: undefined,
         slideActionProposal: 'Đưa logo và trích dẫn trực tiếp từ 3 đơn vị dùng thử vào slide để tăng độ tin cậy trước Ban giám khảo.',
         recommendedSlideTitle: 'Slide Phụ lục M1: Danh sách Đơn vị Hạt giống & Bằng chứng Thu phí Thử nghiệm',
-        sampleDefenseArgument: 'Thưa Ban giám khảo, nhóm đã có 15 thư quan tâm (LOI) và 3 đơn vị đồng ý triển khai thử nghiệm có thu phí danh nghĩa, chứng minh nhu cầu thực tế từ thị trường.',
+        sampleDefenseArgument: 'Dạ thưa Ban giám khảo, nhóm đã có 15 thư quan tâm (LOI) và 3 đơn vị đồng ý triển khai thử nghiệm có thu phí danh nghĩa, chứng minh nhu cầu thực tế từ thị trường. Nhóm xin phép chuyển sang Slide Phụ lục M1 để trình bày bằng chứng văn bản cụ thể.',
         isDocxGrounded: true,
         hpImpact: 5,
         score: { directness: 85, factualBacking: 80, intellectualHonesty: 90, overallScore: 85 },

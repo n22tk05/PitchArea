@@ -145,15 +145,15 @@ const getActionStepsFallback = (bossId: JuryBossId, isDocxGrounded?: boolean): s
 const getBossDialogueFallback = (bossId?: JuryBossId): string => {
   switch (bossId) {
     case JuryBossId.FINANCE_DRAGON:
-      return 'Thưa Thầy/Cô, trong 6 tháng đầu chưa có doanh thu đột biến, dự án áp dụng chiến lược sinh tồn tự lực (Bootstrapping Runway) với chi phí vận hành tối thiểu 5 triệu/tháng cho API và máy chủ. Đội ngũ đã trích lập quỹ dự phòng 30 triệu bảo đảm duy trì 6 tháng độc lập, không phụ thuộc vào các nguồn tài trợ chưa cam kết bên ngoài.';
+      return 'Dạ thưa Thầy/Cô, trong 6 tháng đầu chưa có doanh thu đột biến, dự án áp dụng chiến lược sinh tồn tự lực (Bootstrapping Runway) với chi phí vận hành tối thiểu 5 triệu/tháng cho API và máy chủ. Đội ngũ đã trích lập quỹ dự phòng 30 triệu bảo đảm duy trì 6 tháng độc lập, không phụ thuộc vào các nguồn tài trợ chưa cam kết bên ngoài. Xin kính mời Thầy/Cô cùng nhìn lên Slide Phụ lục F1 để theo dõi bảng dự toán chi tiết ạ.';
     case JuryBossId.TECH_SENTINEL:
-      return 'Thưa Thầy/Cô, khi mạng chập chờn hoặc API bên thứ ba mất kết nối, hệ thống kích hoạt cơ chế 2 tầng: bộ đệm Local Cache tại thiết bị đầu cuối xử lý phản hồi tức thì dưới 5ms, sau đó âm thầm tự động đồng bộ dữ liệu ngay khi mạng khôi phục, giúp người dùng không bao giờ gặp lỗi đứt gãy màn hình.';
+      return 'Dạ thưa Thầy/Cô, khi mạng chập chờn hoặc API bên thứ ba mất kết nối, hệ thống kích hoạt cơ chế 2 tầng: bộ đệm Local Cache tại thiết bị đầu cuối xử lý phản hồi tức thì dưới 5ms, sau đó âm thầm tự động đồng bộ dữ liệu ngay khi mạng khôi phục, giúp người dùng không bao giờ gặp lỗi đứt gãy màn hình. Xin phép mời Thầy/Cô xem sơ đồ kiến trúc tại Slide Phụ lục T2.';
     case JuryBossId.MARKET_SHARK:
-      return 'Thưa Ban giám khảo, theo kết quả triển khai thử nghiệm trên nhóm người dùng mục tiêu ban đầu, nhóm đã ghi nhận các khách hàng chấp nhận trả phí danh nghĩa để tiếp tục sử dụng dịch vụ, chứng minh tính khả thi chuyển đổi thương mại.';
+      return 'Dạ thưa Ban giám khảo, theo kết quả triển khai thử nghiệm trên nhóm người dùng mục tiêu ban đầu, nhóm đã ghi nhận các khách hàng chấp nhận trả phí danh nghĩa để tiếp tục sử dụng dịch vụ, chứng minh tính khả thi chuyển đổi thương mại. Xin phép mời Hội đồng theo dõi chi tiết trên Slide Phụ lục M1.';
     case JuryBossId.RISK_STRATEGIST:
-      return 'Thưa Thầy/Cô, điểm khác biệt cốt lõi của giải pháp nằm ở khả năng tối ưu hóa trải nghiệm bản địa và chi phí tiếp cận rẻ hơn 60% so với đối thủ ngoại. Nhóm đã lượng hóa ma trận so sánh 3 tính năng vượt trội cùng lộ trình 6 tháng tại Slide Phụ lục R3 để Hội đồng thẩm định.';
+      return 'Dạ thưa Thầy/Cô, điểm khác biệt cốt lõi của giải pháp nằm ở khả năng tối ưu hóa trải nghiệm bản địa và chi phí tiếp cận rẻ hơn 60% so với đối thủ ngoại. Nhóm đã lượng hóa ma trận so sánh 3 tính năng vượt trội cùng lộ trình 6 tháng tại Slide Phụ lục R3 để Hội đồng thẩm định.';
     default:
-      return 'Thưa Ban giám khảo, nhóm xin tiếp thu góp ý của Hội đồng và đã chuẩn bị các căn cứ số liệu, biểu đồ minh chứng cụ thể trong Slide phụ lục tương ứng để giải trình chi tiết.';
+      return 'Dạ thưa Thầy/Cô và Ban giám khảo, đây là bài toán trọng yếu mà nhóm đã chuẩn bị sẵn phương án ứng phó chi tiết. Nhóm xin phép mời Hội đồng nhìn lên Slide Phụ lục tương ứng với các số liệu, sơ đồ minh chứng cụ thể để làm rõ ạ.';
   }
 };
 
