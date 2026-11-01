@@ -269,6 +269,9 @@ test.describe('PITCH·ARENA COMPREHENSIVE E2E & VERIFICATION TEST MATRIX', () =>
       await page.locator('button:has-text("[ THỬ NGHIỆM VỚI ĐỀ TÀI MẪU ]")').click();
       await page.locator('button:has-text("[ TIẾN VÀO ĐẤU TRƯỜNG (BƯỚC 02) ]")').click();
 
+      await page.getByRole('button', {name: '3p 180s'}).click()
+      await page.getByRole('button', {name: '5p 300s'}).nth(1).click()
+      await expect(page.locator('text=3p Pitch + 5p Q&A')).toBeVisible()
       // Kiểm tra có hiển thị tóm tắt thông số ĐỐI THỦ và THỜI LƯỢNG
       await expect(page.locator('text=ĐỐI THỦ:')).toBeVisible();
       await expect(page.locator('text=THỜI LƯỢNG:')).toBeVisible();
@@ -399,6 +402,7 @@ test.describe('PITCH·ARENA COMPREHENSIVE E2E & VERIFICATION TEST MATRIX', () =>
       });
 
       const sync = await syncPromise;
+      console.log(sync)
       expect(sync.activeNodesCount).toBeGreaterThanOrEqual(1);
     });
 
@@ -441,6 +445,7 @@ test.describe('PITCH·ARENA COMPREHENSIVE E2E & VERIFICATION TEST MATRIX', () =>
       });
 
       const finalSync = await finalizePromise;
+      console.log(finalSync)
       expect(finalSync.hasSection6).toBe(true);
       expect(finalSync.section6Title).toContain('Khối 6:');
     });
@@ -546,20 +551,23 @@ test.describe('PITCH·ARENA COMPREHENSIVE E2E & VERIFICATION TEST MATRIX', () =>
       await expect(page.locator('text=KHIÊN TÂN THỦ: SÀN 20%')).toBeVisible();
     });
 
-    test('TC-COM-02: Candidate defense submission & HP adjustment', async () => {
+    test('TC-COM-02: Candidate defense submission & HP adjustment', async ({ page }) => {
       const fsmService = new ArenaFsmService();
       const sessionId = `test-matrix-com02-${Date.now()}`;
       const session = fsmService.getOrCreateSession(sessionId, 'doc-demo-01');
+      await page.goto('/#arena-step-4');
 
       expect(session.candidateHp).toBe(100);
-
+      await expect(page.locator('text=THANH MÁU THÍ SINH:')).toBeVisible()
       // Giả lập phán quyết trừ máu từ trọng tài
       session.candidateHp -= 15;
       expect(session.candidateHp).toBe(85);
+      await expect(page.locator('text=THANH MÁU THÍ SINH: 85%')).toBeVisible()
 
       // Giả lập phản biện xuất sắc hồi máu
       session.candidateHp = Math.min(100, session.candidateHp + 10);
       expect(session.candidateHp).toBe(95);
+      await expect(page.locator('text=THANH MÁU THÍ SINH: 95%')).toBeVisible()
     });
 
     test('TC-COM-03: Pause & Resume controls ("TẠM DỪNG" / "TIẾP TỤC")', async ({ page }) => {

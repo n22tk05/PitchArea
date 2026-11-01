@@ -11,7 +11,7 @@ import { DocumentAnalysisResult } from '@pitcharena/shared';
 
 interface ProjectWorkflowProps {
   onAnalysisComplete?: (result: DocumentAnalysisResult) => void;
-  onStepClick?: (step: 1 | 2 | 3 | 4) => void;
+  onStepClick?: (step: 1 | 2 | 3 | 4 | 5) => void;
 }
 
 export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
@@ -29,9 +29,19 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  const steps = [
+  const steps: Array<{
+    step: number;
+    targetArenaStep: 1 | 2 | 3 | 4 | 5;
+    tag: string;
+    badge: string;
+    title: string;
+    desc: string;
+    icon: typeof FileUp;
+    status: string;
+  }> = [
     {
       step: 1,
+      targetArenaStep: 1,
       tag: 'BƯỚC 01',
       badge: 'IN-MEMORY RAG',
       title: 'Nạp Dữ Liệu Đề Tài',
@@ -41,6 +51,7 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
     },
     {
       step: 2,
+      targetArenaStep: 3,
       tag: 'BƯỚC 02',
       badge: 'PITCHING STAGE',
       title: 'Thuyết Trình Đề Tài',
@@ -50,6 +61,7 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
     },
     {
       step: 3,
+      targetArenaStep: 4,
       tag: 'BƯỚC 03',
       badge: 'COMBAT ARENA',
       title: 'Phản Biện Đối Chất',
@@ -59,6 +71,7 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
     },
     {
       step: 4,
+      targetArenaStep: 5,
       tag: 'BƯỚC 04',
       badge: 'DIAGNOSTIC REPORT',
       title: 'Tổng Hợp & Đánh Giá',
@@ -104,7 +117,7 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
                 className={`flex items-center gap-2 cursor-pointer transition-colors ${
                   activeStepNum === s.step ? 'text-[#B45309]' : 'text-[#78716C]'
                 }`}
-                onClick={() => onStepClick?.(s.step as 1 | 2 | 3 | 4)}
+                onClick={() => onStepClick?.(s.targetArenaStep)}
               >
                 <span
                   className={`w-2 h-2 rounded-full ${
@@ -135,7 +148,7 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
               key={item.step}
               onMouseEnter={() => setHoveredStep(item.step)}
               onMouseLeave={() => setHoveredStep(null)}
-              onClick={() => onStepClick?.(item.step as 1 | 2 | 3 | 4)}
+              onClick={() => onStepClick?.(item.targetArenaStep)}
               className={`group relative cursor-pointer p-5 flex flex-col justify-between gap-4 select-none transition-all duration-200 ${
                 isCurrentActive
                   ? 'bg-[#FAF8F5] ring-2 ring-[#D97706] ring-inset'

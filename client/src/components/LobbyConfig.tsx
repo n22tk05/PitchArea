@@ -82,7 +82,7 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
   }, [availableBossIds, config.selectedBoss]);
 
   // WebSocket Hook
-  const { updateConfig, startCombat } = useArenaSocket(
+  const { updateConfig } = useArenaSocket(
     sessionId,
     documentData.documentId,
   );
@@ -147,7 +147,7 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
     (config.pitchDurationMinutes || 2) + (config.qaDurationMinutes || 3);
 
   const handleStart = () => {
-    startCombat();
+    updateConfig(config);
     if (onStartCombat) {
       onStartCombat(config);
     }
