@@ -37,12 +37,14 @@ interface LobbyConfigProps {
   documentData: DocumentAnalysisResult;
   onBackToUpload?: () => void;
   onStartCombat?: (config: LobbyConfigType) => void;
+  arenaSocket?: ReturnType<typeof useArenaSocket>;
 }
 
 export const LobbyConfig: React.FC<LobbyConfigProps> = ({
   documentData,
   onBackToUpload,
   onStartCombat,
+  arenaSocket,
 }) => {
   const sessionId = `session-${documentData.documentId}`;
   const [isMicModalOpen, setIsMicModalOpen] = useState<boolean>(false);
@@ -81,11 +83,12 @@ export const LobbyConfig: React.FC<LobbyConfigProps> = ({
     }
   }, [availableBossIds, config.selectedBoss]);
 
-  // WebSocket Hook
-  const { updateConfig } = useArenaSocket(
+  // WebSocket Hook: tái sử dụng arenaSocket từ ArenaPage nếu có để tránh tạo 2 kết nối thừa
+  const fallbackSocket = useArenaSocket(
     sessionId,
     documentData.documentId,
   );
+  const { updateConfig } = arenaSocket || fallbackSocket;
 
   const handleModeChange = (mode: ArenaMode) => {
     const updated = { ...config, mode };

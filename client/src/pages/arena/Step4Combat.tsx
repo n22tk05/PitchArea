@@ -82,10 +82,7 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
 
   useEffect(() => {
     if (isConnected && !hasCombatStartedRef.current) {
-      if (
-        sessionState?.fsmState === SessionFsmState.LOBBY_READY ||
-        sessionState?.fsmState === SessionFsmState.EVALUATION_REPORT
-      ) {
+      if (sessionState?.fsmState === SessionFsmState.LOBBY_READY) {
         hasCombatStartedRef.current = true;
         startCombat();
       }

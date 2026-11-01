@@ -318,6 +318,7 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
                 changeStep(3);
               }}
               onUseDemo={handleUseDemo}
+              arenaSocket={arenaSocket}
             />
           )}
 

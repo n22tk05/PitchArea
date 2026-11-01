@@ -2,12 +2,14 @@ import React from 'react';
 import { DocumentAnalysisResult, LobbyConfig as LobbyConfigType } from '@pitcharena/shared';
 import { AlertTriangle, Sparkles } from 'lucide-react';
 import { LobbyConfig } from '../../components/LobbyConfig';
+import { useArenaSocket } from '../../hooks/useArenaSocket';
 
 interface Step2LobbyProps {
   documentData: DocumentAnalysisResult | null;
   onBack: () => void;
   onNext: (config?: LobbyConfigType) => void;
   onUseDemo: () => void;
+  arenaSocket?: ReturnType<typeof useArenaSocket>;
 }
 
 export const Step2Lobby: React.FC<Step2LobbyProps> = ({
@@ -15,6 +17,7 @@ export const Step2Lobby: React.FC<Step2LobbyProps> = ({
   onBack,
   onNext,
   onUseDemo,
+  arenaSocket,
 }) => {
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
@@ -23,6 +26,7 @@ export const Step2Lobby: React.FC<Step2LobbyProps> = ({
           documentData={documentData}
           onBackToUpload={onBack}
           onStartCombat={onNext}
+          arenaSocket={arenaSocket}
         />
       ) : (
         <div className="rounded-2xl border border-[#D97706]/30 bg-[#FFFFFF] p-8 text-center flex flex-col items-center gap-4 shadow-sm">
