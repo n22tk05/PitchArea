@@ -5,11 +5,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        mono: ['"Space Mono"', 'ui-monospace', 'monospace'],
-        sans: ['"Plus Jakarta Sans"', '"Space Grotesk"', 'sans-serif'],
-        headline: ['"Outfit"', '"Space Grotesk"', 'sans-serif'],
-        pixel: ['"Silkscreen"', '"Space Mono"', 'monospace'],
-        display: ['"Outfit"', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        headline: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"Plus Jakarta Sans"', 'ui-monospace', 'monospace'],
+        pixel: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
         // PixelForge Voxel Studio Tokens
