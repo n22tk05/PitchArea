@@ -666,10 +666,6 @@ test.describe('PITCH·ARENA COMPREHENSIVE E2E & VERIFICATION TEST MATRIX', () =>
       // Kiểm tra nút tải báo cáo Markdown
       const downloadMdBtn = page.locator('button:has-text("TẢI BÁO CÁO (.MD)")');
       await expect(downloadMdBtn).toBeVisible();
-
-      // Kiểm tra nút in PDF
-      const printPdfBtn = page.locator('button:has-text("IN / XUẤT PDF")');
-      await expect(printPdfBtn).toBeVisible();
     });
 
     test('TC-REP-03: Rematch / Reset Arena session returning cleanly to Step 1 or Step 2', async ({ page }) => {

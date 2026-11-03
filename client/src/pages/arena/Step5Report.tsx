@@ -9,7 +9,6 @@ import {
   RotateCcw,
   Play,
   Download,
-  Printer,
   ShieldCheck,
   ShieldAlert,
   Award,
@@ -221,11 +220,6 @@ export const Step5Report: React.FC<Step5ReportProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  // 3. Chức năng In / Xuất PDF
-  const handlePrintPdf = () => {
-    window.print();
-  };
-
   return (
     <div className="flex flex-col gap-6 animate-fadeIn pb-12 font-mono text-[#1C1917]">
       {/* 1. Header Báo cáo & Hành động */}
@@ -257,16 +251,6 @@ export const Step5Report: React.FC<Step5ReportProps> = ({
           >
             <Download className="w-4 h-4 text-[#D97706]" />
             <span>TẢI BÁO CÁO (.MD)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handlePrintPdf}
-            className="px-4 py-2.5 bg-[#FAF8F5] text-[#1C1917] font-mono text-xs font-bold border border-[#D97706]/35 rounded-xl shadow-xs hover:bg-[#FEF3C7] hover:text-[#92400E] active:translate-x-0.5 flex items-center gap-2 transition-all cursor-pointer"
-            title="In hoặc lưu dạng PDF"
-          >
-            <Printer className="w-4 h-4 text-[#B45309]" />
-            <span>IN / XUẤT PDF</span>
           </button>
 
           <button
