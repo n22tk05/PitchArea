@@ -115,10 +115,11 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
 
   // Gửi transcript tạm thời lên server
   useEffect(() => {
-    if (interimTranscript) {
-      submitTranscript(interimTranscript, false);
+    const liveText = (transcript + (interimTranscript ? ' ' + interimTranscript : '')).trim();
+    if (liveText) {
+      submitTranscript(liveText, false);
     }
-  }, [interimTranscript, submitTranscript]);
+  }, [transcript, interimTranscript, submitTranscript]);
 
   // KHI HẾT GIỜ (turnRemainingSeconds === 0)
   useEffect(() => {
@@ -144,8 +145,9 @@ export const Step4Combat: React.FC<Step4CombatProps> = ({
   const handleToggleRecord = () => {
     if (isRecording) {
       stopRecording();
-      if (transcript) {
-        submitTranscript(transcript, true);
+      const liveText = (transcript + (interimTranscript ? ' ' + interimTranscript : '')).trim();
+      if (liveText) {
+        submitTranscript(liveText, true);
       }
     } else {
       startRecording();

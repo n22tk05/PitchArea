@@ -128,7 +128,12 @@ export function useAudioRecorder({
   const wordSamplesRef = useRef<{ timestamp: number; wordCount: number }[]>([]);
   const lastWpmRef = useRef<number>(0);
   const finalTranscriptRef = useRef<string>('');
+  const sessionBaseTranscriptRef = useRef<string>('');
+  const interimTranscriptRef = useRef<string>('');
   const isRecordingRef = useRef<boolean>(false);
+
+  // Phân biệt chế độ Pitching (Step 3 có onPitchChunk) và Đấu trường đối chất (Step 4 không dùng chunking)
+  const isPitchMode = Boolean(onPitchChunk);
 
   // Streaming Pitch Segmenter Refs (FR-01, FR-02)
   const sequenceIdRef = useRef<number>(0);
@@ -142,8 +147,9 @@ export function useAudioRecorder({
   const onPitchChunkRef = useRef(onPitchChunk);
   onPitchChunkRef.current = onPitchChunk;
 
-  // Hàm phát chunk an toàn lên tầng socket
+  // Hàm phát chunk an toàn lên tầng socket (Chỉ áp dụng cho Step 3 Pitching)
   const emitCurrentChunk = useCallback((isFinalChunk = false) => {
+    if (!isPitchMode) return;
     const rawText = chunkBufferRef.current.trim();
     if (!rawText) return;
 
@@ -172,6 +178,7 @@ export function useAudioRecorder({
 
   // Xả sạch buffer dứt điểm khi người dùng bấm [KẾT THÚC THUYẾT TRÌNH]
   const flushRemainingBuffer = useCallback(() => {
+    if (!isPitchMode) return;
     if (autoFinalizeTimerRef.current) {
       clearTimeout(autoFinalizeTimerRef.current);
       autoFinalizeTimerRef.current = null;
@@ -192,11 +199,11 @@ export function useAudioRecorder({
       pauseTimerRef.current = null;
     }
     emitCurrentChunk(true);
-  }, [emitCurrentChunk]);
+  }, [emitCurrentChunk, isPitchMode]);
 
   // Bộ lập lịch phân đoạn Hybrid (Pausing Gate 1.0s + Hard Ceiling 25 từ / 6s)
   const scheduleChunkSegmentation = useCallback((newText: string) => {
-    if (!newText.trim()) return;
+    if (!isPitchMode || !newText.trim()) return;
 
     chunkBufferRef.current = (chunkBufferRef.current + ' ' + newText).trim();
     const words = chunkBufferRef.current.split(/\s+/).filter(Boolean);
@@ -290,6 +297,8 @@ export function useAudioRecorder({
       wordSamplesRef.current = [];
       lastWpmRef.current = 0;
       finalTranscriptRef.current = '';
+      sessionBaseTranscriptRef.current = '';
+      interimTranscriptRef.current = '';
       committedSessionTextRef.current = '';
       if (autoFinalizeTimerRef.current) {
         clearTimeout(autoFinalizeTimerRef.current);
@@ -405,6 +414,57 @@ export function useAudioRecorder({
           };
 
           recognition.onresult = (event: any) => {
+            // =================================================================
+            // CHẾ ĐỘ 1: ĐỐI CHẤT/HỎI ĐÁP (STEP 4 & CÁC BƯỚC KHÔNG PHẢI PITCHING)
+            // =================================================================
+            // Tích lũy chuẩn Web Speech API: Không force-commit sớm qua timer 1.0s,
+            // Không ngắt câu theo nhịp thở của Pitching, chống lặp triệt để.
+            if (!isPitchMode) {
+              let currentFinal = '';
+              let currentInterim = '';
+
+              for (let i = 0; i < event.results.length; ++i) {
+                const res = event.results[i];
+                if (res && res[0]) {
+                  const part = res[0].transcript || '';
+                  if (res.isFinal) {
+                    currentFinal = (currentFinal + ' ' + part).trim();
+                  } else {
+                    currentInterim = (currentInterim + ' ' + part).trim();
+                  }
+                }
+              }
+
+              // Tổng hợp phần chốt phiên trước đó + phần chốt trong phiên hiện tại
+              const totalFinal = sessionBaseTranscriptRef.current
+                ? (currentFinal ? `${sessionBaseTranscriptRef.current} ${currentFinal}` : sessionBaseTranscriptRef.current).trim()
+                : currentFinal.trim();
+
+              finalTranscriptRef.current = totalFinal;
+              interimTranscriptRef.current = currentInterim;
+              setTranscript(totalFinal);
+              setInterimTranscript(currentInterim);
+
+              const fullCurrentText = (totalFinal + (currentInterim ? ' ' + currentInterim : '')).trim();
+              const currentWords = fullCurrentText ? fullCurrentText.split(/\s+/).filter(Boolean).length : 0;
+              wordsCountRef.current = currentWords;
+
+              const now = Date.now();
+              if (currentWords > 0) {
+                lastSpokenTimestampRef.current = now;
+                setIsSilent(false);
+                onTranscriptChange?.(fullCurrentText, Boolean(currentFinal && !currentInterim));
+              } else if (currentInterim) {
+                lastSpokenTimestampRef.current = now;
+                setIsSilent(false);
+                onTranscriptChange?.(currentInterim, false);
+              }
+              return;
+            }
+
+            // =================================================================
+            // CHẾ ĐỘ 2: PITCHING STREAMING (BƯỚC 03 - onPitchChunk active)
+            // =================================================================
             let rawInterim = '';
             let rawFinal = '';
 
@@ -565,6 +625,19 @@ export function useAudioRecorder({
           // Khi Web Speech API tự ngắt (do hết buffer, ngắt nghỉ câu): Khởi tạo instance mới lập tức nếu đang thu
           recognition.onend = () => {
             if (isRecordingRef.current) {
+              if (!isPitchMode) {
+                // Trong Step 4: Bảo toàn toàn bộ kết quả đã chốt làm base cho phiên tiếp theo
+                if (finalTranscriptRef.current) {
+                  sessionBaseTranscriptRef.current = finalTranscriptRef.current;
+                }
+                setTimeout(() => {
+                  if (isRecordingRef.current) {
+                    startSpeechRecognition();
+                  }
+                }, 80);
+                return;
+              }
+
               if (autoFinalizeTimerRef.current) {
                 clearTimeout(autoFinalizeTimerRef.current);
                 autoFinalizeTimerRef.current = null;
@@ -576,6 +649,7 @@ export function useAudioRecorder({
                 ).trim();
                 setTranscript(finalTranscriptRef.current);
                 setInterimTranscript('');
+                interimTranscriptRef.current = '';
                 pendingInterimRef.current = '';
                 scheduleChunkSegmentation(textToCommit);
               }
@@ -607,19 +681,23 @@ export function useAudioRecorder({
           : err?.message || 'Không thể kết nối với thiết bị Microphone.';
       setSpeechError(errMsg);
     }
-  }, [onTranscriptChange, onVadSilenceAlert, vadThresholdSec]);
+  }, [isPitchMode, onPitchChunk, onTranscriptChange, onVadSilenceAlert, vadThresholdSec]);
 
   // Cập nhật transcript thủ công (ví dụ gõ phím hoặc dán văn bản pitch)
   const setManualTranscript = useCallback(
     (text: string) => {
       finalTranscriptRef.current = text;
+      sessionBaseTranscriptRef.current = text;
       setTranscript(text);
       setInterimTranscript('');
+      interimTranscriptRef.current = '';
       const words = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
       wordsCountRef.current = words;
-      scheduleChunkSegmentation(text);
+      if (isPitchMode) {
+        scheduleChunkSegmentation(text);
+      }
     },
-    [scheduleChunkSegmentation]
+    [isPitchMode, scheduleChunkSegmentation]
   );
 
   // Dừng thu âm
@@ -651,6 +729,22 @@ export function useAudioRecorder({
         // Ignored
       }
     }
+
+    if (!isPitchMode) {
+      // Trong Step 4: Nếu còn phần interim chưa chốt, gom nốt vào transcript
+      const pending = interimTranscriptRef.current.trim();
+      if (pending) {
+        finalTranscriptRef.current = (
+          (finalTranscriptRef.current ? finalTranscriptRef.current + ' ' : '') + pending
+        ).trim();
+        setTranscript(finalTranscriptRef.current);
+        setInterimTranscript('');
+        interimTranscriptRef.current = '';
+      }
+      sessionBaseTranscriptRef.current = finalTranscriptRef.current;
+      return;
+    }
+
     if (autoFinalizeTimerRef.current) {
       clearTimeout(autoFinalizeTimerRef.current);
       autoFinalizeTimerRef.current = null;
@@ -662,6 +756,7 @@ export function useAudioRecorder({
       ).trim();
       setTranscript(finalTranscriptRef.current);
       setInterimTranscript('');
+      interimTranscriptRef.current = '';
       pendingInterimRef.current = '';
       scheduleChunkSegmentation(textToCommit);
     }
@@ -670,7 +765,7 @@ export function useAudioRecorder({
       clearTimeout(pauseTimerRef.current);
       pauseTimerRef.current = null;
     }
-  }, [scheduleChunkSegmentation]);
+  }, [isPitchMode, scheduleChunkSegmentation]);
 
   // Xóa sạch dữ liệu transcript và bộ đệm lời nói để chuẩn bị cho câu hỏi mới
   const resetTranscript = useCallback(() => {
@@ -679,10 +774,12 @@ export function useAudioRecorder({
       autoFinalizeTimerRef.current = null;
     }
     committedSessionTextRef.current = '';
-    setTranscript('');
-    setInterimTranscript('');
+    sessionBaseTranscriptRef.current = '';
     finalTranscriptRef.current = '';
     pendingInterimRef.current = '';
+    interimTranscriptRef.current = '';
+    setTranscript('');
+    setInterimTranscript('');
     wordsCountRef.current = 0;
     wordSamplesRef.current = [];
     lastWpmRef.current = 0;

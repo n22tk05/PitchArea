@@ -250,7 +250,8 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
   const handleDefenseSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isFrozen || isPaused) return;
-    const text = manualDefenseText.trim() || interimTranscript.trim();
+    const liveSpeechText = (transcript + (interimTranscript ? ' ' + interimTranscript : '')).trim();
+    const text = manualDefenseText.trim() || liveSpeechText;
     if (text) {
       onSubmitDefense(text);
       setManualDefenseText('');
@@ -485,14 +486,21 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
           <div className="relative">
             <textarea
               rows={3}
-              value={manualDefenseText}
+              value={
+                manualDefenseText !== ''
+                  ? manualDefenseText
+                  : transcript
+                  ? `${transcript}${interimTranscript ? ' ' + interimTranscript : ''}`
+                  : interimTranscript || ''
+              }
               onChange={(e) => setManualDefenseText(e.target.value)}
               placeholder="Nói vào micro hoặc gõ luận điểm phản biện trực tiếp vào đây..."
               className="w-full bg-[#FAF8F5] border border-[#D97706]/30 rounded-xl p-3.5 text-xs text-[#1C1917] placeholder-[#A8A29E] focus:outline-none focus:border-[#B45309] resize-none font-sans shadow-xs"
             />
             {interimTranscript && (
-              <div className="text-xs text-[#B45309] italic px-3.5 pb-2.5 bg-[#FAF8F5] border-x border-b border-[#D97706]/30 rounded-b-xl">
-                Đang nhận diện giọng nói: {interimTranscript}...
+              <div className="text-xs text-[#B45309] italic px-3.5 pb-2.5 bg-[#FAF8F5] border-x border-b border-[#D97706]/30 rounded-b-xl flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping inline-block" />
+                <span>Đang nhận diện giọng nói: {interimTranscript}...</span>
               </div>
             )}
           </div>
@@ -512,7 +520,11 @@ export const ArenaStage: React.FC<ArenaStageProps> = ({
 
             <button
               type="submit"
-              disabled={isFrozen || isPaused || (!manualDefenseText.trim() && !interimTranscript.trim())}
+              disabled={
+                isFrozen ||
+                isPaused ||
+                (!manualDefenseText.trim() && !transcript.trim() && !interimTranscript.trim())
+              }
               className="px-6 py-2.5 bg-[#B45309] hover:bg-[#92400E] text-white font-pixel font-bold text-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer shadow-xs rounded-xl transition-all"
             >
               <span>NỘP BÀI PHẢN BIỆN (SUBMIT)</span>

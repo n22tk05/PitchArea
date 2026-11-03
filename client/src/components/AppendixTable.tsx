@@ -164,33 +164,25 @@ const cleanWinningDialogue = (text?: string, bossId?: JuryBossId): string => {
   if (!text) return getBossDialogueFallback(bossId);
   let cleaned = text.trim();
 
-  // Nếu chứa đoạn trích dẫn có ngoặc kép "Thưa Thầy/Cô...", ưu tiên bóc tách nội dung bên trong
-  const quoteMatch = cleaned.match(/"([^"]+)"/s);
-  if (quoteMatch && quoteMatch[1] && quoteMatch[1].length > 15) {
-    return quoteMatch[1].trim();
-  }
-
-  // Nếu chứa chỉ dấu như "CÂU TRẢ LỜI MẪU...:", chỉ lấy phần sau đó
+  // 1. Nếu chứa chỉ dấu như "CÂU TRẢ LỜI MẪU...:", chỉ lấy phần sau đó
   const markerMatch = cleaned.match(/(?:CÂU TRẢ LỜI MẪU[^:]*:\s*)([\s\S]+)$/i);
   if (markerMatch && markerMatch[1]) {
     cleaned = markerMatch[1].trim();
   }
 
-  // Loại bỏ ngoặc kép bao ngoài nếu có
+  // 2. Loại bỏ ngoặc kép bao ngoài toàn bộ câu nếu có
   cleaned = cleaned.replace(/^["'“”]+|["'“”]+$/g, '').trim();
 
-  // Loại bỏ lời dẫn giải meta nếu có Thưa Thầy/Cô hoặc Thưa Ban giám khảo ở giữa
-  const thucThayCoIdx = cleaned.indexOf('Thưa Thầy/Cô');
-  if (thucThayCoIdx > 0) {
-    cleaned = cleaned.slice(thucThayCoIdx).trim();
-  }
-  const thucBanGiamKhaoIdx = cleaned.indexOf('Thưa Ban giám khảo');
-  if (thucBanGiamKhaoIdx > 0) {
-    cleaned = cleaned.slice(thucBanGiamKhaoIdx).trim();
+  // 3. Loại bỏ lời dẫn giải meta phía trước nếu tìm thấy lời thoại bắt đầu từ "Dạ thưa", "Thưa Thầy/Cô", "Kính thưa"
+  const daThuaMatch = cleaned.search(/(?:Dạ thưa|Thưa Thầy\/Cô|Thưa Ban giám khảo|Thưa Shark|Kính thưa)/i);
+  if (daThuaMatch > 0) {
+    cleaned = cleaned.slice(daThuaMatch).trim();
   }
 
-  // Nếu chuỗi vẫn chứa định dạng meta cũ của reviewer ("Trong file Word...", "Đề xuất bạn...") thì dùng lời thoại chuẩn
+  // 4. Tuyệt đối không dùng regex cắt tại ngoặc kép bên trong câu (tránh bẫy bóc nhầm tiêu đề mục trong ngoặc kép)
+  // Nếu chuỗi quá ngắn (< 35 ký tự) hoặc chỉ là tiêu đề section bị trích cụt -> dùng câu trả lời chuẩn mực đầy đủ
   if (
+    cleaned.length < 35 ||
     cleaned.startsWith('Trong file Word') ||
     cleaned.startsWith('Trong tài liệu') ||
     cleaned.includes('Đề xuất bạn:') ||
