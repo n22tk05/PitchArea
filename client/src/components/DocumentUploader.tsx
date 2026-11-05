@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Loader2,
   RefreshCw,
+  Download,
 } from 'lucide-react';
 import { DocumentAnalysisResult } from '@pitcharena/shared';
 import { uploadDocumentApi } from '../api';
@@ -197,6 +198,23 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                 <p className="font-sans text-xs text-[#78716C]">
                   Mô tả đề tài / Slide thuyết trình Word (Tối đa 20MB)
                 </p>
+              </div>
+
+              {/* Tải tệp mẫu xem trước */}
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1.5 text-xs font-sans text-[#78716C] bg-[#FFFFFF] px-3 py-1.5 rounded-lg border border-[#D97706]/25 shadow-2xs z-10"
+              >
+                <span>Chưa có tệp?</span>
+                <a
+                  href="/samples/Thuyet_Minh_De_Tai_AI_Medical_Assistant.docx"
+                  download="Thuyet_Minh_De_Tai_AI_Medical_Assistant.docx"
+                  className="font-bold text-[#B45309] hover:text-[#92400E] underline flex items-center gap-1 cursor-pointer"
+                  title="Tải tệp mẫu MedTech AI .docx về máy tính"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#D97706]" />
+                  <span>Tải tệp mẫu .docx để xem</span>
+                </a>
               </div>
 
               {errorMessage && (

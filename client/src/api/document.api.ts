@@ -55,3 +55,13 @@ export async function checkServerHealthApi(): Promise<{ status: string }> {
   const response = await apiClient.get<{ status: string }>('/api/documents/health');
   return response.data;
 }
+
+/**
+ * Lấy URL tải tệp tài liệu mẫu .docx
+ */
+export function getSampleDocumentDownloadUrl(serverUrl?: string): string {
+  if (serverUrl) {
+    return `${serverUrl.replace(/\/$/, '')}/api/documents/sample/download`;
+  }
+  return '/samples/Thuyet_Minh_De_Tai_AI_Medical_Assistant.docx';
+}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { DocumentAnalysisResult } from '@pitcharena/shared';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Download } from 'lucide-react';
 import { DocumentUploader } from '../../components/DocumentUploader';
 
 interface Step1UploadProps {
@@ -34,16 +34,29 @@ export const Step1Upload: React.FC<Step1UploadProps> = ({
           </p>
         </div>
 
-        {!documentData && (
-          <button
-            type="button"
-            onClick={onUseDemo}
-            className="px-4 py-2.5 bg-[#FEF3C7] hover:bg-[#FDE68A] text-[#92400E] font-pixel text-xs font-bold border border-[#F59E0B]/60 rounded-xl shadow-xs active:translate-x-0.5 active:translate-y-0.5 flex items-center gap-2 transition-all cursor-pointer"
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Nút tải tài liệu đề tài mẫu .docx về máy tính để xem trước */}
+          <a
+            href="/samples/Thuyet_Minh_De_Tai_AI_Medical_Assistant.docx"
+            download="Thuyet_Minh_De_Tai_AI_Medical_Assistant.docx"
+            className="px-4 py-2.5 bg-[#FFFFFF] hover:bg-[#FEF3C7] text-[#92400E] hover:text-[#B45309] font-mono text-xs font-bold border border-[#D97706]/40 rounded-xl shadow-xs active:translate-x-0.5 active:translate-y-0.5 flex items-center gap-2 transition-all cursor-pointer"
+            title="Tải tệp Word (.docx) đề tài MedTech AI mẫu về máy tính để xem định dạng 5 khối chuẩn"
           >
-            <Sparkles className="w-4 h-4 fill-[#92400E]" />
-            <span>[ THỬ NGHIỆM VỚI ĐỀ TÀI MẪU ]</span>
-          </button>
-        )}
+            <Download className="w-4 h-4 text-[#D97706]" />
+            <span>[ TẢI TÀI LIỆU MẪU (.DOCX) ]</span>
+          </a>
+
+          {!documentData && (
+            <button
+              type="button"
+              onClick={onUseDemo}
+              className="px-4 py-2.5 bg-[#FEF3C7] hover:bg-[#FDE68A] text-[#92400E] font-pixel text-xs font-bold border border-[#F59E0B]/60 rounded-xl shadow-xs active:translate-x-0.5 active:translate-y-0.5 flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 fill-[#92400E]" />
+              <span>[ THỬ NGHIỆM VỚI ĐỀ TÀI MẪU ]</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Component Uploader kèm Danh sách 5 khối đề mục kinh doanh nằm cạnh bên */}

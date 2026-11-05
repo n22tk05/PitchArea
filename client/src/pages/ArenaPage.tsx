@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   Terminal,
+  Download,
 } from 'lucide-react';
 import { useArenaSocket } from '../hooks/useArenaSocket';
 import { GlobalMicModal } from '../components/GlobalMicModal';
@@ -222,6 +223,17 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({
               <span className="hidden sm:inline">MICROPHONE</span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             </button>
+
+            {/* Download Sample Document Button */}
+            <a
+              href="/samples/Thuyet_Minh_De_Tai_AI_Medical_Assistant.docx"
+              download="Thuyet_Minh_De_Tai_AI_Medical_Assistant.docx"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-[#FFFFFF] hover:bg-[#FEF3C7] text-[#92400E] font-mono text-[10px] font-bold rounded-lg border border-[#D97706]/40 shadow-xs active:translate-x-0.5 transition-all cursor-pointer"
+              title="Tải tệp đề tài mẫu MedTech AI (.docx) về máy tính để xem và tham khảo"
+            >
+              <Download className="w-3.5 h-3.5 text-[#B45309]" />
+              <span>TẢI TÀI LIỆU MẪU (.DOCX)</span>
+            </a>
 
             {/* Demo Button */}
             {!documentData && (

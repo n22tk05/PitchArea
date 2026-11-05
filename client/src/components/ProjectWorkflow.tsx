@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   ArrowRight,
   Sparkles,
+  Download,
 } from 'lucide-react';
 import { DocumentAnalysisResult } from '@pitcharena/shared';
 
@@ -201,6 +202,21 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
                 <p className="font-sans text-xs text-[#57534E] leading-relaxed">
                   {item.desc}
                 </p>
+
+                {item.step === 1 && (
+                  <div className="pt-1">
+                    <a
+                      href="/samples/Thuyet_Minh_De_Tai_AI_Medical_Assistant.docx"
+                      download="Thuyet_Minh_De_Tai_AI_Medical_Assistant.docx"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 font-mono text-[10px] text-[#B45309] hover:text-[#92400E] font-bold underline cursor-pointer"
+                      title="Tải tệp mẫu .docx về máy tính"
+                    >
+                      <Download className="w-3 h-3 text-[#D97706]" />
+                      <span>[Tải tệp mẫu .docx để xem]</span>
+                    </a>
+                  </div>
+                )}
               </div>
 
               {/* Bottom Status Indicator */}
